@@ -1,5 +1,12 @@
+__precompile__()
+
 module JAXTAM
 
-# package code goes here
+using DataFrames
+using FileIO
+using CSVFiles
+using Query
 
-end # module
+include("io/master_tables.jl")
+
+end
