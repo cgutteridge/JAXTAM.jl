@@ -1,4 +1,4 @@
-function master_load(master_path::String)
+function _master_load(master_path::String)
     master_ascii = readdlm(master_path, '\n')
 
     data_start = Int(find(master_ascii .== "<DATA>")[1] + 1)
@@ -40,6 +40,15 @@ function master_load(master_path::String)
     sort!(master_df, :public_date)
 
     return master_df
+end
+
+function master_load(mission_name::String)
+    mission_path = _config_mission_path(mission_name)
+    master_path = string(mission_path, "master.tdat")
+
+    info("Loading $master_path")
+
+    return _master_load(master_path)
 end
 
 function master_query(master_df::DataFrame, key_type::Symbol, key_value::Any)
