@@ -1,0 +1,48 @@
+function _config_gen(config_path=string(pwd(), "/user_configs.jld2"))
+    if isfile(config_path)
+        rm(config_path)
+    end
+
+    info("Creating config file at: $config_path")
+    config_data = Dict("config_edit_date" => string(Dates.DateTime(now())))
+
+    save(config_path, Dict("config_data" => config_data))
+end
+
+function _config_load(config_path=string(pwd(), "/user_configs.jld2"))
+    return load(config_path, "config_data")
+end
+
+function _config_edit(mission_name::String, mission_path::String;
+        config_path=string(pwd(), "/user_configs.jld2"))
+
+    if !isfile(config_path)
+        _config_gen(config_path)
+    end
+
+    config_data = _config_load(config_path)
+
+    config_data[mission_name] = mission_path
+
+    save(config_path, Dict("config_data" => config_data))
+end
+
+function _config_rm(mission_name::String;
+        config_path=string(pwd(), "/user_configs.jld2"))
+
+    if !isfile(config_path)
+        _config_gen(config_path)
+    end
+
+    config_data = _config_load(config_path)
+
+    delete!(config_data, mission_name)
+
+    save(config_path, Dict("config_data" => config_data))
+end
+
+function _config_mission_path(mission_name, config_path=string(pwd(), "/user_configs.jld2"))
+    config_data = _config_load(config_path)
+
+    return config_data[mission_name]
+end
