@@ -18,7 +18,7 @@ function _master_read_tdat(master_path::String)
     deleterows!(master_df, 1) # Remove row, only made to get column names
 
     for (row_i, row) in enumerate(master_ascii_data)
-        obs_values = split(row, "|")[1:end-1] # Split row by | delims
+        obs_values = split(row, "|")[1:end - 1] # Split row by | delims
 
         if length(obs_values) != no_cols # Some rows don't have the proper no. of columns, skip them
             warn("Skipped row $row_i due to malformed columns, ObsID: $(obs_values[key_obsid])")
