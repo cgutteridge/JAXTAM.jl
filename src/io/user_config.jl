@@ -4,7 +4,7 @@ function _config_gen(config_path=string(pwd(), "/user_configs.jld2"))
     end
 
     info("Creating config file at: $config_path")
-    config_data = Dict("config_edit_date" => string(Dates.DateTime(now())))
+    config_data = Dict("_config_edit_date" => string(Dates.DateTime(now())))
 
     save(config_path, Dict("config_data" => config_data))
 end
@@ -22,6 +22,7 @@ function _config_edit(mission_name::String, mission_path::String;
 
     config_data = _config_load(config_path)
 
+    config_data["_config_edit_date"] = string(Dates.DateTime(now()))
     config_data[mission_name] = mission_path
 
     save(config_path, Dict("config_data" => config_data))
@@ -37,12 +38,13 @@ function _config_rm(mission_name::String;
     config_data = _config_load(config_path)
 
     delete!(config_data, mission_name)
+    config_data["_config_edit_date"] = string(Dates.DateTime(now()))
 
     save(config_path, Dict("config_data" => config_data))
 end
 
-function _config_mission_path(mission_name, config_path=string(pwd(), "/user_configs.jld2"))
+function _config_mission_path(mission_name::Union{String,Symbol}, config_path=string(pwd(), "/user_configs.jld2"))
     config_data = _config_load(config_path)
 
-    return config_data[mission_name]
+    return config_data[string(mission_name)]
 end
