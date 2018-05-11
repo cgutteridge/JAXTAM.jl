@@ -48,3 +48,22 @@ function _config_mission_path(mission_name::Union{String,Symbol}, config_path=st
 
     return config_data[string(mission_name)]
 end
+
+function config()
+    return _config_load()
+end
+
+function config(mission_name::Union{String,Symbol}, mission_path::String)
+    _config_edit(String(mission_name), mission_path)
+    return _config_load()
+end
+
+function config(mission_name::Union{String,Symbol})
+    return _config_load()[String(mission_name)]
+end
+
+function config_rm(mission_name::Union{String,Symbol})
+    info("Removing \"$mission_name => $(_config_load()[String(mission_name)])\" from config file")
+    _config_rm(String(mission_name))
+    return _config_load()
+end
