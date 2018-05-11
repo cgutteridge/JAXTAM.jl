@@ -46,7 +46,7 @@ function _master_save(master_path_jld2, master_data)
     save(master_path_jld2, Dict("master_data" => master_data))
 end
 
-function master_load(mission_name::Union{String,Symbol})
+function master(mission_name::Union{String,Symbol})
     mission_path = _config_mission_path(mission_name)
     master_path_tdat = string(mission_path, "master.tdat")
     master_patj_jld2 = string(mission_path, "master.jld2")
@@ -60,6 +60,17 @@ function master_load(mission_name::Union{String,Symbol})
         info("Saving $master_patj_jld2")
         _master_save(master_patj_jld2, master_data)
         return master_data
+    end
+end
+
+function master()
+    config = _config_load()
+
+    if "default" in keys(config)
+        info("Using default mission - $(config["default"])")
+        return master_load(config["default"])
+    else
+        error("Default mission not found, set with config(:default, :default_mission_name)")
     end
 end
 
