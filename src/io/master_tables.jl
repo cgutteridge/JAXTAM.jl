@@ -1,4 +1,4 @@
-function _master_load(master_path::String)
+function _master_read_tdat(master_path::String)
     master_ascii = readdlm(master_path, '\n')
 
     data_start = Int(find(master_ascii .== "<DATA>")[1] + 1)
@@ -42,13 +42,25 @@ function _master_load(master_path::String)
     return master_df
 end
 
-function master_load(mission_name::String)
+function _master_save(master_path_jld2, master_data)
+    save(master_path_jld2, Dict("master_data" => master_data))
+end
+
+function master_load(mission_name::Union{String,Symbol})
     mission_path = _config_mission_path(mission_name)
-    master_path = string(mission_path, "master.tdat")
+    master_path_tdat = string(mission_path, "master.tdat")
+    master_patj_jld2 = string(mission_path, "master.jld2")
 
-    info("Loading $master_path")
-
-    return _master_load(master_path)
+    if isfile(master_patj_jld2)
+        info("Loading $master_patj_jld2")
+        return load(master_patj_jld2)["master_data"]
+    elseif isfile(master_path_tdat)
+        info("Loading $(master_path_tdat))")
+        master_data = _master_read_tdat(master_path_tdat)
+        info("Saving $master_patj_jld2")
+        _master_save(master_patj_jld2, master_data)
+        return master_data
+    end
 end
 
 function master_query(master_df::DataFrame, key_type::Symbol, key_value::Any)
