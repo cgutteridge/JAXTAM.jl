@@ -1,3 +1,10 @@
+"""
+    _master_read_tdat(master_path::String)
+
+Reads a raw `.tdat` table from HEASARC mastertable archives,
+parses the ASCII data, finds and stores column names, cleans punctuation,
+converts to `DataFrame`, and finally returns cleaned table as `DataFrame`
+"""
 function _master_read_tdat(master_path::String)
     master_ascii = readdlm(master_path, '\n')
 
@@ -42,12 +49,24 @@ function _master_read_tdat(master_path::String)
     return master_df
 end
 
+"""
+    _master_save(master_path_jld2, master_data)
+
+Saves the `DataFrame` master table to a `.jld2` file, under the
+key `master_data`
+"""
 function _master_save(master_path_jld2, master_data)
     save(master_path_jld2, Dict("master_data" => master_data))
 end
 
+"""
+    master(mission_name::Union{String,Symbol})
+
+Reads in a previously created `.jld2` master table for a specific `mission_name`
+using a path provided by `_config_key_value(mission_name)`
+"""
 function master(mission_name::Union{String,Symbol})
-    mission_path = _config_mission_path(mission_name)
+    mission_path = _config_key_value(mission_name)
     master_path_tdat = string(mission_path, "master.tdat")
     master_patj_jld2 = string(mission_path, "master.jld2")
 
@@ -63,6 +82,11 @@ function master(mission_name::Union{String,Symbol})
     end
 end
 
+"""
+    master()
+
+Loads a default mission, if one is set, otherwise throws error
+"""
 function master()
     config = _config_load()
 
@@ -74,6 +98,16 @@ function master()
     end
 end
 
+
+"""
+    master_query(master_df::DataFrame, key_type::Symbol, key_value::Any)
+
+
+Wrapper for a query, takes in an already loaded DataFrame `master_df`, a `key_type` to
+search over (e.g. `obsid`), and a `key_value` to find (e.g. `0123456789`)
+
+Returns the full row for any observations matching the search criteria
+"""
 function master_query(master_df::DataFrame, key_type::Symbol, key_value::Any)
     observations = @from row in master_df begin
         @where eval(Expr(:call, ==, getfield(row, key_type), key_value))
