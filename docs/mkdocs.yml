@@ -1,7 +1,7 @@
 site_name:        JAXTAM.jl
-repo_url:         https://github.com/robertrosca/JAXTAM.jl
+repo_url:         https://github.com/RobertRosca/JAXTAM.jl
 site_description: Just Another X-ray Timing Analysis Module
-site_author:      robertrosca
+site_author:      RobertRosca
 
 theme: readthedocs
 
