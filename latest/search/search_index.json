@@ -1,0 +1,14 @@
+{
+    "docs": [
+        {
+            "location": "/", 
+            "text": "JAXTAM.jl Documentation\n\n\n#\n\n\nJAXTAM._config_gen\n \n \nFunction\n.\n\n\n_config_gen(config_path::String=string(pwd(), \n/user_configs.jld2\n))\n\n\n\n\nGenerates a user configuration file at \nconfig_path\n, by default, file is placed in the JAXTAM module dir.\n\n\nConfig file is \n/user_configs.jld2\n, excluded from git.\n\n\nsource", 
+            "title": "Home"
+        }, 
+        {
+            "location": "/#jaxtamjl-documentation", 
+            "text": "#  JAXTAM._config_gen     Function .  _config_gen(config_path::String=string(pwd(),  /user_configs.jld2 ))  Generates a user configuration file at  config_path , by default, file is placed in the JAXTAM module dir.  Config file is  /user_configs.jld2 , excluded from git.  source", 
+            "title": "JAXTAM.jl Documentation"
+        }
+    ]
+}
