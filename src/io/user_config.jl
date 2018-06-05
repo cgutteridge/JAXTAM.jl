@@ -1,4 +1,12 @@
-function _config_gen(config_path=string(pwd(), "/user_configs.jld2"))
+"""
+    _config_gen(config_path::String=string(pwd(), "/user_configs.jld2"))
+
+Generates a user configuration file at `config_path`,
+by default, file is placed in the JAXTAM module dir.
+
+Config file is `/user_configs.jld2`, excluded from git.
+"""
+function _config_gen(config_path::String=string(pwd(), "/user_configs.jld2"))
     if isfile(config_path)
         rm(config_path)
     end
