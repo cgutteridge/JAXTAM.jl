@@ -1,5 +1,7 @@
 # JAXTAM
 
+[![](https://img.shields.io/badge/docs-latest-blue.svg)](https://robertrosca.github.io/JAXTAM.jl/latest)
+
 [![Build Status](https://travis-ci.org/robertrosca/JAXTAM.jl.svg?branch=master)](https://travis-ci.org/robertrosca/JAXTAM.jl)
 
 [![Coverage Status](https://coveralls.io/repos/robertrosca/JAXTAM.jl/badge.svg?branch=master&service=github)](https://coveralls.io/github/robertrosca/JAXTAM.jl?branch=master)
