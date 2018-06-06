@@ -59,7 +59,7 @@
         
             <li><a class="toctree-l3" href="#io">IO</a></li>
         
-            <li><a class="toctree-l3" href="#master-table-management">Master Table Management</a></li>
+            <li><a class="toctree-l3" href="#api">API</a></li>
         
         </ul>
     
@@ -107,7 +107,7 @@
 <ul>
 <li><a href=".#JAXTAM.jl-Documentation-1">JAXTAM.jl Documentation</a><ul>
 <li><a href=".#IO-1">IO</a></li>
-<li><a href=".#Master-Table-Management-1">Master Table Management</a></li>
+<li><a href=".#API-1">API</a></li>
 </ul>
 </li>
 </ul>
@@ -115,98 +115,45 @@
 <h2 id="io">IO</h2>
 <p><a id='User-Configuration-1'></a></p>
 <h3 id="user-configuration">User Configuration</h3>
-<p><a id='JAXTAM._config_gen' href='#JAXTAM._config_gen'>#</a>
-<strong><code>JAXTAM._config_gen</code></strong> &mdash; <em>Function</em>.</p>
-<pre><code>_config_gen(config_path::String=string(pwd(), &quot;/user_configs.jld2&quot;))
-</code></pre>
-
-<p>Generates a user configuration file at <code>config_path</code>, by default, file is placed in the JAXTAM module dir.</p>
-<p>Config file is <code>/user_configs.jld2</code>, excluded from git.</p>
-<p><a target='_blank' href='https://github.com/RobertRosca/JAXTAM.jl/blob/4cdbc8cf2ca4c60c4a13b628ef5b086a99a4ba83/src/io/user_config.jl#L1-L8' class='documenter-source'>source</a><br></p>
-<p><a id='JAXTAM._config_load' href='#JAXTAM._config_load'>#</a>
-<strong><code>JAXTAM._config_load</code></strong> &mdash; <em>Function</em>.</p>
-<pre><code>_config_load(config_path=string(pwd(), &quot;/user_configs.jld2&quot;))
-</code></pre>
-
-<p>Loads data from the configuration file.</p>
-<p><a target='_blank' href='https://github.com/RobertRosca/JAXTAM.jl/blob/4cdbc8cf2ca4c60c4a13b628ef5b086a99a4ba83/src/io/user_config.jl#L20-L24' class='documenter-source'>source</a><br></p>
-<p><a id='JAXTAM._config_edit' href='#JAXTAM._config_edit'>#</a>
-<strong><code>JAXTAM._config_edit</code></strong> &mdash; <em>Function</em>.</p>
-<pre><code>_config_edit(key_name::String, key_value::String;
-        config_path=string(pwd(), &quot;/user_configs.jld2&quot;))
-</code></pre>
-
-<p>Edit configuration file, automatically changes the <code>_config_edit_date</code> value.</p>
-<p><a target='_blank' href='https://github.com/RobertRosca/JAXTAM.jl/blob/4cdbc8cf2ca4c60c4a13b628ef5b086a99a4ba83/src/io/user_config.jl#L29-L35' class='documenter-source'>source</a><br></p>
-<p><a id='JAXTAM._config_rm' href='#JAXTAM._config_rm'>#</a>
-<strong><code>JAXTAM._config_rm</code></strong> &mdash; <em>Function</em>.</p>
-<pre><code>_config_rm(key_name::String;
-        config_path=string(pwd(), &quot;/user_configs.jld2&quot;))
-</code></pre>
-
-<p>Removes a the key <code>key_name</code> from the configuration file, then saves the changes.</p>
-<p><a target='_blank' href='https://github.com/RobertRosca/JAXTAM.jl/blob/4cdbc8cf2ca4c60c4a13b628ef5b086a99a4ba83/src/io/user_config.jl#L52-L58' class='documenter-source'>source</a><br></p>
-<p><a id='JAXTAM._config_key_value' href='#JAXTAM._config_key_value'>#</a>
-<strong><code>JAXTAM._config_key_value</code></strong> &mdash; <em>Function</em>.</p>
-<pre><code>_config_key_value(key_name::Union{String,Symbol}, config_path=string(pwd(), &quot;/user_configs.jld2&quot;))
-    config_data = _config_load(config_path)
-</code></pre>
-
-<p>Loads and returns the value for <code>key_name</code></p>
-<p><a target='_blank' href='https://github.com/RobertRosca/JAXTAM.jl/blob/4cdbc8cf2ca4c60c4a13b628ef5b086a99a4ba83/src/io/user_config.jl#L74-L79' class='documenter-source'>source</a><br></p>
 <p><a id='JAXTAM.config' href='#JAXTAM.config'>#</a>
 <strong><code>JAXTAM.config</code></strong> &mdash; <em>Function</em>.</p>
 <pre><code>config()
 </code></pre>
 
 <p>Returns the full configuration file data</p>
-<p><a target='_blank' href='https://github.com/RobertRosca/JAXTAM.jl/blob/4cdbc8cf2ca4c60c4a13b628ef5b086a99a4ba83/src/io/user_config.jl#L86-L90' class='documenter-source'>source</a><br></p>
+<p><a target='_blank' href='https://github.com/RobertRosca/JAXTAM.jl/blob/6ea11d0d1c3559a2bb34b93cfc1e1dfc2ab7c34b/src/io/user_config.jl#L86-L90' class='documenter-source'>source</a><br></p>
 <pre><code>config(key_name::Union{String,Symbol}, key_value::Union{String,Symbol})
     _config_edit(String(key_name), String(key_value))
 </code></pre>
 
 <p>Adds <code>key_name</code> with <code>key_value</code> to the configuration file and saves</p>
-<p><a target='_blank' href='https://github.com/RobertRosca/JAXTAM.jl/blob/4cdbc8cf2ca4c60c4a13b628ef5b086a99a4ba83/src/io/user_config.jl#L95-L100' class='documenter-source'>source</a><br></p>
+<p><a target='_blank' href='https://github.com/RobertRosca/JAXTAM.jl/blob/6ea11d0d1c3559a2bb34b93cfc1e1dfc2ab7c34b/src/io/user_config.jl#L95-L100' class='documenter-source'>source</a><br></p>
 <pre><code>config(key_name::Union{String,Symbol})
 </code></pre>
 
 <p>Returns the value of <code>key_name</code></p>
-<p><a target='_blank' href='https://github.com/RobertRosca/JAXTAM.jl/blob/4cdbc8cf2ca4c60c4a13b628ef5b086a99a4ba83/src/io/user_config.jl#L107-L111' class='documenter-source'>source</a><br></p>
+<p><a target='_blank' href='https://github.com/RobertRosca/JAXTAM.jl/blob/6ea11d0d1c3559a2bb34b93cfc1e1dfc2ab7c34b/src/io/user_config.jl#L107-L111' class='documenter-source'>source</a><br></p>
 <p><a id='JAXTAM.config_rm' href='#JAXTAM.config_rm'>#</a>
 <strong><code>JAXTAM.config_rm</code></strong> &mdash; <em>Function</em>.</p>
 <pre><code>config_rm(key_name::Union{String,Symbol})
 </code></pre>
 
 <p>Removes <code>key_name</code> from the configuration file and saves changes.</p>
-<p><a target='_blank' href='https://github.com/RobertRosca/JAXTAM.jl/blob/4cdbc8cf2ca4c60c4a13b628ef5b086a99a4ba83/src/io/user_config.jl#L116-L120' class='documenter-source'>source</a><br></p>
+<p><a target='_blank' href='https://github.com/RobertRosca/JAXTAM.jl/blob/6ea11d0d1c3559a2bb34b93cfc1e1dfc2ab7c34b/src/io/user_config.jl#L116-L120' class='documenter-source'>source</a><br></p>
 <p><a id='Master-Table-Management-1'></a></p>
-<h2 id="master-table-management">Master Table Management</h2>
-<p><a id='JAXTAM._master_read_tdat' href='#JAXTAM._master_read_tdat'>#</a>
-<strong><code>JAXTAM._master_read_tdat</code></strong> &mdash; <em>Function</em>.</p>
-<pre><code>_master_read_tdat(master_path::String)
-</code></pre>
-
-<p>Reads a raw <code>.tdat</code> table from HEASARC mastertable archives, parses the ASCII data, finds and stores column names, cleans punctuation, converts to <code>DataFrame</code>, and finally returns cleaned table as <code>DataFrame</code></p>
-<p><a target='_blank' href='https://github.com/RobertRosca/JAXTAM.jl/blob/4cdbc8cf2ca4c60c4a13b628ef5b086a99a4ba83/src/io/master_tables.jl#L1-L7' class='documenter-source'>source</a><br></p>
-<p><a id='JAXTAM._master_save' href='#JAXTAM._master_save'>#</a>
-<strong><code>JAXTAM._master_save</code></strong> &mdash; <em>Function</em>.</p>
-<pre><code>_master_save(master_path_jld2, master_data)
-</code></pre>
-
-<p>Saves the <code>DataFrame</code> master table to a <code>.jld2</code> file, under the key <code>master_data</code></p>
-<p><a target='_blank' href='https://github.com/RobertRosca/JAXTAM.jl/blob/4cdbc8cf2ca4c60c4a13b628ef5b086a99a4ba83/src/io/master_tables.jl#L52-L57' class='documenter-source'>source</a><br></p>
+<h3 id="master-table-management">Master Table Management</h3>
 <p><a id='JAXTAM.master' href='#JAXTAM.master'>#</a>
 <strong><code>JAXTAM.master</code></strong> &mdash; <em>Function</em>.</p>
 <pre><code>master(mission_name::Union{String,Symbol})
 </code></pre>
 
 <p>Reads in a previously created <code>.jld2</code> master table for a specific <code>mission_name</code> using a path provided by <code>_config_key_value(mission_name)</code></p>
-<p><a target='_blank' href='https://github.com/RobertRosca/JAXTAM.jl/blob/4cdbc8cf2ca4c60c4a13b628ef5b086a99a4ba83/src/io/master_tables.jl#L62-L67' class='documenter-source'>source</a><br></p>
+<p><a target='_blank' href='https://github.com/RobertRosca/JAXTAM.jl/blob/6ea11d0d1c3559a2bb34b93cfc1e1dfc2ab7c34b/src/io/master_tables.jl#L62-L67' class='documenter-source'>source</a><br></p>
 <pre><code>master()
 </code></pre>
 
 <p>Loads a default mission, if one is set, otherwise throws error</p>
-<p><a target='_blank' href='https://github.com/RobertRosca/JAXTAM.jl/blob/4cdbc8cf2ca4c60c4a13b628ef5b086a99a4ba83/src/io/master_tables.jl#L85-L89' class='documenter-source'>source</a><br></p>
+<p><a target='_blank' href='https://github.com/RobertRosca/JAXTAM.jl/blob/6ea11d0d1c3559a2bb34b93cfc1e1dfc2ab7c34b/src/io/master_tables.jl#L85-L89' class='documenter-source'>source</a><br></p>
 <p><a id='JAXTAM.master_query' href='#JAXTAM.master_query'>#</a>
 <strong><code>JAXTAM.master_query</code></strong> &mdash; <em>Function</em>.</p>
 <pre><code>master_query(master_df::DataFrame, key_type::Symbol, key_value::Any)
@@ -214,7 +161,63 @@
 
 <p>Wrapper for a query, takes in an already loaded DataFrame <code>master_df</code>, a <code>key_type</code> to search over (e.g. <code>obsid</code>), and a <code>key_value</code> to find (e.g. <code>0123456789</code>)</p>
 <p>Returns the full row for any observations matching the search criteria</p>
-<p><a target='_blank' href='https://github.com/RobertRosca/JAXTAM.jl/blob/4cdbc8cf2ca4c60c4a13b628ef5b086a99a4ba83/src/io/master_tables.jl#L102-L110' class='documenter-source'>source</a><br></p>
+<p><a target='_blank' href='https://github.com/RobertRosca/JAXTAM.jl/blob/6ea11d0d1c3559a2bb34b93cfc1e1dfc2ab7c34b/src/io/master_tables.jl#L102-L110' class='documenter-source'>source</a><br></p>
+<p><a id='API-1'></a></p>
+<h2 id="api">API</h2>
+<p>These are low(er)-level functions which typically shouldn't be called by users.</p>
+<p><a id='JAXTAM._config_gen' href='#JAXTAM._config_gen'>#</a>
+<strong><code>JAXTAM._config_gen</code></strong> &mdash; <em>Function</em>.</p>
+<pre><code>_config_gen(config_path::String=string(pwd(), &quot;/user_configs.jld2&quot;))
+</code></pre>
+
+<p>Generates a user configuration file at <code>config_path</code>, by default, file is placed in the JAXTAM module dir.</p>
+<p>Config file is <code>/user_configs.jld2</code>, excluded from git.</p>
+<p><a target='_blank' href='https://github.com/RobertRosca/JAXTAM.jl/blob/6ea11d0d1c3559a2bb34b93cfc1e1dfc2ab7c34b/src/io/user_config.jl#L1-L8' class='documenter-source'>source</a><br></p>
+<p><a id='JAXTAM._config_load' href='#JAXTAM._config_load'>#</a>
+<strong><code>JAXTAM._config_load</code></strong> &mdash; <em>Function</em>.</p>
+<pre><code>_config_load(config_path=string(pwd(), &quot;/user_configs.jld2&quot;))
+</code></pre>
+
+<p>Loads data from the configuration file.</p>
+<p><a target='_blank' href='https://github.com/RobertRosca/JAXTAM.jl/blob/6ea11d0d1c3559a2bb34b93cfc1e1dfc2ab7c34b/src/io/user_config.jl#L20-L24' class='documenter-source'>source</a><br></p>
+<p><a id='JAXTAM._config_edit' href='#JAXTAM._config_edit'>#</a>
+<strong><code>JAXTAM._config_edit</code></strong> &mdash; <em>Function</em>.</p>
+<pre><code>_config_edit(key_name::String, key_value::String;
+        config_path=string(pwd(), &quot;/user_configs.jld2&quot;))
+</code></pre>
+
+<p>Edit configuration file, automatically changes the <code>_config_edit_date</code> value.</p>
+<p><a target='_blank' href='https://github.com/RobertRosca/JAXTAM.jl/blob/6ea11d0d1c3559a2bb34b93cfc1e1dfc2ab7c34b/src/io/user_config.jl#L29-L35' class='documenter-source'>source</a><br></p>
+<p><a id='JAXTAM._config_rm' href='#JAXTAM._config_rm'>#</a>
+<strong><code>JAXTAM._config_rm</code></strong> &mdash; <em>Function</em>.</p>
+<pre><code>_config_rm(key_name::String;
+        config_path=string(pwd(), &quot;/user_configs.jld2&quot;))
+</code></pre>
+
+<p>Removes a the key <code>key_name</code> from the configuration file, then saves the changes.</p>
+<p><a target='_blank' href='https://github.com/RobertRosca/JAXTAM.jl/blob/6ea11d0d1c3559a2bb34b93cfc1e1dfc2ab7c34b/src/io/user_config.jl#L52-L58' class='documenter-source'>source</a><br></p>
+<p><a id='JAXTAM._config_key_value' href='#JAXTAM._config_key_value'>#</a>
+<strong><code>JAXTAM._config_key_value</code></strong> &mdash; <em>Function</em>.</p>
+<pre><code>_config_key_value(key_name::Union{String,Symbol}, config_path=string(pwd(), &quot;/user_configs.jld2&quot;))
+    config_data = _config_load(config_path)
+</code></pre>
+
+<p>Loads and returns the value for <code>key_name</code></p>
+<p><a target='_blank' href='https://github.com/RobertRosca/JAXTAM.jl/blob/6ea11d0d1c3559a2bb34b93cfc1e1dfc2ab7c34b/src/io/user_config.jl#L74-L79' class='documenter-source'>source</a><br></p>
+<p><a id='JAXTAM._master_read_tdat' href='#JAXTAM._master_read_tdat'>#</a>
+<strong><code>JAXTAM._master_read_tdat</code></strong> &mdash; <em>Function</em>.</p>
+<pre><code>_master_read_tdat(master_path::String)
+</code></pre>
+
+<p>Reads a raw <code>.tdat</code> table from HEASARC mastertable archives, parses the ASCII data, finds and stores column names, cleans punctuation, converts to <code>DataFrame</code>, and finally returns cleaned table as <code>DataFrame</code></p>
+<p><a target='_blank' href='https://github.com/RobertRosca/JAXTAM.jl/blob/6ea11d0d1c3559a2bb34b93cfc1e1dfc2ab7c34b/src/io/master_tables.jl#L1-L7' class='documenter-source'>source</a><br></p>
+<p><a id='JAXTAM._master_save' href='#JAXTAM._master_save'>#</a>
+<strong><code>JAXTAM._master_save</code></strong> &mdash; <em>Function</em>.</p>
+<pre><code>_master_save(master_path_jld2, master_data)
+</code></pre>
+
+<p>Saves the <code>DataFrame</code> master table to a <code>.jld2</code> file, under the key <code>master_data</code></p>
+<p><a target='_blank' href='https://github.com/RobertRosca/JAXTAM.jl/blob/6ea11d0d1c3559a2bb34b93cfc1e1dfc2ab7c34b/src/io/master_tables.jl#L52-L57' class='documenter-source'>source</a><br></p>
               
             </div>
           </div>
@@ -259,5 +262,5 @@
 
 <!--
 MkDocs version : 0.17.3
-Build Date UTC : 2018-06-05 21:21:18
+Build Date UTC : 2018-06-06 09:41:43
 -->
