@@ -12,7 +12,7 @@ function _config_gen(config_path=string(Pkg.dir(), "/JAXTAM/user_configs.jld"))
     end
 
     info("Creating config file at: $config_path")
-    config_data = Dict("_config_edit_date" => string(Dates.DateTime(now())))
+    config_data = Dict{String,Any}("_config_edit_date" => Dates.DateTime(now()))
 
     if !isdir(dirname(config_path))
         mkdir(dirname(config_path))
@@ -42,7 +42,7 @@ end
 Edit configuration file, automatically changes the `_config_edit_date`
 value.
 """
-function _config_edit(key_name::String, key_value::String;
+function _config_edit(key_name::String, key_value;
         config_path=string(Pkg.dir(), "/JAXTAM/user_configs.jld"))
 
     if !isfile(config_path)
@@ -51,7 +51,7 @@ function _config_edit(key_name::String, key_value::String;
 
     config_data = _config_load(config_path)
 
-    config_data["_config_edit_date"] = string(Dates.DateTime(now()))
+    config_data["_config_edit_date"] = Dates.DateTime(now())
     config_data[key_name] = key_value
 
     save(config_path, Dict("config_data" => config_data))
@@ -107,8 +107,25 @@ end
 
 Adds `key_name` with `key_value` to the configuration file and saves
 """
-function config(key_name::Union{String,Symbol}, key_value::Union{String,Symbol})
-    _config_edit(String(key_name), String(key_value))
+function config(key_name::Union{String,Symbol}, key_value::Union{String,Symbol,MissionDefinition})
+    if typeof(key_value) == MissionDefinition
+        _config_edit(String(key_name), key_value)
+    else
+        defaults = _get_default_missions()
+
+        if key_name in keys(defaults)
+            info("$key_name found in defaults\nUsing $key_value as path")
+            mission = defaults[key_name]
+            mission.path = key_value
+
+            _config_edit(String(key_name), mission)
+        else
+            info("$key_name not found in defaults, treated as a string")
+            info("If $key_name is a mission, use config(key_name, MissionDefinition) to fully set up the mission variables")
+            _config_edit(string(key_name), String(key_value))
+        end
+    end
+
     return _config_load()
 end
 
