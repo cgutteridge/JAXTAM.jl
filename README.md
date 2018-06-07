@@ -1,12 +1,12 @@
 # JAXTAM
 
-[![](https://img.shields.io/badge/docs-latest-blue.svg)](https://robertrosca.github.io/JAXTAM.jl/latest)
+[![](https://img.shields.io/badge/docs-latest-blue.svg)](https://RobertRosca.github.io/JAXTAM.jl/latest)
 
-[![Build Status](https://travis-ci.org/robertrosca/JAXTAM.jl.svg?branch=master)](https://travis-ci.org/robertrosca/JAXTAM.jl)
+[![Build Status](https://travis-ci.org/RobertRosca/JAXTAM.jl.svg?branch=master)](https://travis-ci.org/RobertRosca/JAXTAM.jl)
 
-[![Coverage Status](https://coveralls.io/repos/robertrosca/JAXTAM.jl/badge.svg?branch=master&service=github)](https://coveralls.io/github/robertrosca/JAXTAM.jl?branch=master)
+[![Coverage Status](https://coveralls.io/repos/RobertRosca/JAXTAM.jl/badge.svg?branch=master&service=github)](https://coveralls.io/github/RobertRosca/JAXTAM.jl?branch=master)
 
-[![codecov.io](http://codecov.io/github/robertrosca/JAXTAM.jl/coverage.svg?branch=master)](http://codecov.io/github/robertrosca/JAXTAM.jl?branch=master)
+[![codecov.io](http://codecov.io/github/RobertRosca/JAXTAM.jl/coverage.svg?branch=master)](http://codecov.io/github/RobertRosca/JAXTAM.jl?branch=master)
 
 Just Another X-ray Timing Analysis Module
 
