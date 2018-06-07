@@ -13,5 +13,6 @@ include("missions/default_missions.jl")
 include("io/user_config.jl")
 include("io/master_tables.jl")
 include("io/misc.jl")
+include("io/data_download.jl")
 
 end
