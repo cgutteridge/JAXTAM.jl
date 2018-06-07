@@ -1,12 +1,12 @@
 """
-    _config_gen(config_path::String=string(pwd(), "/user_configs.jld2"))
+    _config_gen(config_path::String=string(pwd(), "/user_configs.jld"))
 
 Generates a user configuration file at `config_path`,
 by default, file is placed in the JAXTAM module dir.
 
-Config file is `/user_configs.jld2`, excluded from git.
+Config file is `/user_configs.jld`, excluded from git.
 """
-function _config_gen(config_path::String=string(pwd(), "/user_configs.jld2"))
+function _config_gen(config_path=string(Pkg.dir(), "/JAXTAM/user_configs.jld"))
     if isfile(config_path)
         rm(config_path)
     end
@@ -14,27 +14,36 @@ function _config_gen(config_path::String=string(pwd(), "/user_configs.jld2"))
     info("Creating config file at: $config_path")
     config_data = Dict("_config_edit_date" => string(Dates.DateTime(now())))
 
+    if !isdir(dirname(config_path))
+        mkdir(dirname(config_path))
+    end
+
     save(config_path, Dict("config_data" => config_data))
 end
 
 """
-    _config_load(config_path=string(pwd(), "/user_configs.jld2"))
+    _config_load(config_path=string(Pkg.dir(), "/JAXTAM/user_configs.jld"))
 
 Loads data from the configuration file.
 """
-function _config_load(config_path=string(pwd(), "/user_configs.jld2"))
+function _config_load(config_path=string(Pkg.dir(), "/JAXTAM/user_configs.jld"))
+    if !isfile(config_path)
+        warn("Config file not found!")
+        _config_gen()
+    end
+
     return load(config_path, "config_data")
 end
 
 """
     _config_edit(key_name::String, key_value::String;
-            config_path=string(pwd(), "/user_configs.jld2"))
+            config_path=string(Pkg.dir(), "/JAXTAM/user_configs.jld"))
 
 Edit configuration file, automatically changes the `_config_edit_date`
 value.
 """
 function _config_edit(key_name::String, key_value::String;
-        config_path=string(pwd(), "/user_configs.jld2"))
+        config_path=string(Pkg.dir(), "/JAXTAM/user_configs.jld"))
 
     if !isfile(config_path)
         _config_gen(config_path)
@@ -51,13 +60,13 @@ end
 
 """
     _config_rm(key_name::String;
-            config_path=string(pwd(), "/user_configs.jld2"))
+            config_path=string(Pkg.dir(), "/JAXTAM/user_configs.jld"))
 
 Removes a the key `key_name` from the configuration file,
 then saves the changes.
 """
 function _config_rm(key_name::String;
-        config_path=string(pwd(), "/user_configs.jld2"))
+        config_path=string(Pkg.dir(), "/JAXTAM/user_configs.jld"))
 
     if !isfile(config_path)
         _config_gen(config_path)
@@ -72,12 +81,12 @@ function _config_rm(key_name::String;
 end
 
 """
-    _config_key_value(key_name::Union{String,Symbol}, config_path=string(pwd(), "/user_configs.jld2"))
+    _config_key_value(key_name::Union{String,Symbol}, config_path=string(Pkg.dir(), "/JAXTAM/user_configs.jld"))
         config_data = _config_load(config_path)
 
 Loads and returns the value for `key_name`
 """
-function _config_key_value(key_name::Union{String,Symbol}, config_path=string(pwd(), "/user_configs.jld2"))
+function _config_key_value(key_name::Union{String,Symbol}, config_path=string(Pkg.dir(), "/JAXTAM/user_configs.jld"))
     config_data = _config_load(config_path)
 
     return config_data[string(key_name)]
