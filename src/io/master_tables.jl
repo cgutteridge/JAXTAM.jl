@@ -1,3 +1,13 @@
+function _master_download(master_path, master_url)
+    info("Downloading latest master catalog")
+    Base.download(master_url, master_path)
+
+    if VERSION >= v"0.7.0" || Sys.is_linux()
+        # Windows (used to) unzip .gz during download, unzip now if Linux
+        unzip!(master_path)
+    end
+end
+
 """
     _master_read_tdat(master_path::String)
 
@@ -66,18 +76,25 @@ Reads in a previously created `.jld` master table for a specific `mission_name`
 using a path provided by `_config_key_value(mission_name)`
 """
 function master(mission_name::Union{String,Symbol})
-    mission_path = _config_key_value(mission_name)
-    master_path_tdat = string(mission_path, "master.tdat")
-    master_patj_jld = string(mission_path, "master.jld")
+    mission = _config_key_value(mission_name)
+    master_path_tdat = string(mission.path, "master.tdat")
+    master_path_jld = string(mission.path, "master.jld")
 
-    if isfile(master_patj_jld)
-        info("Loading $master_patj_jld")
-        return load(master_patj_jld)["master_data"]
+    if !isfile(master_path_tdat) && !isfile(master_path_tdat)
+        warn("No master file found, looked for: \n\t$master_path_tdat \n\t$master_path_jld")
+        info("Download master files from `$(mission.url)`? (y/n)")
+        response = readline(STDIN)
+        if response=="y" || response=="Y"
+            _master_download(master_path_tdat, mission.url)
+        end
+    elseif isfile(master_path_jld)
+        info("Loading $master_path_jld")
+        return load(master_path_jld)["master_data"]
     elseif isfile(master_path_tdat)
-        info("Loading $(master_path_tdat))")
+        info("Loading $(master_path_tdat)")
         master_data = _master_read_tdat(master_path_tdat)
-        info("Saving $master_patj_jld")
-        _master_save(master_patj_jld, master_data)
+        info("Saving $master_path_jld")
+        _master_save(master_path_jld, master_data)
         return master_data
     end
 end
@@ -92,7 +109,7 @@ function master()
 
     if "default" in keys(config)
         info("Using default mission - $(config["default"])")
-        return master_load(config["default"])
+        return master(config["default"])
     else
         error("Default mission not found, set with config(:default, :default_mission_name)")
     end
