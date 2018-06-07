@@ -5,7 +5,7 @@ module JAXTAM
 using DataFrames
 using FileIO
 using CSVFiles
-using JLD2
+using JLD
 using Query
 
 include("io/user_config.jl")
