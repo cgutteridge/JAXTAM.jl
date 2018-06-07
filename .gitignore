@@ -1,6 +1,6 @@
 *.jl.cov
 *.jl.*.cov
 *.jl.mem
-user_configs.jld2
+user_configs.jld
 docs/build/
 docs/site/
