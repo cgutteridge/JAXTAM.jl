@@ -85,9 +85,15 @@ function master(mission_name::Union{String,Symbol})
         info("Download master files from `$(mission.url)`? (y/n)")
         response = readline(STDIN)
         if response=="y" || response=="Y"
+            if !isdir(mission.path)
+                mkpath(mission.path)
+            end
+
             _master_download(master_path_tdat, mission.url)
         end
-    elseif isfile(master_path_jld)
+    end
+    
+    if isfile(master_path_jld)
         info("Loading $master_path_jld")
         return load(master_path_jld)["master_data"]
     elseif isfile(master_path_tdat)
