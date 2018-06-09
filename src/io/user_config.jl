@@ -136,7 +136,11 @@ end
 Returns the value of `key_name`
 """
 function config(key_name::Union{String,Symbol})
-    return _config_load()[String(key_name)]
+    if key_name == "default" || key_name == :default
+        return _config_load()[string( _config_load()["default"])]
+    else
+        return _config_load()[String(key_name)]
+    end
 end
 
 """

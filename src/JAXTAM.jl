@@ -7,6 +7,8 @@ using FileIO
 using CSVFiles
 using JLD
 using Query
+using FTPClient
+using LightXML
 
 include("missions/mission_control.jl")
 include("missions/default_missions.jl")
