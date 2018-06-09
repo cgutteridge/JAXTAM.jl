@@ -13,7 +13,7 @@ function _get_default_missions()
     return Dict("nicer" => mission_nicer, "nustar" => mission_nustar)
 end
 
-function _nicer_observation_folder(obsid::String, mjd_day::String)
+function _nicer_observation_dir(obsid::String, mjd_day::String)
     date_time = string(Base.Dates.julian2datetime(parse(Float64, mjd_day) + 2400000.5))
     date_year = date_time[1:4]
     date_month = date_time[6:7]
@@ -23,6 +23,12 @@ function _nicer_observation_folder(obsid::String, mjd_day::String)
     return folder_path
 end
 
-function _nicer_observation_folder(obsid::Array, mjd_day::Array)
-    return _nicer_observation_folder(obsid[1], mjd_day[1])
+function _nicer_observation_dir(obsid::Array, mjd_day::Array)
+    if length(obsid) == 0
+        warn("No obsid entered, `master_query` likely returned null")
+
+        return
+    end
+
+    return _nicer_observation_dir(obsid[1], mjd_day[1])
 end
