@@ -23,12 +23,16 @@ function _nicer_observation_dir(obsid::String, mjd_day::String)
     return folder_path
 end
 
-function _nicer_observation_dir(obsid::Array, mjd_day::Array)
-    if length(obsid) == 0
-        warn("No obsid entered, `master_query` likely returned null")
+# function _nicer_observation_dir(obsid::Array, mjd_day::Array)
+#     if length(obsid) == 0
+#         warn("No obsid entered, `master_query` likely returned null")
 
-        return
-    end
+#         return
+#     end
 
-    return _nicer_observation_dir(obsid[1], mjd_day[1])
+#     return _nicer_observation_dir(obsid[1], mjd_day[1])
+# end
+
+function _nustar_observation_dir(obsid::String)
+    return string("/nustar/.nustar_archive/$obsid")
 end
