@@ -20,3 +20,11 @@ function unzip!(path)
         mv(string(dir, "/", filename), path)
     end
 end
+
+function _datetime2mjd(human_time::DateTime)
+    return Dates.datetime2julian(human_time) - 2400000.5
+end
+
+function _mjd2datetime(mjd_time::Number)
+    return Dates.julian2datetime(mjd_time + 2400000.5)
+end
