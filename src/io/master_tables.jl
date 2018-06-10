@@ -69,6 +69,31 @@ function _master_save(master_path_jld, master_data)
     save(master_path_jld, Dict("master_data" => master_data))
 end
 
+function master_update(mission_name::Union{String,Symbol})
+    mission = _config_key_value(mission_name)
+    master_path_tdat = string(mission.path, "master.tdat")
+    master_path_jld = string(mission.path, "master.jld")
+
+    if !isdir(mission.path)
+        mkpath(mission.path)
+    end
+
+    _master_download(master_path_tdat, mission.url)
+
+    info("Loading $(master_path_tdat)")
+    master_data = _master_read_tdat(master_path_tdat)
+    info("Saving $master_path_jld")
+    _master_save(master_path_jld, master_data)
+end
+
+function master_update()
+    mission_name = _config_key_value(:default)
+
+    info("Using default mission: $mission_name")
+
+    master_update(mission_name)
+end
+
 """
     master(mission_name::Union{String,Symbol})
 
