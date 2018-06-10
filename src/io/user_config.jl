@@ -113,9 +113,9 @@ function config(key_name::Union{String,Symbol}, key_value::Union{String,Symbol,M
     else
         defaults = _get_default_missions()
 
-        if key_name in keys(defaults)
+        if string(key_name) in keys(defaults)
             info("$key_name found in defaults\nUsing $key_value as path")
-            mission = defaults[key_name]
+            mission = defaults[string(key_name)]
             mission.path = key_value
 
             _config_edit(String(key_name), mission)
