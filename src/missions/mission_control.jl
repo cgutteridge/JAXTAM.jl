@@ -8,4 +8,5 @@ mutable struct MissionDefinition
     name::String
     url::String
     path::String
+    obs_path::Function
 end
