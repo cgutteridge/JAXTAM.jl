@@ -12,7 +12,7 @@ function _config_gen(config_path=string(Pkg.dir(), "/JAXTAM/user_configs.jld"))
     end
 
     info("Creating config file at: $config_path")
-    config_data = Dict{String,Any}("_config_edit_date" => Dates.DateTime(now()))
+    config_data = Dict{Any,Any}(:_config_edit_date => Dates.DateTime(now()))
 
     if !isdir(dirname(config_path))
         mkdir(dirname(config_path))

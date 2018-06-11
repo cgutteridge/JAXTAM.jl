@@ -6,12 +6,22 @@ using the `MissionDefinition` type. Name and heasarc url pre-set,
 mission path is left as blank string
 """
 function _get_default_missions()
-    mission_nicer = MissionDefinition("nicer", "https://heasarc.gsfc.nasa.gov/FTP/heasarc/dbase/tdat_files/heasarc_nicermastr.tdat.gz", "")
+    mission_nicer = MissionDefinition("nicer",
+        "https://heasarc.gsfc.nasa.gov/FTP/heasarc/dbase/tdat_files/heasarc_nicermastr.tdat.gz",
+        "mission_path",
+        _nicer_observation_dir
+    )
 
-    mission_nustar = MissionDefinition("nustar", "https://heasarc.gsfc.nasa.gov/FTP/heasarc/dbase/tdat_files/heasarc_numaster.tdat.gz", "")
+    mission_nustar = MissionDefinition("nustar",
+        "https://heasarc.gsfc.nasa.gov/FTP/heasarc/dbase/tdat_files/heasarc_numaster.tdat.gz",
+        "mission_path",
+        _nustar_observation_dir
+    )
 
-    return Dict("nicer" => mission_nicer, "nustar" => mission_nustar)
+    return Dict(:nicer => mission_nicer, :nustar => mission_nustar)
 end
+
+# NICER Functions
 
 function _nicer_observation_dir(obsid::String, mjd_day::String)
     date_time = string(Base.Dates.julian2datetime(parse(Float64, mjd_day) + 2400000.5))
@@ -23,15 +33,17 @@ function _nicer_observation_dir(obsid::String, mjd_day::String)
     return folder_path
 end
 
-# function _nicer_observation_dir(obsid::Array, mjd_day::Array)
-#     if length(obsid) == 0
-#         warn("No obsid entered, `master_query` likely returned null")
+function _nicer_obsdir_content()
+    obsdirs = Array{String,1}()
 
-#         return
-#     end
+    for (root, dirs, files) in Compat.walkdir(config(:nicer).path)
+        append!(obsdirs, [root])
+    end
 
-#     return _nicer_observation_dir(obsid[1], mjd_day[1])
-# end
+    return obsdirs
+end
+
+# NuSTAR Functions
 
 function _nustar_observation_dir(obsid::String)
     return string("/nustar/.nustar_archive/$obsid")
