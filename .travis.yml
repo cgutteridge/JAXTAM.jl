@@ -19,7 +19,6 @@ git:
 #addons:
  apt: # apt-get for linux
    packages:
-   - lftp
    - hdf5-tools
 #before_script: # homebrew for mac
 #  - if [ $TRAVIS_OS_NAME = osx ]; then brew install gcc; fi
