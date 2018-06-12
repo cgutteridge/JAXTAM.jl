@@ -48,7 +48,7 @@ function _master_read_tdat(master_path::String)
             cleaned = replace(obs_values[itr], ",", ".. ") # Remove some punctuation, screw with CSV
             cleaned = replace(cleaned, ";", ".. ")
 
-            if key in [:public_date, :processing_date]
+            if key in [:time, :end_time, :processing_date, :public_date]
                 cleaned = _mjd2datetime(parse(obs_values[itr]))
             end
 
@@ -167,6 +167,10 @@ function master_query(master_df::DataFrame, key_type::Symbol, key_value::Any)
         @collect DataFrame
     end
 
+    if size(observations, 1) == 0
+        warn("master_query_public returned no results for $key_type with $key_value search")
+    end
+
     return observations
 end
 
@@ -184,6 +188,10 @@ function master_query_public(master_df::DataFrame, key_type::Symbol, key_value::
         @where eval(Expr(:call, ==, getfield(row, key_type), key_value)) && _public_date_int(row.public_date) < _datetime2mjd(now())
         @select row
         @collect DataFrame
+    end
+
+    if size(observations, 1) == 0
+        warn("master_query_public returned no results for $key_type with $key_value search")
     end
 
     return observations
