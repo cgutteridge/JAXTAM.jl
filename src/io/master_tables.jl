@@ -140,11 +140,11 @@ end
 Loads a default mission, if one is set, otherwise throws error
 """
 function master()
-    config = _config_load()
+    config_dict = config()
 
-    if "default" in keys(config)
-        info("Using default mission - $(config["default"])")
-        return master(config["default"])
+    if :default in keys(config_dict)
+        info("Using default mission - $(config_dict[:default])")
+        return master(config_dict[:default])
     else
         error("Default mission not found, set with config(:default, :default_mission_name)")
     end
