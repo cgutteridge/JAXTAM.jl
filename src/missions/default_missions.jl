@@ -25,11 +25,13 @@ function _get_default_missions()
     return Dict(:nicer => mission_nicer, :nustar => mission_nustar)
 end
 
+
 # NICER Functions
 
-function _nicer_observation_dir(obsid::String, mjd_day::String)
-    date_time = string(Base.Dates.julian2datetime(parse(Float64, mjd_day) + 2400000.5))
-    date_year = date_time[1:4]
+function _nicer_observation_dir(obs_row::DataFrames.DataFrame)
+    obsid      = obs_row[:obsid][1]
+    date_time  = string(obs_row[:time][1])
+    date_year  = date_time[1:4]
     date_month = date_time[6:7]
 
     folder_path = string("/.nicer_archive/.nicer_$(date_year)$(date_month)a/",
@@ -38,18 +40,38 @@ function _nicer_observation_dir(obsid::String, mjd_day::String)
     return folder_path
 end
 
-function _nicer_obsdir_content()
-    obsdirs = Array{String,1}()
-
-    for (root, dirs, files) in Compat.walkdir(config(:nicer).path)
-        append!(obsdirs, [root])
+function _nicer_observation_dir(obsid::String, master_df::DataFrames.DataFrame)
+    obs_row = @from row in master_df begin
+        @where row.obsid == obsid
+        @select row
+        @collect DataFrame
     end
 
-    return obsdirs
+    return _nicer_observation_dir(obs_row)
 end
+
+function _nicer_observation_dir(obsid::String)
+    return _nicer_observation_dir(obsid, master(:nicer))
+end
+
 
 # NuSTAR Functions
 
-function _nustar_observation_dir(obsid::String)
+function _nustar_observation_dir(obs_row::DataFrames.DataFrame)
+    obsid = obs_row[:obsid][1]
     return string("/nustar/.nustar_archive/$obsid")
+end
+
+function _nustar_observation_dir(obsid::String, master_df::DataFrames.DataFrame)
+    obs_row = @from row in master_df begin
+        @where row.obsid == obsid
+        @select row
+        @collect DataFrame
+    end
+
+    return _nustar_observation_dir(obs_row)
+end
+
+function _nustar_observation_dir(obsid::String)
+    return _nustar_observation_dir(obsid, master(:nustar))
 end
