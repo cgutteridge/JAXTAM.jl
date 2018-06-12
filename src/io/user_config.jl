@@ -75,7 +75,7 @@ function _config_rm(key_name::Symbol;
     config_data = _config_load(config_path)
 
     delete!(config_data, key_name)
-    config_data["_config_edit_date"] = string(Dates.DateTime(now()))
+    config_data[:_config_edit_date] = string(Dates.DateTime(now()))
 
     save(config_path, Dict("config_data" => config_data))
 end

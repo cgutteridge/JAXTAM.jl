@@ -1,6 +1,6 @@
-function _ftp_dir(mission_name::Union{String,Symbol}, obs_row::DataFrames.DataFrame)
+function _ftp_dir(mission_name::Symbol, obs_row::DataFrames.DataFrame)
     if string(mission_name) == "nicer"
-        return _nicer_observation_dir(obs_row[:obsid], obs_row[:time])
+        return _nicer_observation_dir(obs_row[:obsid][1], obs_row[:time][1])
     elseif string(mission_name) == "nustar"
         return _nustar_observation_dir(obs_row[:obsid][1])
     end
@@ -18,20 +18,23 @@ function _ftp_dir(obsid::String)
     end
 end
 
-function _ftp_dir(mission_name::Union{String,Symbol}, obsid::String)
+function _ftp_dir(mission_name::Symbol, obsid::String)
     return _ftp_dir(mission_name, master_query(master(mission_name), :obsid, obsid))
 end
 
-function _ftp_dir(mission_name::Union{String,Symbol}, master::DataFrames.DataFrame, obsid::String)
+function _ftp_dir(mission_name::Symbol, master::DataFrames.DataFrame, obsid::String)
     return _ftp_dir(mission_name, master_query(master, :obsid, obsid))
 end
 
-function download(mission_name::Union{String,Symbol}, master::DataFrames.DataFrame, obsid::String)
+function _clean_path_dots(dir)
+    return abspath(replace(dir, ".", "")) # Remove . from folders to un-hide them
+end
+
+function download(mission_name::Symbol, master::DataFrames.DataFrame, obsid::String)
     dir_down = _ftp_dir(mission_name, master, obsid)
     dir_dest = string(config(mission_name).path, dir_down)
-    dir_dest = replace(dir_dest, ".", "") # Remove . from folders to un-hide them
-    dir_dest = abspath(dir_dest)
-
+    dir_dest = _clean_path_dots(dir_dest)
+    
     mkpath(dir_dest)
 
     info("heasarc.gsfc.nasa.gov:$dir_down --> $dir_dest")
@@ -41,11 +44,11 @@ function download(mission_name::Union{String,Symbol}, master::DataFrames.DataFra
     run(download_command)
 end
 
-function download(mission_name::Union{String,Symbol}, obsid::String)
-    download(mission_name::Union{String,Symbol}, master(), obsid::String)
+function download(mission_name::Symbol, obsid::String)
+    download(mission_name::Symbol, master(), obsid::String)
 end
 
-function download(mission_name::Union{String,Symbol}, master::DataFrames.DataFrame, obsids::Array)
+function download(mission_name::Symbol, master::DataFrames.DataFrame, obsids::Array)
     for (i, obsid) in enumerate(obsids)
         print("\n")
         info("\t\t$i of $(length(obsids))")
@@ -53,7 +56,7 @@ function download(mission_name::Union{String,Symbol}, master::DataFrames.DataFra
     end
 end
 
-function download(mission_name::Union{String,Symbol}, obsids::Array)
+function download(mission_name::Symbol, obsids::Array)
     master_table = master(mission_name)
 
     download(mission_name, master_table, obsids)
