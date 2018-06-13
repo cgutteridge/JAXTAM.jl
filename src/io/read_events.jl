@@ -36,5 +36,8 @@ function _save_fits_feather(feather_dir, instrument_name, fits_events_df, fits_g
     Feather.write(joinpath(feather_dir, "$instrument_name\_gtis.feather"), fits_gti_df)
 end
 
-function process_fits_event(obsid)
+function _process_fits_event(fits_path, output_dir, instrument name)
+    events, gti = _read_fits_event(fits_path)
+
+    _save_fits_feather(output_dir, instrument_name, events, gti)
 end
