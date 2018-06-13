@@ -34,7 +34,7 @@ function download(mission_name::Symbol, master::DataFrames.DataFrame, obsid::Str
     dir_dest = _clean_path_dots(dir_dest)
 
     info("heasarc.gsfc.nasa.gov:$dir_down --> $dir_dest")
-    download_command = `lftp heasarc.gsfc.nasa.gov -e "mirror $dir_down $dir_dest --parallel=10 --only-newer && exit"`
+    download_command = `lftp heasarc.gsfc.nasa.gov -e "mirror \"$dir_down\" \"$dir_dest\" --parallel=10 --only-newer && exit"`
     
 
     if isdir(dir_dest) && skip_exists

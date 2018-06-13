@@ -48,8 +48,12 @@ function _master_read_tdat(master_path::String)
             cleaned = replace(obs_values[itr], ",", ".. ") # Remove some punctuation, screw with CSV
             cleaned = replace(cleaned, ";", ".. ")
 
-            if key in [:time, :end_time, :processing_date, :public_date]
-                cleaned = _mjd2datetime(parse(obs_values[itr]))
+            if cleaned != ""
+                if key in [:time, :end_time, :processing_date, :public_date]
+                    cleaned = _mjd2datetime(parse(obs_values[itr]))
+                end
+            else
+                cleaned = missing
             end
 
             df_tmp[key] = cleaned
@@ -58,7 +62,7 @@ function _master_read_tdat(master_path::String)
         master_df = [master_df; df_tmp] # Concat
     end
 
-    sort!(master_df, :public_date)
+    sort!(master_df, :name)
 
     return master_df
 end
