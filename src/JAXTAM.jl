@@ -5,7 +5,7 @@ module JAXTAM
 using DataFrames
 using FileIO
 using CSVFiles
-using JLD
+using JLD2
 using Query
 using FTPClient
 using LightXML
