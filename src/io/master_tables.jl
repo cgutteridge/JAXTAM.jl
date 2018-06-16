@@ -80,7 +80,7 @@ end
 function master_update(mission_name::Union{String,Symbol})
     mission = _config_key_value(mission_name)
     master_path_tdat = string(mission.path, "master.tdat")
-    master_path_jld = string(mission.path, "master.jld")
+    master_path_jld = string(mission.path, "master.jld2")
 
     if !isdir(mission.path)
         mkpath(mission.path)
@@ -111,7 +111,7 @@ using a path provided by `_config_key_value(mission_name)`
 function master(mission_name::Union{String,Symbol})
     mission = _config_key_value(mission_name)
     master_path_tdat = string(mission.path, "master.tdat")
-    master_path_jld = string(mission.path, "master.jld")
+    master_path_jld = string(mission.path, "master.jld2")
 
     if !isfile(master_path_tdat) && !isfile(master_path_tdat)
         warn("No master file found, looked for: \n\t$master_path_tdat \n\t$master_path_jld")
