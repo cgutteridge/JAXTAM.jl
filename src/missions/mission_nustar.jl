@@ -1,0 +1,34 @@
+# NuSTAR Functions
+
+function _nustar_observation_dir(obs_row::DataFrames.DataFrame)
+    obsid = obs_row[:obsid][1]
+    return string("/nustar/.nustar_archive/$obsid")
+end
+
+function _nustar_observation_dir(obsid::String, master_df::DataFrames.DataFrame)
+    obs_row = @from row in master_df begin
+        @where row.obsid == obsid
+        @select row
+        @collect DataFrame
+    end
+
+    return _nustar_observation_dir(obs_row)
+end
+
+function _nustar_observation_dir(obsid::String)
+    return _nustar_observation_dir(obsid, master(:nustar))
+end
+
+function _nustar_cl_dir(obs_row::DataFrames.DataFrame, root_dir::String)
+    obs_dir = _clean_path_dots(_nustar_observation_dir(obs_row))
+
+
+    return abspath(string(root_dir, obs_dir, "\\event_cl\\"))
+end
+
+function _nustar_uf_dir(obs_row::DataFrames.DataFrame, root_dir::String)
+    obs_dir = _clean_path_dots(_nustar_observation_dir(obs_row))
+
+
+    return abspath(string(root_dir, obs_dir, "\\event_uf\\"))
+end

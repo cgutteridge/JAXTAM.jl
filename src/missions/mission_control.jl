@@ -8,5 +8,7 @@ mutable struct MissionDefinition
     name::String
     url::String
     path::String
-    obs_path::Expr
+    path_obs::Function
+    path_cl::Function
+    path_uf::Function
 end
