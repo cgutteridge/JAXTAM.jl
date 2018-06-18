@@ -19,16 +19,16 @@ function _get_default_missions()
         "https://heasarc.gsfc.nasa.gov/FTP/heasarc/dbase/tdat_files/heasarc_nicermastr.tdat.gz",
         "mission_path",
         JAXTAM._nicer_observation_dir,
-        JAXTAM._nicer_cl_dir,
-        JAXTAM._nicer_uf_dir
+        JAXTAM._nicer_cl_files,
+        JAXTAM._nicer_uf_files
     )
 
     mission_nustar = MissionDefinition("nustar",
         "https://heasarc.gsfc.nasa.gov/FTP/heasarc/dbase/tdat_files/heasarc_numaster.tdat.gz",
         "mission_path",
         JAXTAM._nustar_observation_dir,
-        JAXTAM._nustar_cl_dir,
-        JAXTAM._nustar_uf_dir
+        JAXTAM._nustar_cl_files,
+        JAXTAM._nustar_uf_files
     )
 
     return Dict(:nicer => mission_nicer, :nustar => mission_nustar)
