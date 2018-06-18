@@ -25,7 +25,7 @@ function _add_append_obspath!(append_df, master_df, mission_name)
 end
 
 function _add_append_uf!(append_df, master_df, mission_name)
-    append_uf = Array{Union{String,Missing},1}(size(append_df, 1))
+    append_uf = Array{Union{Tuple,Missing},1}(size(append_df, 1))
     root_dir  = config(mission_name).path
     uf_path_function = config(mission_name).path_uf
 
@@ -37,7 +37,7 @@ function _add_append_uf!(append_df, master_df, mission_name)
 end
 
 function _add_append_cl!(append_df, master_df, mission_name)
-    append_cl = Array{Union{String,Missing},1}(size(append_df, 1))
+    append_cl = Array{Union{Tuple,Missing},1}(size(append_df, 1))
     root_dir  = config(mission_name).path
     cl_path_function = config(mission_name).path_cl
 
@@ -48,6 +48,18 @@ function _add_append_cl!(append_df, master_df, mission_name)
     return append_df[:event_cl] = append_cl
 end
 
+function _add_append_downloaded!(append_df, mission_name)
+    append_downloaded = Array{Union{Bool,Missing},1}(size(append_df, 1))
+    root_dir  = config(mission_name).path
+    cl_path_function = config(mission_name).path_cl
+
+    for (i, obspath) in enumerate(append_df[:obs_path])
+        append_downloaded[i] = isdir(obspath)
+    end
+
+    return append_df[:downloaded] = append_downloaded
+end
+
 function _make_append(mission_name, master_df)
     append_df = _build_append(master_df)
 
@@ -55,6 +67,7 @@ function _make_append(mission_name, master_df)
     _add_append_obspath!(append_df, master_df, mission_name)
     _add_append_uf!(append_df, master_df, mission_name)
     _add_append_cl!(append_df, master_df, mission_name)
+    _add_append_downloaded!(append_df, mission_name)
 
     return append_df
 end
@@ -85,9 +98,31 @@ function append(mission_name)
     end
 end
 
-function master_appended(mission_name)
+function append()
+    config_dict = config()
+
+    if :default in keys(config_dict)
+        info("Using default mission - $(config_dict[:default])")
+        return append(config_dict[:default])
+    else
+        error("Default mission not found, set with config(:default, :default_mission_name)")
+    end
+end
+
+function append_update(mission_name)
+    append_path_jld = abspath(string(_config_key_value(mission_name).path, "append.jld2"))
+
     master_df = master(mission_name)
     append_df = _make_append(mission_name, master_df)
+    info("Saving $append_path_jld")
+    _append_save(append_path_jld, append_df)
+    return append_df
+end
+
+
+function master_a(mission_name)
+    master_df = master(mission_name)
+    append_df = append(mission_name)
 
     return join(master_df, append_df, on=:obsid)
 end
