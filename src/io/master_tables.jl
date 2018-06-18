@@ -172,7 +172,7 @@ function master_query(master_df::DataFrame, key_type::Symbol, key_value::Any)
     end
 
     if size(observations, 1) == 0
-        warn("master_query_public returned no results for $key_type with $key_value search")
+        warn("master_query returned no results for $key_type with $key_value search")
     end
 
     return observations
