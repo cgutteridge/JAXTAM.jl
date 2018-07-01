@@ -2,7 +2,10 @@ julia 0.6
 DataFrames
 FileIO
 CSVFiles
-JLD
+JLD2
 Query
 FTPClient
 LightXML
+Compat
+FITSIO
+Feather
