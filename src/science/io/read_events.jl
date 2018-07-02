@@ -5,7 +5,14 @@ struct InstrumentData
 end
 
 function _read_fits_hdu(fits_file, hdu_id)
-    fits_cols_events = FITSIO.colnames(fits_file[hdu_id])
+    fits_cols_events = Array{String,1}
+
+    try
+        fits_cols_events = FITSIO.colnames(fits_file[hdu_id])
+    catch UndefVarError
+        warn("FITSIO colnames function not found, try trunning `Pkg.checkout(\"FITSIO\")`")
+        error("colnames not defined")
+    end
 
     fits_hdu_data = DataFrame()
 
@@ -44,8 +51,10 @@ function _save_fits_feather(feather_dir, instrument_name, fits_events_df, fits_g
     Feather.write(joinpath(feather_dir, "$instrument_name\_gtis.feather"), fits_gti_df)
 end
 
-function read_cl_fits(mission_name, obs_row, obsid)
-    file_path = [i for i in obs_row[:event_cl][1]] # Convert tuple to array
+function read_cl_fits(mission_name, obs_row)
+    file_path = abspath.([i for i in obs_row[:event_cl][1]]) # Convert tuple to array, abdolute path
+
+    obsid = obs_row[:obsid]
     
     files = []
     
@@ -63,7 +72,7 @@ function read_cl_fits(mission_name, obs_row, obsid)
 
     file_no = length(files)
 
-    print("\n"); info("Found $file_no file(s) for $obsid")
+    print("\n"); info("Found $file_no file(s) for $(obsid[1])")
 
     if file_no == 1
         instrument_data = _read_fits_event(files[1])
@@ -79,8 +88,8 @@ function read_cl_fits(mission_name, obs_row, obsid)
     end
 end
 
-function read_cl(mission_name, append_df, obsid)
-    obs_row     = master_query(append_df, :obsid, obsid)
+function read_cl(mission_name, obs_row)
+    obsid       = obs_row[:obsid]
     JAXTAM_path = abspath(string(obs_row[:obs_path][1], "/JAXTAM/"))
 
     if !isdir(obs_row[:obs_path][1])
@@ -98,10 +107,10 @@ function read_cl(mission_name, append_df, obsid)
     if JAXTAM_e_files > 0 && JAXTAM_g_files > 0 && JAXTAM_e_files == JAXTAM_g_files
         mission_data = Dict{Symbol,InstrumentData}()
 
-        instruments = unique(replace.(JAXTAM_content, r"(_gtis|_events|.feather)", ""))
+        instruments = unique(replace.(JAXTAM_content, r"(_gtis|_events|_calib|.feather)", ""))
 
         for instrument in instruments
-            info("Loading $obsid: $instrument from $JAXTAM_path")
+            info("Loading $(obsid[1]): $instrument from $JAXTAM_path")
             inst_files = JAXTAM_content[contains.(JAXTAM_content, instrument)]
             file_event = joinpath(JAXTAM_path, inst_files[contains.(inst_files, "events")][1])
             file_gtis  = joinpath(JAXTAM_path, inst_files[contains.(inst_files, "gtis")][1])
@@ -119,4 +128,10 @@ function read_cl(mission_name, append_df, obsid)
     end
 
     return mission_data
+end
+
+function read_cl(mission_name, append_df, obsid)
+    obs_row = master_query(append_df, :obsid, obsid)
+
+    return read_cl(mission_name, obs_row)
 end
