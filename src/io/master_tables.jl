@@ -189,7 +189,7 @@ end
 
 function master_query_public(master_df::DataFrame, key_type::Symbol, key_value::Any)
     observations = @from row in master_df begin
-        @where eval(Expr(:call, ==, getfield(row, key_type), key_value)) && _public_date_int(row.public_date) < _datetime2mjd(now())
+        @where eval(Expr(:call, ==, getfield(row, key_type), key_value)) && row.public_date < now()
         @select row
         @collect DataFrame
     end
@@ -203,10 +203,16 @@ end
 
 function master_query_public(master_df::DataFrame)
     observations = @from row in master_df begin
-        @where _public_date_int(row.public_date) < _datetime2mjd(now())
+        @where row.public_date < now()
         @select row
         @collect DataFrame
     end
 
     return observations
+end
+
+function master_query_public(mission_name::Symbol)
+    master_df = master(mission_name)
+
+    return master_query_public(master_df)
 end
