@@ -22,7 +22,7 @@ end
 function _nustar_cl_dir(obs_row::DataFrames.DataFrame, root_dir::String)
     obs_dir = _clean_path_dots(_nustar_observation_dir(obs_row))
 
-    return abspath(string(root_dir, obs_dir, "\\event_cl\\"))
+    return abspath(string(root_dir, obs_dir, "/event_cl/"))
 end
 
 function _nustar_cl_files(obs_row::DataFrames.DataFrame, root_dir::String)
@@ -30,8 +30,8 @@ function _nustar_cl_files(obs_row::DataFrames.DataFrame, root_dir::String)
     obsid  = obs_row[:obsid][1]
 
     instrument_data = (
-        string(cl_dir, "\\nu$(obsid)A01_cl.evt"),
-        string(cl_dir, "\\nu$(obsid)B01_cl.evt")
+        string(cl_dir, "/nu$(obsid)A01_cl.evt"),
+        string(cl_dir, "/nu$(obsid)B01_cl.evt")
     )
 
     return abspath.(instrument_data)
@@ -40,7 +40,7 @@ end
 function _nustar_uf_dir(obs_row::DataFrames.DataFrame, root_dir::String)
     obs_dir = _clean_path_dots(_nustar_observation_dir(obs_row))
 
-    return abspath(string(root_dir, obs_dir, "\\event_uf\\"))
+    return abspath(string(root_dir, obs_dir, "/event_uf/"))
 end
 
 function _nustar_uf_files(obs_row::DataFrames.DataFrame, root_dir::String)
@@ -48,8 +48,8 @@ function _nustar_uf_files(obs_row::DataFrames.DataFrame, root_dir::String)
     obsid  = obs_row[:obsid][1]
 
     instrument_data = (
-        string(uf_dir, "\\nu$(obsid)A_uf.evt"),
-        string(uf_dir, "\\nu$(obsid)B_uf.evt")
+        string(uf_dir, "/nu$(obsid)A_uf.evt"),
+        string(uf_dir, "/nu$(obsid)B_uf.evt")
     )
 
     return abspath.(instrument_data)
