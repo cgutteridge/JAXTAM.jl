@@ -1,5 +1,5 @@
 function _ftp_dir(mission_name::Symbol, obs_row::DataFrames.DataFrame)
-    obs_path_function = eval(config(mission_name).obs_path)
+    obs_path_function = config(mission_name).path_obs
 
     return obs_path_function(obs_row)
 end
@@ -49,7 +49,7 @@ function download(mission_name::Symbol, master::DataFrames.DataFrame, obsid::Str
 end
 
 function download(mission_name::Symbol, obsid::String; skip_exists=true)
-    download(mission_name, master(), obsid; skip_exists=skip_exists)
+    download(mission_name, master(mission_name), obsid; skip_exists=skip_exists)
 end
 
 function download(mission_name::Symbol, master::DataFrames.DataFrame, obsids::Array; skip_exists=true)
