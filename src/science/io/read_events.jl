@@ -46,12 +46,12 @@ function _read_fits_event(fits_path)
     return InstrumentData(instrument_name, fits_events_df, fits_gti_df)
 end
 
-function _save_fits_feather(feather_dir, instrument_name, fits_events_df, fits_gti_df)
+function _save_cl_feather(feather_dir, instrument_name, fits_events_df, fits_gti_df)
     Feather.write(joinpath(feather_dir, "$instrument_name\_events.feather"), fits_events_df)
     Feather.write(joinpath(feather_dir, "$instrument_name\_gtis.feather"), fits_gti_df)
 end
 
-function read_cl_fits(mission_name, obs_row)
+function read_cl_fits(mission_name::Symbol, obs_row::DataFrames.DataFrame)
     file_path = abspath.([i for i in obs_row[:event_cl][1]]) # Convert tuple to array, abdolute path
 
     obsid = obs_row[:obsid]
@@ -88,8 +88,8 @@ function read_cl_fits(mission_name, obs_row)
     end
 end
 
-function read_cl(mission_name, obs_row)
-    obsid       = obs_row[:obsid]
+function read_cl(mission_name::Symbol, obs_row::DataFrames.DataFrame)
+    obsid       = obs_row[:obsid][1]
     JAXTAM_path = abspath(string(obs_row[:obs_path][1], "/JAXTAM/"))
 
     if !isdir(obs_row[:obs_path][1])
@@ -110,7 +110,7 @@ function read_cl(mission_name, obs_row)
         instruments = unique(replace.(JAXTAM_content, r"(_gtis|_events|_calib|.feather)", ""))
 
         for instrument in instruments
-            info("Loading $(obsid[1]): $instrument from $JAXTAM_path")
+            info("Loading $(obsid): $instrument from $JAXTAM_path")
             inst_files = JAXTAM_content[contains.(JAXTAM_content, instrument)]
             file_event = joinpath(JAXTAM_path, inst_files[contains.(inst_files, "events")][1])
             file_gtis  = joinpath(JAXTAM_path, inst_files[contains.(inst_files, "gtis")][1])
@@ -118,20 +118,26 @@ function read_cl(mission_name, obs_row)
             mission_data[Symbol(instrument)] = InstrumentData(instrument, Feather.read(file_event), Feather.read(file_gtis))
         end
     else
-        mission_data = read_cl_fits(mission_name, obs_row, obsid)
+        mission_data = read_cl_fits(mission_name, obs_row)
 
         for key in keys(mission_data)
             print("\n"); info("Saving $(string(key))")
 
-            _save_fits_feather(JAXTAM_path, mission_data[key].instrument, mission_data[key].events, mission_data[key].gti)
+            _save_cl_feather(JAXTAM_path, mission_data[key].instrument, mission_data[key].events, mission_data[key].gti)
         end
     end
 
     return mission_data
 end
 
-function read_cl(mission_name, append_df, obsid)
+function read_cl(mission_name::Symbol, append_df::DataFrames.DataFrame, obsid::String)
     obs_row = master_query(append_df, :obsid, obsid)
 
     return read_cl(mission_name, obs_row)
+end
+
+function read_cl(mission_name::Symbol, obsid::String)
+    append_df = master_a(mission_name)
+
+    return read_cl(mission_name, append_df, obsid)
 end
