@@ -11,4 +11,5 @@ mutable struct MissionDefinition
     path_obs::Function
     path_cl::Function
     path_uf::Function
+    path_rmf::String
 end
