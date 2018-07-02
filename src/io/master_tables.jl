@@ -178,6 +178,11 @@ function master_query(master_df::DataFrame, key_type::Symbol, key_value::Any)
     return observations
 end
 
+function master_query(mission_name::Symbol, key_type::Symbol, key_value::String)
+
+    return master_query(master(mission_name), key_type, key_value)
+end
+
 function _public_date_int(public_date)
     public_date = get(public_date)
     try
