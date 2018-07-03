@@ -63,7 +63,7 @@ function calibrate(mission_name::Symbol, obs_row::DataFrames.DataFrame)
     JAXTAM_e_files = count(contains.(JAXTAM_content, "events"))
     JAXTAM_c_files = count(contains.(JAXTAM_content, "calib"))
 
-    calibrated_energy = Dict{Symbol,DataFrames.DataFrame}()
+    calibrated_energy = Dict{Symbol,InstrumentData}()
 
     instruments = unique(replace.(JAXTAM_content, r"(_gtis|_events|_calib|.feather)", ""))
 
@@ -73,14 +73,14 @@ function calibrate(mission_name::Symbol, obs_row::DataFrames.DataFrame)
         for instrument in instruments
             info("Loading $instrument EVENTS")
 
-            event_instrument = read_cl(mission_name, obs_row)[Symbol(instrument)].events
-            es = DataFrame(E = _read_calibration(event_instrument[:PI], mission_name))
+            instrument_data            = read_cl(mission_name, obs_row)[Symbol(instrument)]
+            instrument_data.events[:E] = _read_calibration(instrument_data.events[:PI], mission_name)
 
             info("Saving $instrument CALIB energy")
 
-            Feather.write(joinpath(JAXTAM_path, "$instrument\_calib.feather"), es)
+            Feather.write(joinpath(JAXTAM_path, "$instrument\_calib.feather"), DataFrame(E = instrument_data.events[:E]))
 
-            calibrated_energy[Symbol(instrument)] = es
+            calibrated_energy[Symbol(instrument)] = instrument_data
         end
     elseif JAXTAM_e_files > 0 && JAXTAM_e_files == JAXTAM_c_files
         info("Loading CALIB $(obsid): from $JAXTAM_path")
@@ -88,7 +88,14 @@ function calibrate(mission_name::Symbol, obs_row::DataFrames.DataFrame)
         for instrument in instruments
             info("Loading $instrument CALIB energy")
 
-            calibrated_energy[Symbol(instrument)] = Feather.read(joinpath(JAXTAM_path, "$instrument\_calib.feather"))
+            events = Feather.read(joinpath(JAXTAM_path, "$instrument\_events.feather"))
+            calib  = Feather.read(joinpath(JAXTAM_path, "$instrument\_calib.feather"))
+            gtis   = Feather.read(joinpath(JAXTAM_path, "$instrument\_gtis.feather"))
+
+            events_calib = events
+            events_calib[:E] = calib[:E]
+
+            calibrated_energy[Symbol(instrument)] = InstrumentData(instrument, events_calib, gtis)
         end
     end
 
