@@ -20,7 +20,7 @@ include("io/master_tables.jl")
 include("io/master_append.jl")
 include("io/misc.jl")
 include("io/data_download.jl")
-include("science/io/read_events.jl")
-include("science/calibration/calibrate.jl")
+include("science/read_events.jl")
+include("science/calibrate.jl")
 
 end
