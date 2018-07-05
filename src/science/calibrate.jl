@@ -29,27 +29,27 @@ function _read_rmf()
     return _read_rmf(path_rmf)
 end
 
-function _read_calibration(pis::Array{Int16,1}, path_rmf::String)
+function _read_calibration(pis::Array, path_rmf::String)
     calp, calEmin, calEmax = _read_rmf(path_rmf)
 
     es = zeros(length(pis))
 
     for (i, PI) in enumerate(pis)
         if PI in calp
-            es[i] = (calEmin[PI-1] + calEmax[PI-1])/2
+            es[i] = (calEmin[PI+1] + calEmax[PI+1])/2
         end
     end
 
     return es
 end
 
-function _read_calibration(pis::Array{Int16,1}, mission_name::Symbol)
+function _read_calibration(pis::Array, mission_name::Symbol)
     path_rmf = config(mission_name).path_rmf
 
     return _read_calibration(pis, path_rmf)
 end
 
-function _read_calibration(pis::Array{Int16,1})
+function _read_calibration(pis::Array)
     path_rmf = config(:default).path_rmf
 
     return _read_calibration(pis, path_rmf)
