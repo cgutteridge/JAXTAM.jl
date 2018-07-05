@@ -1,7 +1,10 @@
 struct InstrumentData
+    obsid::String
     instrument::Symbol
     events::DataFrame
-    gti::DataFrame
+    gtis::DataFrame
+    start::Number
+    stop::Number
 end
 
 function _read_fits_hdu(fits_file, hdu_id)
@@ -36,19 +39,24 @@ function _read_fits_event(fits_path)
     fits_file   = FITS(fits_path)
 
     instrument_name = read_header(fits_file[1])["INSTRUME"]
-
+    
     fits_events_df = _read_fits_hdu(fits_file, 2)
-
-    fits_gti_df = _read_fits_hdu(fits_file, 3)
+    
+    fits_gtis_df = _read_fits_hdu(fits_file, 3)
+    
+    fits_obsid = read_key(fits_file[1], "OBS_ID")[1]
+    fits_start = read_key(fits_file[1], "TSTART")[1]
+    fits_stop = read_key(fits_file[1], "TSTOP")[1]
 
     close(fits_file)
 
-    return InstrumentData(instrument_name, fits_events_df, fits_gti_df)
+    return InstrumentData(fits_obsid, instrument_name, fits_events_df, fits_gtis_df, fits_start, fits_stop)
 end
 
-function _save_cl_feather(feather_dir, instrument_name, fits_events_df, fits_gti_df)
+function _save_cl_feather(feather_dir, instrument_name, fits_events_df, fits_gtis_df, fits_meta_df)
     Feather.write(joinpath(feather_dir, "$instrument_name\_events.feather"), fits_events_df)
-    Feather.write(joinpath(feather_dir, "$instrument_name\_gtis.feather"), fits_gti_df)
+    Feather.write(joinpath(feather_dir, "$instrument_name\_gtis.feather"), fits_gtis_df)
+    Feather.write(joinpath(feather_dir, "$instrument_name\_meta.feather"), fits_meta_df)
 end
 
 function read_cl_fits(mission_name::Symbol, obs_row::DataFrames.DataFrame)
@@ -107,15 +115,25 @@ function read_cl(mission_name::Symbol, obs_row::DataFrames.DataFrame)
     if JAXTAM_e_files > 0 && JAXTAM_g_files > 0 && JAXTAM_e_files == JAXTAM_g_files
         mission_data = Dict{Symbol,InstrumentData}()
 
-        instruments = unique(replace.(JAXTAM_content, r"(_gtis|_events|_calib|.feather)", ""))
+        instruments = unique(replace.(JAXTAM_content, r"(_gtis|_events|_meta|_calib|.feather)", ""))
 
         for instrument in instruments
             info("Loading $(obsid): $instrument from $JAXTAM_path")
             inst_files = JAXTAM_content[contains.(JAXTAM_content, instrument)]
-            file_event = joinpath(JAXTAM_path, inst_files[contains.(inst_files, "events")][1])
-            file_gtis  = joinpath(JAXTAM_path, inst_files[contains.(inst_files, "gtis")][1])
+
+            path_events = joinpath(JAXTAM_path, inst_files[contains.(inst_files, "events")][1])
+            data_events = Feather.read(path_events)
+
+            path_gtis = joinpath(JAXTAM_path, inst_files[contains.(inst_files, "gtis")][1])
+            data_gtis = Feather.read(path_gtis)
+
+            file_meta  = joinpath(JAXTAM_path, inst_files[contains.(inst_files, "meta")][1])
+            data_meta  = Feather.read(file_meta)
+            meta_obsid = data_meta[:OBSID][1]
+            meta_start = data_meta[:START][1]
+            meta_stop  = data_meta[:STOP][1]
             
-            mission_data[Symbol(instrument)] = InstrumentData(instrument, Feather.read(file_event), Feather.read(file_gtis))
+            mission_data[Symbol(instrument)] = InstrumentData(meta_obsid, instrument, data_events, data_gtis, meta_start, meta_stop)
         end
     else
         mission_data = read_cl_fits(mission_name, obs_row)
@@ -123,7 +141,9 @@ function read_cl(mission_name::Symbol, obs_row::DataFrames.DataFrame)
         for key in keys(mission_data)
             print("\n"); info("Saving $(string(key))")
 
-            _save_cl_feather(JAXTAM_path, mission_data[key].instrument, mission_data[key].events, mission_data[key].gti)
+            fits_meta_df = DataFrame(OBSID=mission_data[key].obsid, START=mission_data[key].start, STOP=mission_data[key].stop)
+
+            _save_cl_feather(JAXTAM_path, mission_data[key].instrument, mission_data[key].events, mission_data[key].gtis, fits_meta_df)
         end
     end
 
