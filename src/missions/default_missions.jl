@@ -21,7 +21,9 @@ function _get_default_missions()
         JAXTAM._nicer_observation_dir,
         JAXTAM._nicer_cl_files,
         JAXTAM._nicer_uf_files,
-        string(ENV["CALDB"], "/data/nicer/xti/cpf/rmf/nixtiref20170601v001.rmf")
+        string(ENV["CALDB"], "/data/nicer/xti/cpf/rmf/nixtiref20170601v001.rmf"),
+        0.2,
+        12
     )
 
     mission_nustar = MissionDefinition("nustar",
@@ -30,7 +32,9 @@ function _get_default_missions()
         JAXTAM._nustar_observation_dir,
         JAXTAM._nustar_cl_files,
         JAXTAM._nustar_uf_files,
-        string(ENV["CALDB"], "/data/nustar/fpm/cpf/rmf/nuAdet3_20100101v002.rmf")
+        string(ENV["CALDB"], "/data/nustar/fpm/cpf/rmf/nuAdet3_20100101v002.rmf"),
+        3,
+        78.4
     )
 
     return Dict(:nicer => mission_nicer, :nustar => mission_nustar)

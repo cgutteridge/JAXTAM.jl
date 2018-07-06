@@ -1,4 +1,5 @@
-# NICER Functions
+# NICER Mission Definition
+# Good energy range: 0.2 - 12 keV
 
 function _nicer_observation_dir(obs_row::DataFrames.DataFrame)
     obsid      = obs_row[:obsid][1]

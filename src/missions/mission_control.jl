@@ -12,4 +12,6 @@ mutable struct MissionDefinition
     path_cl::Function
     path_uf::Function
     path_rmf::String
+    good_energy_max::Number
+    good_energy_min::Number
 end

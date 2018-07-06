@@ -1,4 +1,5 @@
-# NuSTAR Functions
+# NuSTAR Mission Definition
+# Good energy range: 3 - 78.4 keV
 
 function _nustar_observation_dir(obs_row::DataFrames.DataFrame)
     obsid = obs_row[:obsid][1]
