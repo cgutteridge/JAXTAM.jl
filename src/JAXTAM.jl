@@ -12,6 +12,7 @@ using LightXML
 using Compat
 using FITSIO
 using Feather
+using StatsBase
 
 include("missions/mission_control.jl")
 include("missions/default_missions.jl")
@@ -22,5 +23,6 @@ include("io/misc.jl")
 include("io/data_download.jl")
 include("science/read_events.jl")
 include("science/calibrate.jl")
+include("science/lcurve.jl")
 
 end
