@@ -1,10 +1,12 @@
 struct InstrumentData
-    obsid::String
+    mission::Symbol
     instrument::Symbol
+    obsid::String
     events::DataFrame
     gtis::DataFrame
     start::Number
     stop::Number
+    header::DataFrame
 end
 
 function _read_fits_hdu(fits_file, hdu_id)
@@ -38,30 +40,39 @@ function _read_fits_event(fits_path)
     print("\n"); info("Loading $fits_path")
     fits_file   = FITS(fits_path)
 
-    instrument_name = read_header(fits_file[1])["INSTRUME"]
+    fits_header = read_header(fits_file[1])
+
+    instrument_name = fits_header["INSTRUME"]
+    fits_telescope  = fits_header["TELESCOP"]
+    fits_telescope  = Symbol(lowercase(fits_telescope))
     
-    fits_events_df = _read_fits_hdu(fits_file, 2)
+    fits_events_df = _read_fits_hdu(fits_file, "EVENTS")
     
-    fits_gtis_df = _read_fits_hdu(fits_file, 3)
+    fits_gtis_df = _read_fits_hdu(fits_file, "GTI")
     
-    fits_obsid = read_key(fits_file[1], "OBS_ID")[1]
-    fits_start = read_key(fits_file[1], "TSTART")[1]
-    fits_stop = read_key(fits_file[1], "TSTOP")[1]
+    fits_obsid = fits_header["OBS_ID"]
+    fits_start = fits_header["TSTART"]
+    fits_stop = fits_header["TSTOP"]
+
+    fits_header_df = DataFrame()
+
+    for (i, key) in enumerate(keys(fits_header))
+        key = Symbol(replace(key, '-', '_'))
+        if typeof(fits_header[i]) == Void
+            fits_header_df[Symbol(key)] =  ""
+        else
+            fits_header_df[Symbol(key)] = fits_header[i]
+        end
+    end
 
     close(fits_file)
 
-    return InstrumentData(fits_obsid, instrument_name, fits_events_df, fits_gtis_df, fits_start, fits_stop)
-end
-
-function _save_cl_feather(feather_dir, instrument_name, fits_events_df, fits_gtis_df, fits_meta_df)
-    Feather.write(joinpath(feather_dir, "$instrument_name\_events.feather"), fits_events_df)
-    Feather.write(joinpath(feather_dir, "$instrument_name\_gtis.feather"), fits_gtis_df)
-    Feather.write(joinpath(feather_dir, "$instrument_name\_meta.feather"), fits_meta_df)
+    return InstrumentData(fits_telescope, instrument_name, fits_obsid, fits_events_df, fits_gtis_df, fits_start, fits_stop, fits_header_df)
 end
 
 function read_cl_fits(mission_name::Symbol, obs_row::DataFrames.DataFrame)
     file_path = abspath.([i for i in obs_row[:event_cl][1]]) # Convert tuple to array, abdolute path
-
+    
     obsid = obs_row[:obsid]
     
     files = []
@@ -77,11 +88,11 @@ function read_cl_fits(mission_name::Symbol, obs_row::DataFrames.DataFrame)
             warn("NOT found: $file")
         end
     end
-
+    
     file_no = length(files)
-
+    
     print("\n"); info("Found $file_no file(s) for $(obsid[1])")
-
+    
     if file_no == 1
         instrument_data = _read_fits_event(files[1])
         return Dict(instrument_data.instrument => instrument_data)
@@ -91,9 +102,15 @@ function read_cl_fits(mission_name::Symbol, obs_row::DataFrames.DataFrame)
             instrument_data = _read_fits_event(file)
             per_instrument[instrument_data.instrument] = instrument_data
         end
-
+        
         return per_instrument
     end
+end
+
+function _save_cl_feather(feather_dir, instrument_name, fits_events_df, fits_gtis_df, fits_meta_df)
+    Feather.write(joinpath(feather_dir, "$instrument_name\_events.feather"), fits_events_df)
+    Feather.write(joinpath(feather_dir, "$instrument_name\_gtis.feather"), fits_gtis_df)
+    Feather.write(joinpath(feather_dir, "$instrument_name\_meta.feather"), fits_meta_df)
 end
 
 function read_cl(mission_name::Symbol, obs_row::DataFrames.DataFrame)
@@ -129,21 +146,20 @@ function read_cl(mission_name::Symbol, obs_row::DataFrames.DataFrame)
 
             file_meta  = joinpath(JAXTAM_path, inst_files[contains.(inst_files, "meta")][1])
             data_meta  = Feather.read(file_meta)
-            meta_obsid = data_meta[:OBSID][1]
-            meta_start = data_meta[:START][1]
-            meta_stop  = data_meta[:STOP][1]
+            meta_missn = Symbol(lowercase(data_meta[:TELESCOP][1]))
+            meta_obsid = data_meta[:OBS_ID][1]
+            meta_start = data_meta[:TSTART][1]
+            meta_stop  = data_meta[:TSTOP][1]
             
-            mission_data[Symbol(instrument)] = InstrumentData(meta_obsid, instrument, data_events, data_gtis, meta_start, meta_stop)
+            mission_data[Symbol(instrument)] = InstrumentData(meta_missn, instrument, meta_obsid, data_events, data_gtis, meta_start, meta_stop, data_meta)
         end
     else
         mission_data = read_cl_fits(mission_name, obs_row)
 
         for key in keys(mission_data)
             print("\n"); info("Saving $(string(key))")
-
-            fits_meta_df = DataFrame(OBSID=mission_data[key].obsid, START=mission_data[key].start, STOP=mission_data[key].stop)
-
-            _save_cl_feather(JAXTAM_path, mission_data[key].instrument, mission_data[key].events, mission_data[key].gtis, fits_meta_df)
+            
+            _save_cl_feather(JAXTAM_path, mission_data[key].instrument, mission_data[key].events, mission_data[key].gtis, mission_data[key].header)
         end
     end
 

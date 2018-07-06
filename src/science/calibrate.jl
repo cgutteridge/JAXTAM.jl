@@ -65,7 +65,7 @@ function calibrate(mission_name::Symbol, obs_row::DataFrames.DataFrame)
 
     calibrated_energy = Dict{Symbol,InstrumentData}()
 
-    instruments = unique(replace.(JAXTAM_content, r"(_gtis|_events|_calib|.feather)", ""))
+    instruments = unique(replace.(JAXTAM_content, r"(_gtis|_events|_meta|_calib|.feather)", ""))
 
     if JAXTAM_e_files > 0 && JAXTAM_e_files > JAXTAM_c_files
         info("Loading EVENTS for $(obsid) from $JAXTAM_path")
@@ -91,11 +91,17 @@ function calibrate(mission_name::Symbol, obs_row::DataFrames.DataFrame)
             events = Feather.read(joinpath(JAXTAM_path, "$instrument\_events.feather"))
             calib  = Feather.read(joinpath(JAXTAM_path, "$instrument\_calib.feather"))
             gtis   = Feather.read(joinpath(JAXTAM_path, "$instrument\_gtis.feather"))
+            meta   = Feather.read(joinpath(JAXTAM_path, "$instrument\_meta.feather"))
 
             events_calib = events
             events_calib[:E] = calib[:E]
 
-            calibrated_energy[Symbol(instrument)] = InstrumentData(instrument, events_calib, gtis)
+            meta_missn = Symbol(lowercase(meta[:TELESCOP][1]))
+            meta_obsid = meta[:OBS_ID][1]
+            meta_start = meta[:TSTART][1]
+            meta_stop  = meta[:TSTOP][1]
+
+            calibrated_energy[Symbol(instrument)] = InstrumentData(meta_missn, instrument, meta_obsid, events_calib, gtis, meta_start, meta_stop, meta)
         end
     end
 
