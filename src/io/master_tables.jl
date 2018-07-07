@@ -180,7 +180,7 @@ end
 
 function master_query(mission_name::Symbol, key_type::Symbol, key_value::String)
 
-    return master_query(master(mission_name), key_type, key_value)
+    return master_query(master_a(mission_name), key_type, key_value)
 end
 
 function _public_date_int(public_date)
@@ -217,7 +217,7 @@ function master_query_public(master_df::DataFrame)
 end
 
 function master_query_public(mission_name::Symbol)
-    master_df = master(mission_name)
+    master_df = master_a(mission_name)
 
     return master_query_public(master_df)
 end
