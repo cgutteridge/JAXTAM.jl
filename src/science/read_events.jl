@@ -132,7 +132,9 @@ function read_cl(mission_name::Symbol, obs_row::DataFrames.DataFrame)
     if JAXTAM_e_files > 0 && JAXTAM_g_files > 0 && JAXTAM_e_files == JAXTAM_g_files
         mission_data = Dict{Symbol,InstrumentData}()
 
-        instruments = unique(replace.(JAXTAM_content, r"(_gtis|_events|_meta|_calib|.feather)", ""))
+        #instruments = unique(replace.(JAXTAM_content, r"(_gtis|_events|_meta|_calib|.feather)", ""))
+
+        instruments = config(mission_name.instruments)
 
         for instrument in instruments
             info("Loading $(obsid): $instrument from $JAXTAM_path")

@@ -14,4 +14,5 @@ mutable struct MissionDefinition
     path_rmf::String
     good_energy_max::Number
     good_energy_min::Number
+    instruments::Array
 end

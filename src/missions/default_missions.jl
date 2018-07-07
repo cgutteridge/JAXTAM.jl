@@ -23,7 +23,8 @@ function _get_default_missions()
         JAXTAM._nicer_uf_files,
         string(ENV["CALDB"], "/data/nicer/xti/cpf/rmf/nixtiref20170601v001.rmf"),
         0.2,
-        12
+        12,
+        ["XTI"]
     )
 
     mission_nustar = MissionDefinition("nustar",
@@ -34,7 +35,8 @@ function _get_default_missions()
         JAXTAM._nustar_uf_files,
         string(ENV["CALDB"], "/data/nustar/fpm/cpf/rmf/nuAdet3_20100101v002.rmf"),
         3,
-        78.4
+        78.4,
+        ["FPMA", "FPMB"]
     )
 
     return Dict(:nicer => mission_nicer, :nustar => mission_nustar)
