@@ -8,7 +8,7 @@ struct BinnedData
     gtis::Array{Float64,2}
 end
 
-struct GTIPart
+struct GTIData
     mission::Symbol
     instrument::Symbol
     obsid::String
@@ -28,9 +28,13 @@ function _lcurve_filter_time(event_times, event_energies, gtis, start_time, stop
     gtis = hcat(gtis[:START], gtis[:STOP])
     gtis = gtis .- start_time
 
-    counts_per_gti_sec = [count(gtis[g, 1] .<= event_times .<= gtis[g, 2])/(gtis[g, 2] - gtis[g, 1]) for g in 1:size(gtis, 1)]
+    # WARNING: rounding GTIs up/down to get integers, shouldn't(?) cause a problem
+    # TODO: check with Diego
+    gtis[:, 1] = ceil.(gtis[:, 1])
+    gtis[:, 2] = floor.(gtis[:, 2])
 
-    println(counts_per_gti_sec)
+    #counts_per_gti_sec = [count(gtis[g, 1] .<= event_times .<= gtis[g, 2])/(gtis[g, 2] - gtis[g, 1]) for g in 1:size(gtis, 1)]
+    #println(counts_per_gti_sec)
     
     return event_times, event_energies, gtis
 end
@@ -147,25 +151,25 @@ function lcurve(mission_name::Symbol, obsid::String, bin_time::Number; overwrite
     return lcurve(mission_name, obs_row, bin_time; overwrite=overwrite)
 end
 
-function _lc_filter_gtis(binned_times, binned_counts, gtis, time_start, time_stop, mission, instrument, obsid)
+function _lc_filter_gtis(binned_times, binned_counts, gtis, time_start, time_stop, mission, instrument, obsid; min_gti_sec=5)
     # Dodgy way to convert a matrix into an array of arrays
     # so each GTI is stored as an array of [start; finish]
     # and each of those GTI arrays is an array itself
     # makes life a bit easier for the following `for gti in gtis` loop
     gtis = [gtis[x, :] for x in 1:size(gtis, 1)]
 
-    gti_data = Array{GTIPart,1}()
+    gti_data = Array{GTIData,1}()
 
     bin_time = binned_times[2] - binned_times[1]
 
     excluded_gti_count = 0
 
     for (i, gti) in enumerate(gtis) # For each GTI, store the selected times and count rate within that GTI
-        start = findfirst(binned_times .> gti[1])
-        stop  = findfirst(binned_times .> gti[2])-1
+        start = findfirst(binned_times .> gti[1])-1
+        stop  = findfirst(binned_times .>= gti[2])-1 # >= required for -1 to not overshoot
 
-        if (stop-start)*bin_time > 30
-            append!(gti_data, [GTIPart(mission, instrument, obsid, i, start, binned_counts[start:stop], binned_times[start:stop].-gti[1])]) # Subtract GTI start time from all times, so all start from t=0
+        if (stop-start)*bin_time > min_gti_sec
+            append!(gti_data, [GTIData(mission, instrument, obsid, i, start, binned_counts[start:stop], binned_times[start:stop].-gti[1])]) # Subtract GTI start time from all times, so all start from t=0
         else
             excluded_gti_count += 1
         end
@@ -179,7 +183,7 @@ function _lc_filter_gtis(binned_times, binned_counts, gtis, time_start, time_sto
     info("Original counts: $total_counts, counts in GTI: $gti_counts, delta: $count_delta ($delta_prcnt %)")
 
     if excluded_gti_count > 0
-        warn("Excluded $excluded_gti_count gtis < 30s")
+        warn("Excluded $excluded_gti_count gtis < $(min_gti_sec)s")
     end
 
     if abs(count_delta) > 0.1*total_counts
