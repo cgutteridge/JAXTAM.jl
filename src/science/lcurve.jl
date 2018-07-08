@@ -272,6 +272,8 @@ function gtis(mission_name::Symbol, obs_row::DataFrames.DataFrame, bin_time::Num
 
             info("Saving $instrument GTIs")
             _gtis_save(gtis_data, JAXTAM_gti_path)
+
+            instrument_gtis[Symbol(instrument)] = gtis_data
         else
             info("Loading $instrument GTIs")
             instrument_gtis[Symbol(instrument)] = _gtis_load(JAXTAM_gti_path, instrument, bin_time)
