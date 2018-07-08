@@ -192,8 +192,6 @@ function _lc_filter_gtis(binned_times, binned_counts, gtis, time_start, time_sto
     end
 
     return gti_data
-
-    return sort(gti_data)
 end
 
 function _gtis(lc::BinnedData)
@@ -218,6 +216,35 @@ function _gtis_save(gtis, gti_dir::String)
     end
 end
 
+function _gtis_load(gti_dir, instrument, bin_time)
+    bin_time = float(bin_time)
+
+    gti_basename  = string("$instrument\_lc_$bin_time\_gti")
+    gti_meta_path = joinpath(gti_dir, "$gti_basename\_meta.feather")
+
+    gti_meta = Feather.read(gti_meta_path)
+
+    gti_data = Dict{Int,GTIData}()
+
+    for row_idx in 1:size(gti_meta, 1)
+        current_row = gti_meta[row_idx, :]
+        gti_mission = current_row[:mission][1]
+        gti_inst    = current_row[:instrument][1]
+        gti_obsid   = current_row[:obsid][1]
+        gti_bin_t   = current_row[:bin_time][1]
+        gti_idx     = current_row[:indecies][1]
+        gti_starts  = current_row[:starts][1]
+        current_gti = Feather.read(joinpath(gti_dir, "$gti_basename\_$gti_idx\.feather"))
+        gti_counts  = current_gti[:counts]
+        gti_times   = current_gti[:times]
+        
+
+        gti_data[gti_idx] = GTIData(gti_mission, gti_inst, gti_obsid, gti_bin_t, gti_idx, gti_starts, gti_counts, gti_times)
+    end
+
+    return gti_data
+end
+
 function gtis(mission_name::Symbol, obs_row::DataFrames.DataFrame, bin_time::Number; overwrite=false)
     obsid              = obs_row[:obsid][1]
     instruments        = config(mission_name).instruments
@@ -234,6 +261,8 @@ function gtis(mission_name::Symbol, obs_row::DataFrames.DataFrame, bin_time::Num
         info("Not all GTI metas found")
         lc = lcurve(mission_name, obs_row, bin_time)
     end
+    
+    instrument_gtis = Dict{Symbol,Dict{Int64,JAXTAM.GTIData}}() # DataStructures.OrderedDict{Int64,JAXTAM.GTIData}
 
     for instrument in instruments
         if !isfile(JAXTAM_gti_metas[Symbol(instrument)]) || overwrite
@@ -245,17 +274,8 @@ function gtis(mission_name::Symbol, obs_row::DataFrames.DataFrame, bin_time::Num
             _gtis_save(gtis_data, JAXTAM_gti_path)
         else
             info("Loading $instrument GTIs")
+            instrument_gtis[Symbol(instrument)] = _gtis_load(JAXTAM_gti_path, instrument, bin_time)
         end
-    end
-
-    return JAXTAM_gti_metas
-    
-
-    instrument_gtis = Dict{Symbol,Any}() # DataStructures.OrderedDict{Int64,JAXTAM.GTIData}
-
-
-    for instrument in instruments
-        instrument_gtis[Symbol(instrument)] = _gtis(lc[Symbol(instrument)])
     end
 
     return instrument_gtis
