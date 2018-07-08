@@ -184,7 +184,7 @@ function _lc_filter_gtis(binned_times, binned_counts, gtis, time_start, time_sto
     info("Original counts: $total_counts, counts in GTI: $gti_counts, delta: $count_delta ($delta_prcnt %)")
 
     if excluded_gti_count > 0
-        warn("Excluded $excluded_gti_count gtis < $(min_gti_sec)s")
+        warn("Excluded $excluded_gti_count gtis (< $(min_gti_sec)s) out of $(size(gtis, 1))")
     end
 
     if abs(count_delta) > 0.1*total_counts
@@ -202,24 +202,67 @@ function _gtis(lc::BinnedData)
     return gti_data
 end
 
-function _gtis_save(gtis::GTIData, gti_dir::String)
-    gti_indecies = sort([k for k in keys(gtis)])
+function _gtis_save(gtis, gti_dir::String)
+    gti_indecies = [k for k in keys(gtis)]
+    gti_starts   = [t.gti_start_time for t in values(gtis)]
     gti_example  = gtis[gti_indecies[1]]
 
-    gti_basename = string("$(gti_examples.instrument)\_gti_$(gti_examples.bin_time)")
-    gtis_meta    = DataFrame(mission=gti_example.mission, instrument=gti_example.instrument, obsid=gti_example.obsid, bin_time=gti_example.bin_time)
+    gti_basename = string("$(gti_example.instrument)\_lc_$(gti_example.bin_time)\_gti")
+    gtis_meta    = DataFrame(mission=String(gti_example.mission), instrument=String(gti_example.instrument), obsid=gti_example.obsid, bin_time=gti_example.bin_time, indecies=gti_indecies, starts=gti_starts)
+
+    Feather.write(joinpath(gti_dir, "$gti_basename\_meta.feather"), gtis_meta)
+
+    for index in gti_indecies
+        gti_savepath = joinpath(gti_dir, "$gti_basename\_$index\.feather")
+        Feather.write(gti_savepath, DataFrame(counts=gtis[index].counts, times=gtis[index].times))
+    end
 end
 
-function gtis(mission_name::Symbol, obs_row::DataFrames.DataFrame, bin_time::Number)
-    lc = lcurve(mission_name, obs_row, bin_time)
+function gtis(mission_name::Symbol, obs_row::DataFrames.DataFrame, bin_time::Number; overwrite=false)
+    obsid              = obs_row[:obsid][1]
+    instruments        = config(mission_name).instruments
 
-    gtis = _gtis(lc)
+    JAXTAM_path        = abspath(string(obs_row[:obs_path][1], "/JAXTAM/"))
+    JAXTAM_lc_path     = joinpath(JAXTAM_path, "lc/$bin_time/"); mkpath(JAXTAM_lc_path)
+    JAXTAM_lc_content  = readdir(JAXTAM_path)
+    JAXTAM_gti_path    = joinpath(JAXTAM_path, "lc/$bin_time/gtis/"); mkpath(JAXTAM_gti_path)
+    JAXTAM_gti_content = readdir(JAXTAM_gti_path)
+    JAXTAM_gti_metas   = Dict([Symbol(inst) => joinpath(JAXTAM_gti_path, "$inst\_lc_$(float(bin_time))\_gti_meta.feather") for inst in instruments])
+    JAXTAM_all_metas   = unique([isfile(meta) for meta in values(JAXTAM_gti_metas)])
 
-    return
+    if JAXTAM_all_metas != [true] || overwrite
+        info("Not all GTI metas found")
+        lc = lcurve(mission_name, obs_row, bin_time)
+    end
+
+    for instrument in instruments
+        if !isfile(JAXTAM_gti_metas[Symbol(instrument)]) || overwrite
+            info("Computing $instrument GTIs")
+
+            gtis_data = _gtis(lc[Symbol(instrument)])
+
+            info("Saving $instrument GTIs")
+            _gtis_save(gtis_data, JAXTAM_gti_path)
+        else
+            info("Loading $instrument GTIs")
+        end
+    end
+
+    return JAXTAM_gti_metas
+    
+
+    instrument_gtis = Dict{Symbol,Any}() # DataStructures.OrderedDict{Int64,JAXTAM.GTIData}
+
+
+    for instrument in instruments
+        instrument_gtis[Symbol(instrument)] = _gtis(lc[Symbol(instrument)])
+    end
+
+    return instrument_gtis
 end
 
-function gtis(mission_name::Symbol, obsid::String)
+function gtis(mission_name::Symbol, obsid::String, bin_time::Number; overwrite=false)
     obs_row = master_query(mission_name, :obsid, obsid)
 
-    return gtis(mission_name, obs_row)
+    return gtis(mission_name, obs_row, bin_time, overwrite=overwrite)
 end
