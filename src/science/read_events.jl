@@ -134,7 +134,7 @@ function read_cl(mission_name::Symbol, obs_row::DataFrames.DataFrame)
 
         #instruments = unique(replace.(JAXTAM_content, r"(_gtis|_events|_meta|_calib|.feather)", ""))
 
-        instruments = config(mission_name.instruments)
+        instruments = config(mission_name).instruments
 
         for instrument in instruments
             info("Loading $(obsid): $instrument from $JAXTAM_path")
