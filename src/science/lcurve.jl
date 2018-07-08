@@ -12,8 +12,9 @@ struct GTIData
     mission::Symbol
     instrument::Symbol
     obsid::String
+    bin_time::Real
     gti_index::Int
-    gti_start_time::Number
+    gti_start_time::Real
     counts::Array
     times::Array
 end
@@ -137,7 +138,6 @@ function lcurve(mission_name::Symbol, obs_row::DataFrame, bin_time::Number; over
         info("Loading LC $(obsid): from $JAXTAM_lc_path")
 
         for instrument in instruments
-            return _lc_read(JAXTAM_lc_path, instrument, bin_time)
             lightcurves[instrument] = _lc_read(JAXTAM_lc_path, instrument, bin_time)
         end
     end
@@ -158,7 +158,7 @@ function _lc_filter_gtis(binned_times, binned_counts, gtis, time_start, time_sto
     # makes life a bit easier for the following `for gti in gtis` loop
     gtis = [gtis[x, :] for x in 1:size(gtis, 1)]
 
-    gti_data = Array{GTIData,1}()
+    gti_data = Dict{Int,GTIData}()
 
     bin_time = binned_times[2] - binned_times[1]
 
@@ -169,14 +169,15 @@ function _lc_filter_gtis(binned_times, binned_counts, gtis, time_start, time_sto
         stop  = findfirst(binned_times .>= gti[2])-1 # >= required for -1 to not overshoot
 
         if (stop-start)*bin_time > min_gti_sec
-            append!(gti_data, [GTIData(mission, instrument, obsid, i, start, binned_counts[start:stop], binned_times[start:stop].-gti[1])]) # Subtract GTI start time from all times, so all start from t=0
+            # Subtract GTI start time from all times, so all start from t=0
+            gti_data[Int(i)] = GTIData(mission, instrument, obsid, bin_time, i, start, binned_counts[start:stop], binned_times[start:stop].-gti[1])
         else
             excluded_gti_count += 1
         end
     end
 
     total_counts = sum(binned_counts)[1]
-    gti_counts   = sum([sum(gti.counts) for gti in gti_data])
+    gti_counts   = sum([sum(gti.counts) for gti in values(gti_data)])
     count_delta  = gti_counts-total_counts
     delta_prcnt  = round(count_delta/total_counts*100, 2)
 
@@ -191,10 +192,34 @@ function _lc_filter_gtis(binned_times, binned_counts, gtis, time_start, time_sto
     end
 
     return gti_data
+
+    return sort(gti_data)
 end
 
 function _gtis(lc::BinnedData)
     gti_data = _lc_filter_gtis(lc.times, lc.counts, lc.gtis, lc.times[1], lc.times[end], lc.mission, lc.instrument, lc.obsid)
 
     return gti_data
+end
+
+function _gtis_save(gtis::GTIData, gti_dir::String)
+    gti_indecies = sort([k for k in keys(gtis)])
+    gti_example  = gtis[gti_indecies[1]]
+
+    gti_basename = string("$(gti_examples.instrument)\_gti_$(gti_examples.bin_time)")
+    gtis_meta    = DataFrame(mission=gti_example.mission, instrument=gti_example.instrument, obsid=gti_example.obsid, bin_time=gti_example.bin_time)
+end
+
+function gtis(mission_name::Symbol, obs_row::DataFrames.DataFrame, bin_time::Number)
+    lc = lcurve(mission_name, obs_row, bin_time)
+
+    gtis = _gtis(lc)
+
+    return
+end
+
+function gtis(mission_name::Symbol, obsid::String)
+    obs_row = master_query(mission_name, :obsid, obsid)
+
+    return gtis(mission_name, obs_row)
 end
