@@ -13,3 +13,5 @@ Just Another X-ray Timing Analysis Module
 JAXTAM, inspired by [MaLTPyNT](https://maltpynt.readthedocs.io/en/latest/), is a Julia package for X-ray timing analysis, with a specific focus on HEASARC ran missions.
 
 It will (eventually) be able to manage the whole analysis process, from downloading and keeping track of datasets, to basic automated analysis, to automatically generating a website which displays the output in an easy to read way.
+
+Demo notebook: http://nbviewer.jupyter.org/github/RobertRosca/JAXTAM.jl/blob/master/JAXTAM%20Demo.ipynb
