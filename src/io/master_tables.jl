@@ -178,7 +178,7 @@ function master_query(master_df::DataFrame, key_type::Symbol, key_value::Any)
     return observations
 end
 
-function master_query(mission_name::Symbol, key_type::Symbol, key_value::String)
+function master_query(mission_name::Symbol, key_type::Symbol, key_value::Any)
 
     return master_query(master_a(mission_name), key_type, key_value)
 end
