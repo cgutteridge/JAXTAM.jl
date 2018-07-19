@@ -13,6 +13,7 @@ using Compat
 using FITSIO
 using Feather
 using StatsBase
+using DSP
 
 include("missions/mission_control.jl")
 include("missions/default_missions.jl")
@@ -24,5 +25,6 @@ include("io/data_download.jl")
 include("science/read_events.jl")
 include("science/calibrate.jl")
 include("science/lcurve.jl")
+include("science/fspec.jl")
 
 end
