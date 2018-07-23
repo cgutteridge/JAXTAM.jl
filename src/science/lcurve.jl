@@ -34,8 +34,12 @@ function _lcurve_filter_time(event_times, event_energies, gtis, start_time, stop
     gtis[:, 1] = ceil.(gtis[:, 1])
     gtis[:, 2] = floor.(gtis[:, 2])
 
-    #counts_per_gti_sec = [count(gtis[g, 1] .<= event_times .<= gtis[g, 2])/(gtis[g, 2] - gtis[g, 1]) for g in 1:size(gtis, 1)]
-    #println(counts_per_gti_sec)
+    counts_per_gti_sec = [count(gtis[g, 1] .<= event_times .<= gtis[g, 2])/(gtis[g, 2] - gtis[g, 1]) for g in 1:size(gtis, 1)]
+    mask_min_counts = counts_per_gti_sec .>= 1
+
+    info("Excluded $(size(gtis, 1) - count(mask_min_counts)) gtis under 1 count/sec")
+
+    gtis = gtis[mask_min_counts, :]
     
     return event_times, event_energies, gtis
 end
