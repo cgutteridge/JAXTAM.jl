@@ -175,17 +175,17 @@ function _lc_filter_gtis(binned_times, binned_counts, gtis, time_start, time_sto
         if start == 0 || stop > length(binned_times) || start > stop
             warn("GTI start/stop times invalid, skipping: start: $start | stop: $stop | length: $(length(binned_times))")
         else
-        if (stop-start)*bin_time > min_gti_sec
-            # Subtract GTI start time from all times, so all start from t=0
-            array_times = binned_times[start:stop].-gti[1]
-            range_times = array_times[1]:bin_time:array_times[end]
+            if (stop-start)*bin_time > min_gti_sec
+                # Subtract GTI start time from all times, so all start from t=0
+                array_times = binned_times[start:stop].-gti[1]
+                range_times = array_times[1]:bin_time:array_times[end]
 
-            gti_data[Int(i)] = GTIData(mission, instrument, obsid, bin_time, i, start, 
-                binned_counts[start:stop], range_times)
-        else
-            excluded_gti_count += 1
+                gti_data[Int(i)] = GTIData(mission, instrument, obsid, bin_time, i, start, 
+                    binned_counts[start:stop], range_times)
+            else
+                excluded_gti_count += 1
+            end
         end
-    end
     end
 
     total_counts = sum(binned_counts)[1]
@@ -249,6 +249,7 @@ function _gtis_load(gti_dir, instrument, bin_time)
         current_gti = Feather.read(joinpath(gti_dir, "$gti_basename\_$gti_idx\.feather"))
         gti_counts  = current_gti[:counts]
         gti_times   = current_gti[:times]
+        gti_times   = gti_times[1]:gti_bin_t:gti_times[end] # Convert Array to Step Range
         
 
         gti_data[gti_idx] = GTIData(gti_mission, gti_inst, gti_obsid, gti_bin_t, gti_idx, gti_starts, gti_counts, gti_times)
