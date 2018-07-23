@@ -169,9 +169,12 @@ function _lc_filter_gtis(binned_times, binned_counts, gtis, time_start, time_sto
     excluded_gti_count = 0
 
     for (i, gti) in enumerate(gtis) # For each GTI, store the selected times and count rate within that GTI
-        start = findfirst(binned_times .> gti[1])-1
+        start = findfirst(binned_times .> gti[1])
         stop  = findfirst(binned_times .>= gti[2])-1 # >= required for -1 to not overshoot
 
+        if start == 0 || stop > length(binned_times) || start > stop
+            warn("GTI start/stop times invalid, skipping: start: $start | stop: $stop | length: $(length(binned_times))")
+        else
         if (stop-start)*bin_time > min_gti_sec
             # Subtract GTI start time from all times, so all start from t=0
             array_times = binned_times[start:stop].-gti[1]
@@ -182,6 +185,7 @@ function _lc_filter_gtis(binned_times, binned_counts, gtis, time_start, time_sto
         else
             excluded_gti_count += 1
         end
+    end
     end
 
     total_counts = sum(binned_counts)[1]
