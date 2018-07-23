@@ -15,8 +15,8 @@ struct GTIData
     bin_time::Real
     gti_index::Int
     gti_start_time::Real
-    counts::Array
-    times::Array
+    counts::SparseVector
+    times::StepRangeLen
 end
 
 function _lcurve_filter_time(event_times, event_energies, gtis, start_time, stop_time, filter_low_count_gtis=true)
@@ -51,11 +51,11 @@ end
 
 function _lc_bin(event_times, bin_time, time_start, time_stop)
     if bin_time < 1
-        if (Int(1/bin_time) & Int((1/bin_time)-1)) != 0
+        if ispow2(Int(1/bin_time))
             warn("Bin time not pow2")
         end
     elseif bin_time > 1
-        if (bin_time & (bin_time-1)) != 0
+        if ispow2(Int(bin_time))
             warn("Bin time not pow2")
         end
     elseif bin_time == 0
@@ -170,7 +170,11 @@ function _lc_filter_gtis(binned_times, binned_counts, gtis, time_start, time_sto
 
         if (stop-start)*bin_time > min_gti_sec
             # Subtract GTI start time from all times, so all start from t=0
-            gti_data[Int(i)] = GTIData(mission, instrument, obsid, bin_time, i, start, binned_counts[start:stop], binned_times[start:stop].-gti[1])
+            array_times = binned_times[start:stop].-gti[1]
+            range_times = array_times[1]:bin_time:array_times[end]
+
+            gti_data[Int(i)] = GTIData(mission, instrument, obsid, bin_time, i, start, 
+                binned_counts[start:stop], range_times)
         else
             excluded_gti_count += 1
         end
