@@ -175,6 +175,10 @@ function master_query(master_df::DataFrame, key_type::Symbol, key_value::Any)
         warn("master_query returned no results for $key_type with $key_value search")
     end
 
+    try
+        observations[:obsid] = get(observations[:obsid][1])
+    end
+
     return observations
 end
 
