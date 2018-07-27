@@ -175,9 +175,12 @@ function master_query(master_df::DataFrame, key_type::Symbol, key_value::Any)
         warn("master_query returned no results for $key_type with $key_value search")
     end
 
-    try
-        observations[:obsid] = get(observations[:obsid][1])
-    end
+    # Some DataFrames update changed the types of data to DataValue
+    # screws with functions later on which convert the values to strings
+    # use get here to get them out of the DataVakue type, wrapped in try
+    # for any cases where these columns don't exist in the master dataframe
+    try; observations[:obsid] = get(observations[:obsid][1]); end
+    try; observations[:time] = get(observations[:time][1]); end
 
     return observations
 end
