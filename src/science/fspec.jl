@@ -7,13 +7,14 @@ struct FFTData
     gti_index::Int
     gti_start_time::Real
     amps::Array
+    avg_amp::Array
     freqs::Array
 end
 
 function _FFTData(gti, freqs, amps, fspec_bin_size)
 
     return FFTData(gti.mission, gti.instrument, gti.obsid, gti.bin_time, fspec_bin_size,
-        gti.gti_index, gti.gti_start_time, amps, freqs)
+        gti.gti_index, gti.gti_start_time, amps, mean(amps, 2)[:], freqs)
 end
 
 function _fft(counts::SparseVector{Int64,Int64}, times::StepRangeLen, bin_time::Real, fspec_bin_size; leahy=true)
@@ -43,13 +44,12 @@ function _best_gti_pow2(gtis::Dict{Int64,JAXTAM.GTIData})
     
     instrument = gtis[collect(keys(gtis))[1]].instrument
 
-
     info("$instrument median pow2 length is $min_pow2, excluded $(count(exclude)) gtis, ", 
         "$(length(gti_pow2s) - count(exclude)) remain")
 
     good_gtis = [gti for gti in gtis][.!exclude]
 
-    return Dict(good_gtis)
+    return Dict(good_gtis), min_pow2
 end
 
 function gtis_pow2(mission_name::Symbol, gtis::Dict{Symbol,Dict{Int64,JAXTAM.GTIData}})
@@ -78,7 +78,8 @@ function _fspec_save(fspec_data::Dict{Int64,JAXTAM.FFTData}, fspec_dir::String)
         fspec_savepath  = joinpath(fspec_dir, "$fspec_basename\_$index\.feather")
 
         fspec_data_df = DataFrame(fspec_data[index].amps)
-        fspec_data_df[:freqs] = fspec_data[index].freqs
+        fspec_data_df[:freqs]   = fspec_data[index].freqs
+        fspec_data_df[:avg_amp] = fspec_data[index].avg_amp
 
         Feather.write(fspec_savepath, fspec_data_df)
     end
@@ -105,9 +106,10 @@ function _fspec_load(fspec_dir, instrument, bin_time, fspec_bin)
         fspec_starts  = current_row[:starts][1]
         fspec_file    = Feather.read(joinpath(fspec_dir, "$fspec_basename\_$fspec_idx\.feather"))
         fspec_freqs   = Array(fspec_file[:freqs]); delete!(fspec_file, :freqs)
+        fspec_ampavg  = Array(fspec_file[:avg_amp]); delete!(fspec_file, :avg_amp)
         fspec_amps    = Array(fspec_file)
 
-        fspec_data[fspec_idx] = FFTData(fspec_mission, fspec_inst, fspec_obsid, fspec_bin_t, fspec_bin_sze, fspec_idx, fspec_starts, fspec_amps, fspec_freqs)
+        fspec_data[fspec_idx] = FFTData(fspec_mission, fspec_inst, fspec_obsid, fspec_bin_t, fspec_bin_sze, fspec_idx, fspec_starts, fspec_amps, fspec_ampavg, fspec_freqs)
     end
 
     return fspec_data
@@ -142,19 +144,47 @@ function _fspec(gtis::Dict{Int64,JAXTAM.GTIData}, fspec_bin::Real; pow2=true, fs
     return powspec
 end
 
-function fspec(mission_name::Symbol, gtis::Dict{Symbol,Dict{Int64,JAXTAM.GTIData}}, fspec_bin::Real; pow2=true, fspec_bin_type=:time)
+function _scrunch_sections(mission_name::Symbol, powspecs::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}}; return_mean=true)
     instruments = config(mission_name).instruments
 
-    powspecs = Dict{Symbol,Dict{Int,JAXTAM.FFTData}}()
+    joined_powspecs = Dict{Symbol,Array}()
 
     for instrument in instruments
-        powspecs[Symbol(instrument)] = _fspec(gtis[Symbol(instrument)], fspec_bin, pow2=pow2, fspec_bin_type=fspec_bin_type)
+        gti_example = powspecs[Symbol(instrument)][collect(keys(powspecs[Symbol(instrument)]))[1]]
+
+        joined_together = Array{Float64,2}(size(gti_example.amps, 1), 0)
+
+        for gti in values(powspecs[Symbol(instrument)])
+            joined_together = hcat(joined_together, gti.amps)
+        end
+
+        if return_mean
+            powspecs[Symbol(instrument)][-1] = FFTData(mission_name, gti_example.instrument, gti_example.obsid, gti_example.bin_time, gti_example.bin_size, -1, -1, [], mean(joined_together, 2), gti_example.freqs)
+        else
+            powspecs[Symbol(instrument)][-2] = FFTData(mission_name, gti_example.instrument, gti_example.obsid, gti_example.bin_time, gti_example.bin_size, -1, -1, joined_together, [], gti_example.freqs)
+        end
     end
 
     return powspecs
 end
 
-function fspec(mission_name::Symbol, obs_row::DataFrames.DataFrame, bin_time::Real, fspec_bin::Real; overwrite=false, pow2=true, fspec_bin_type=:time)
+function fspec(mission_name::Symbol, gtis::Dict{Symbol,Dict{Int64,JAXTAM.GTIData}}, fspec_bin::Real; pow2=true, fspec_bin_type=:time, scrunched=true)
+    instruments = config(mission_name).instruments
+
+    instrument_fspecs = Dict{Symbol,Dict{Int,JAXTAM.FFTData}}()
+
+    for instrument in instruments
+        instrument_fspecs[Symbol(instrument)] = _fspec(gtis[Symbol(instrument)], fspec_bin, pow2=pow2, fspec_bin_type=fspec_bin_type)
+    end
+
+    if scrunched
+        instrument_fspecs = _scrunch_sections(mission_name, instrument_fspecs)
+    end
+
+    return instrument_fspecs
+end
+
+function fspec(mission_name::Symbol, obs_row::DataFrames.DataFrame, bin_time::Real, fspec_bin::Real; overwrite=false, pow2=true, fspec_bin_type=:time, scrunched=true)
     obsid       = obs_row[:obsid][1]
     instruments = config(mission_name).instruments
 
@@ -180,7 +210,11 @@ function fspec(mission_name::Symbol, obs_row::DataFrames.DataFrame, bin_time::Re
     instrument_fspecs = Dict{Symbol,Dict{Int64,JAXTAM.FFTData}}() # DataStructures.OrderedDict{Int64,JAXTAM.GTIData}
 
     for instrument in instruments
-        println(isfile(JAXTAM_fspec_metas[Symbol(instrument)]))
+        if fspec_bin == 0
+            fspec_bin = _best_gti_pow2(gtis[Symbol(instrument)])[2]*bin_time
+            info("Auto picking `fspec_bin`: $fspec_bin")
+        end
+
         if !isfile(JAXTAM_fspec_metas[Symbol(instrument)]) || overwrite
             info("Computing $instrument fspecs")
 
@@ -196,35 +230,15 @@ function fspec(mission_name::Symbol, obs_row::DataFrames.DataFrame, bin_time::Re
         end
     end
 
+    if scrunched
+        instrument_fspecs = _scrunch_sections(mission_name, instrument_fspecs)
+    end
+
     return instrument_fspecs
 end
 
-function fspec(mission_name::Symbol, obsid::String, bin_time::Number, fspec_bin::Real; overwrite=false, pow2=true, fspec_bin_type=:time)
+function fspec(mission_name::Symbol, obsid::String, bin_time::Number, fspec_bin::Real; overwrite=false, pow2=true, fspec_bin_type=:time, scrunched=true)
     obs_row = master_query(mission_name, :obsid, obsid)
 
-    return fspec(mission_name, obs_row, bin_time, fspec_bin; overwrite=overwrite, pow2=pow2, fspec_bin_type=fspec_bin_type)
-end
-
-function _scrunch_sections(mission_name::Symbol, powspecs::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}}; return_mean=true)
-    instruments = config(mission_name).instruments
-
-    joined_powspecs = Dict{Symbol,Array}()
-
-    for instrument in instruments
-        gti_example = powspecs[Symbol(instrument)][collect(keys(powspecs[Symbol(instrument)]))[1]]
-
-        joined_together = Array{Float64,2}(size(gti_example.amps, 1), 0)
-
-        for gti in values(powspecs[Symbol(instrument)])
-            joined_together = hcat(joined_together, gti.amps)
-        end
-
-        if return_mean
-            joined_powspecs[Symbol(instrument)] = mean(joined_together, 2)
-        else
-            joined_powspecs[Symbol(instrument)] = joined_together[2:end, :]
-        end
-    end
-
-    return joined_powspecs
+    return fspec(mission_name, obs_row, bin_time, fspec_bin; overwrite=overwrite, pow2=pow2, fspec_bin_type=fspec_bin_type, scrunched=scrunched)
 end
