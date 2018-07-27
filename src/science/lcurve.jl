@@ -55,11 +55,11 @@ end
 
 function _lc_bin(event_times, bin_time, time_start, time_stop)
     if bin_time < 1
-        if ispow2(Int(1/bin_time))
+        if !ispow2(Int(1/bin_time))
             warn("Bin time not pow2")
         end
     elseif bin_time > 1
-        if ispow2(Int(bin_time))
+        if !ispow2(Int(bin_time))
             warn("Bin time not pow2")
         end
     elseif bin_time == 0
