@@ -155,6 +155,10 @@ function _scrunch_sections(mission_name::Symbol, powspecs::Dict{Symbol,Dict{Int6
         joined_together = Array{Float64,2}(size(gti_example.amps, 1), 0)
 
         for gti in values(powspecs[Symbol(instrument)])
+            if gti.gti_index <= 0 # Don't try and scrunch special, non-gti values
+                continue
+            end
+
             joined_together = hcat(joined_together, gti.amps)
         end
 
