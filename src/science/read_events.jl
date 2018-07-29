@@ -1,4 +1,4 @@
-struct InstrumentData
+struct InstrumentData <: JAXTAMData
     mission::Symbol
     instrument::Symbol
     obsid::String

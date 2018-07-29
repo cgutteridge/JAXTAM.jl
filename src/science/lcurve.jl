@@ -1,4 +1,4 @@
-struct BinnedData
+struct BinnedData <: JAXTAMData
     mission::Symbol
     instrument::Symbol
     obsid::String
@@ -8,7 +8,7 @@ struct BinnedData
     gtis::Array{Float64,2}
 end
 
-struct GTIData
+struct GTIData <: JAXTAMData
     mission::Symbol
     instrument::Symbol
     obsid::String

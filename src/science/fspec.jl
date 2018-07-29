@@ -1,4 +1,4 @@
-struct FFTData
+struct FFTData <: JAXTAMData
     mission::Symbol
     instrument::Symbol
     obsid::String
