@@ -4,8 +4,8 @@ FileIO
 CSVFiles
 JLD2
 Query
-FTPClient
-LightXML
 Compat
 FITSIO
 Feather
+Plots
+GR

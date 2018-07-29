@@ -7,13 +7,15 @@ using FileIO
 using CSVFiles
 using JLD2
 using Query
-using FTPClient
-using LightXML
 using Compat
 using FITSIO
 using Feather
 using StatsBase
 using DSP
+using Plots
+gr()
+
+abstract type JAXTAMData end
 
 include("missions/mission_control.jl")
 include("missions/default_missions.jl")
@@ -26,5 +28,6 @@ include("science/read_events.jl")
 include("science/calibrate.jl")
 include("science/lcurve.jl")
 include("science/fspec.jl")
+include("science/plots.jl")
 
 end
