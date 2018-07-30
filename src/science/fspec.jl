@@ -125,9 +125,9 @@ function _fspec(gtis::Dict{Int64,JAXTAM.GTIData}, fspec_bin::Real; pow2=true, fs
     elseif fspec_bin_type == :length
         fspec_bin_size = Int(fspec_bin)
     end
-    
+
     if !ispow2(fspec_bin_size)
-        warn("fspec_bin_size not pow2: $fspec_bin_size, fspec_bin = $fspec_bin ($(1/fspec_bin)), bin_time: $(gti.bin_time) ($(1/gti.bin_time)")
+        warn("fspec_bin_size not pow2: $fspec_bin_size, fspec_bin = $fspec_bin ($(1/fspec_bin))")
     end
 
     for gti in values(gtis)
