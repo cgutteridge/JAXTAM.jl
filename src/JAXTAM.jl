@@ -3,6 +3,7 @@
 module JAXTAM
 
 using DataFrames
+using Missings
 using FileIO
 using CSVFiles
 using JLD2
@@ -29,5 +30,6 @@ include("science/calibrate.jl")
 include("science/lcurve.jl")
 include("science/fspec.jl")
 include("science/plots.jl")
+include("web/webgen.jl")
 
 end
