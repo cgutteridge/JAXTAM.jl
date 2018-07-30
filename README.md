@@ -15,3 +15,7 @@ JAXTAM, inspired by [MaLTPyNT](https://maltpynt.readthedocs.io/en/latest/), is a
 It will (eventually) be able to manage the whole analysis process, from downloading and keeping track of datasets, to basic automated analysis, to automatically generating a website which displays the output in an easy to read way.
 
 Demo notebook: http://nbviewer.jupyter.org/github/RobertRosca/JAXTAM.jl/blob/master/JAXTAM%20Demo.ipynb
+
+TODO:
+
+Make results website; candidates for the table backend: https://datatables.net/ https://clusterize.js.org/ https://github.com/RobertoPrevato/jQuery-KingTable http://listjs.com/
