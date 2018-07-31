@@ -8,7 +8,7 @@ function unzip!(path)
         try
             run(`7z e $path -o$dir`) # Assumes `p7zip-full` is installed
         catch error
-            warn("Is p7zip-full installed?")
+            @warn "Is p7zip-full installed?"
             error(error)
         end
     end

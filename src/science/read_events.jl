@@ -15,8 +15,8 @@ function _read_fits_hdu(fits_file, hdu_id)
     try
         fits_cols_events = FITSIO.colnames(fits_file[hdu_id])
     catch UndefVarError
-        warn("FITSIO colnames function not found, try trunning `Pkg.checkout(\"FITSIO\")`")
-        error("colnames not defined")
+        @warn "FITSIO colnames function not found, try trunning `Pkg.checkout(\"FITSIO\")`"
+        throw(UndefVarError("colnames not defined"))
     end
 
     fits_hdu_data = DataFrame()
@@ -29,7 +29,7 @@ function _read_fits_hdu(fits_file, hdu_id)
                 fits_hdu_data[Symbol(col)] = fits_col_data
             end
         catch
-            warn("$col not supported by FITSIO, skipped")
+            @warn "$col not supported by FITSIO, skipped"
         end
     end
 
@@ -37,7 +37,7 @@ function _read_fits_hdu(fits_file, hdu_id)
 end
 
 function _read_fits_event(fits_path)
-    print("\n"); info("Loading $fits_path")
+    print("\n"); @info "Loading $fits_path"
     fits_file   = FITS(fits_path)
 
     fits_header = read_header(fits_file[1])
@@ -80,18 +80,18 @@ function read_cl_fits(mission_name::Symbol, obs_row::DataFrames.DataFrame)
     for file in file_path
         if isfile(file)
             append!(files, [files])
-            info("Found: $file")
+            @info "Found: $file"
         elseif isfile(string(file, ".gz")) # Check for files ending in .evt.gz too
-            info("Found: $(string(file, ".gz"))")
+            @info "Found: $(string(file, ".gz"))"
             append!(files, [string(file, ".gz")])
         else
-            warn("NOT found: $file")
+            @warn "NOT found: $file"
         end
     end
     
     file_no = length(files)
     
-    print("\n"); info("Found $file_no file(s) for $(obsid[1])")
+    print("\n"); @info "Found $file_no file(s) for $(obsid[1])"
     
     if file_no == 1
         instrument_data = _read_fits_event(files[1])
@@ -159,7 +159,7 @@ function read_cl(mission_name::Symbol, obs_row::DataFrames.DataFrame)
         mission_data = read_cl_fits(mission_name, obs_row)
 
         for key in keys(mission_data)
-            print("\n"); info("Saving $(string(key))")
+            print("\n"); @info "Saving $(string(key))"
             
             _save_cl_feather(JAXTAM_path, mission_data[key].instrument, mission_data[key].events, mission_data[key].gtis, mission_data[key].header)
         end

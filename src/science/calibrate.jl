@@ -1,6 +1,6 @@
 function _read_rmf(path_rmf::String)
     if !isfile(path_rmf)
-        error("Not found: $path_rmf")
+        throw(SystemError("opening file RMF file `$path_rmf`", 2))
     end
 
     fits_file = FITSIO.FITS(path_rmf)
@@ -70,25 +70,25 @@ function calibrate(mission_name::Symbol, obs_row::DataFrames.DataFrame)
     instruments = config(mission_name).instruments
 
     if JAXTAM_e_files > 0 && JAXTAM_e_files > JAXTAM_c_files
-        info("Loading EVENTS for $(obsid) from $JAXTAM_path")
+        @info "Loading EVENTS for $(obsid) from $JAXTAM_path"
 
         for instrument in instruments
-            info("Loading $instrument EVENTS")
+            @info "Loading $instrument EVENTS"
 
             instrument_data            = read_cl(mission_name, obs_row)[Symbol(instrument)]
             instrument_data.events[:E] = _read_calibration(instrument_data.events[:PI], mission_name)
 
-            info("Saving $instrument CALIB energy")
+            @info "Saving $instrument CALIB energy"
 
             Feather.write(joinpath(JAXTAM_path, "$instrument\_calib.feather"), DataFrame(E = instrument_data.events[:E]))
 
             calibrated_energy[Symbol(instrument)] = instrument_data
         end
     elseif JAXTAM_e_files > 0 && JAXTAM_e_files == JAXTAM_c_files
-        info("Loading CALIB $(obsid): from $JAXTAM_path")
+        @info "Loading CALIB $(obsid): from $JAXTAM_path"
 
         for instrument in instruments
-            info("Loading $instrument CALIB energy")
+            @info "Loading $instrument CALIB energy"
 
             events = Feather.read(joinpath(JAXTAM_path, "$instrument\_events.feather"))
             calib  = Feather.read(joinpath(JAXTAM_path, "$instrument\_calib.feather"))

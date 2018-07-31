@@ -1,5 +1,5 @@
 function _master_download(master_path, master_url)
-    info("Downloading latest master catalog")
+    @info "Downloading latest master catalog"
     Base.download(master_url, master_path)
 
     if VERSION >= v"0.7.0" || Sys.is_linux()
@@ -38,7 +38,7 @@ function _master_read_tdat(master_path::String)
         obs_values = split(row, "|")[1:end - 1] # Split row by | delims
 
         if length(obs_values) != no_cols # Some rows don't have the proper no. of columns, skip them
-            warn("Skipped row $row_i due to malformed columns, ObsID: $(obs_values[key_obsid])")
+            @warn "Skipped row $row_i due to malformed columns, ObsID: $(obs_values[key_obsid])"
             continue
         end
 
@@ -88,16 +88,16 @@ function master_update(mission_name::Union{String,Symbol})
 
     _master_download(master_path_tdat, mission.url)
 
-    info("Loading $(master_path_tdat)")
+    @info "Loading $(master_path_tdat)"
     master_data = _master_read_tdat(master_path_tdat)
-    info("Saving $master_path_jld")
+    @info "Saving $master_path_jld"
     _master_save(master_path_jld, master_data)
 end
 
 function master_update()
     mission_name = _config_key_value(:default)
 
-    info("Using default mission: $mission_name")
+    @info "Using default mission: $mission_name"
 
     master_update(mission_name)
 end
@@ -114,8 +114,8 @@ function master(mission_name::Union{String,Symbol})
     master_path_jld = string(mission.path, "master.jld2")
 
     if !isfile(master_path_tdat) && !isfile(master_path_tdat)
-        warn("No master file found, looked for: \n\t$master_path_tdat \n\t$master_path_jld")
-        info("Download master files from `$(mission.url)`? (y/n)")
+        @warn "No master file found, looked for: \n\t$master_path_tdat \n\t$master_path_jld"
+        @info "Download master files from `$(mission.url)`? (y/n)"
         response = readline(STDIN)
         if response=="y" || response=="Y"
             if !isdir(mission.path)
@@ -127,12 +127,12 @@ function master(mission_name::Union{String,Symbol})
     end
     
     if isfile(master_path_jld)
-        info("Loading $master_path_jld")
+        @info "Loading $master_path_jld"
         return load(master_path_jld)["master_data"]
     elseif isfile(master_path_tdat)
-        info("Loading $(master_path_tdat)")
+        @info "Loading $(master_path_tdat)"
         master_data = _master_read_tdat(master_path_tdat)
-        info("Saving $master_path_jld")
+        @info "Saving $master_path_jld"
         _master_save(master_path_jld, master_data)
         return master_data
     end
@@ -147,10 +147,11 @@ function master()
     config_dict = config()
 
     if :default in keys(config_dict)
-        info("Using default mission - $(config_dict[:default])")
+        @info "Using default mission - $(config_dict[:default])"
         return master(config_dict[:default])
     else
-        error("Default mission not found, set with config(:default, :default_mission_name)")
+        @warn "Default mission not found, set with config(:default, :default_mission_name)"
+        throw(KeyError(:default))
     end
 end
 
@@ -172,7 +173,7 @@ function master_query(master_df::DataFrame, key_type::Symbol, key_value::Any)
     end
 
     if size(observations, 1) == 0
-        warn("master_query returned no results for $key_type with $key_value search")
+        @warn "master_query returned no results for $key_type with $key_value search"
     end
 
     # Some DataFrames update changed the types of data to DataValue
@@ -207,7 +208,7 @@ function master_query_public(master_df::DataFrame, key_type::Symbol, key_value::
     end
 
     if size(observations, 1) == 0
-        warn("master_query_public returned no results for $key_type with $key_value search")
+        @warn "master_query_public returned no results for $key_type with $key_value search"
     end
 
     return observations

@@ -2,6 +2,7 @@
 
 module JAXTAM
 
+using MicroLogging
 using DataFrames
 using Missings
 using FileIO

@@ -9,10 +9,11 @@ function _ftp_dir(obsid::String)
 
     if "default" in keys(config)
         mission_name = config["default"]
-        info("Using default mission - $mission_name")
+        @info "Using default mission - $mission_name"
         return _ftp_dir(mission_name, master_query(master(mission_name), :obsid, obsid))
     else
-        error("Default mission not found, set with config(:default, :default_mission_name)")
+        @warn "Default mission not found, set with config(:default, :default_mission_name)"
+        throw(KeyError(:default))
     end
 end
 
@@ -28,17 +29,17 @@ function _clean_path_dots(dir)
     return abspath(replace(dir, ".", "")) # Remove . from folders to un-hide them
 end
 
-function download(mission_name::Symbol, master::DataFrames.DataFrame, obsid::String; skip_exists=true)
+function download(mission_name::Symbol, master::DataFrames.DataFrame, obsid::String; overwrite=false)
     dir_down = _ftp_dir(mission_name, master, obsid)
     dir_dest = string(config(mission_name).path, dir_down)
     dir_dest = _clean_path_dots(dir_dest)
 
-    info("heasarc.gsfc.nasa.gov:$dir_down --> $dir_dest")
+    @info "heasarc.gsfc.nasa.gov:$dir_down --> $dir_dest"
     download_command = `lftp heasarc.gsfc.nasa.gov -e "mirror \"$dir_down\" \"$dir_dest\" --parallel=10 --only-newer && exit"`
     
 
-    if isdir(dir_dest) && skip_exists
-        warn("Skipping download, dir exists")
+    if isdir(dir_dest) && overwrite
+        @warn "Skipping download, dir exists"
         return
     else
         mkpath(dir_dest)
@@ -48,20 +49,20 @@ function download(mission_name::Symbol, master::DataFrames.DataFrame, obsid::Str
     end
 end
 
-function download(mission_name::Symbol, obsid::String; skip_exists=true)
-    download(mission_name, master(mission_name), obsid; skip_exists=skip_exists)
+function download(mission_name::Symbol, obsid::String; overwrite=false)
+    download(mission_name, master(mission_name), obsid; overwrite=overwrite)
 end
 
-function download(mission_name::Symbol, master::DataFrames.DataFrame, obsids::Array; skip_exists=true)
+function download(mission_name::Symbol, master::DataFrames.DataFrame, obsids::Array; overwrite=false)
     for (i, obsid) in enumerate(obsids)
         print("\n")
-        info("\t\t$i of $(length(obsids))")
-        download(mission_name, master, obsid; skip_exists=skip_exists)
+        @info "\t\t$i of $(length(obsids))"
+        download(mission_name, master, obsid; overwrite=overwrite)
     end
 end
 
-function download(mission_name::Symbol, obsids::Array; skip_exists=true)
+function download(mission_name::Symbol, obsids::Array; overwrite=false)
     master_table = master(mission_name)
 
-    download(mission_name, master_table, obsids; skip_exists=skip_exists)
+    download(mission_name, master_table, obsids; overwrite=overwrite)
 end

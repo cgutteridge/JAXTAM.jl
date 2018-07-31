@@ -37,7 +37,7 @@ function _lcurve_filter_time(event_times, event_energies, gtis, start_time, stop
     counts_per_gti_sec = [count(gtis[g, 1] .<= event_times .<= gtis[g, 2])/(gtis[g, 2] - gtis[g, 1]) for g in 1:size(gtis, 1)]
     mask_min_counts = counts_per_gti_sec .>= 1
 
-    info("Excluded $(size(gtis, 1) - count(mask_min_counts)) gtis under 1 count/sec")
+    @info "Excluded $(size(gtis, 1) - count(mask_min_counts)) gtis under 1 count/sec"
 
     gtis = gtis[mask_min_counts, :]
     
@@ -56,14 +56,14 @@ end
 function _lc_bin(event_times, bin_time, time_start, time_stop)
     if bin_time < 1
         if !ispow2(Int(1/bin_time))
-            warn("Bin time not pow2")
+            @warn "Bin time not pow2"
         end
     elseif bin_time > 1
         if !ispow2(Int(bin_time))
-            warn("Bin time not pow2")
+            @warn "Bin time not pow2"
         end
     elseif bin_time == 0
-        error("Bin time cannot be zero")
+        throw(ArgumentError("Bin time cannot be zero"))
     end
 
     binned_histogram = fit(Histogram, event_times, 0:bin_time:(time_stop-time_start), closed=:left)
@@ -132,14 +132,14 @@ function lcurve(mission_name::Symbol, obs_row::DataFrame, bin_time::Number; over
         for instrument in instruments
             lightcurve_data = _lcurve(calibrated_data[instrument], bin_time)
 
-            info("Saving $instrument $bin_time\s lightcurve data")
+            @info "Saving $instrument $bin_time\s lightcurve data"
 
             _lcurve_save(lightcurve_data, JAXTAM_lc_path)
 
             lightcurves[instrument] = lightcurve_data
         end
     elseif JAXTAM_c_files > 0 && JAXTAM_c_files == JAXTAM_lc_files
-        info("Loading LC $(obsid): from $JAXTAM_lc_path")
+        @info "Loading LC $(obsid): from $JAXTAM_lc_path"
 
         for instrument in instruments
             lightcurves[instrument] = _lc_read(JAXTAM_lc_path, instrument, bin_time)
@@ -173,7 +173,7 @@ function _lc_filter_gtis(binned_times, binned_counts, gtis, time_start, time_sto
         stop  = findfirst(binned_times .>= gti[2])-1 # >= required for -1 to not overshoot
 
         if start == 0 || stop > length(binned_times) || start > stop
-            warn("GTI start/stop times invalid, skipping: start: $start | stop: $stop | length: $(length(binned_times))")
+            @warn "GTI start/stop times invalid, skipping: start: $start | stop: $stop | length: $(length(binned_times))"
         else
             if (stop-start)*bin_time > min_gti_sec
                 # Subtract GTI start time from all times, so all start from t=0
@@ -193,14 +193,14 @@ function _lc_filter_gtis(binned_times, binned_counts, gtis, time_start, time_sto
     count_delta  = gti_counts-total_counts
     delta_prcnt  = round(count_delta/total_counts*100, 2)
 
-    info("Original counts: $total_counts, counts in GTI: $gti_counts, delta: $count_delta ($delta_prcnt %)")
+    @info "Original counts: $total_counts, counts in GTI: $gti_counts, delta: $count_delta ($delta_prcnt %)"
 
     if excluded_gti_count > 0
-        warn("Excluded $excluded_gti_count gtis (< $(min_gti_sec)s) out of $(size(gtis, 1))")
+        @warn "Excluded $excluded_gti_count gtis (< $(min_gti_sec)s) out of $(size(gtis, 1))"
     end
 
     if abs(count_delta) > 0.1*total_counts
-        warn("Count delta > 0.1% of total counts")
+        @warn "Count delta > 0.1% of total counts"
     end
 
     return gti_data
@@ -271,7 +271,7 @@ function gtis(mission_name::Symbol, obs_row::DataFrames.DataFrame, bin_time::Num
     JAXTAM_all_metas   = unique([isfile(meta) for meta in values(JAXTAM_gti_metas)])
 
     if JAXTAM_all_metas != [true] || overwrite
-        info("Not all GTI metas found")
+        @info "Not all GTI metas found"
         lc = lcurve(mission_name, obs_row, bin_time)
     end
     
@@ -279,16 +279,16 @@ function gtis(mission_name::Symbol, obs_row::DataFrames.DataFrame, bin_time::Num
 
     for instrument in instruments
         if !isfile(JAXTAM_gti_metas[Symbol(instrument)]) || overwrite
-            info("Computing $instrument GTIs")
+            @info "Computing $instrument GTIs"
 
             gtis_data = _gtis(lc[Symbol(instrument)])
 
-            info("Saving $instrument GTIs")
+            @info "Saving $instrument GTIs"
             _gtis_save(gtis_data, JAXTAM_gti_path)
 
             instrument_gtis[Symbol(instrument)] = gtis_data
         else
-            info("Loading $instrument GTIs")
+            @info "Loading $instrument GTIs"
             instrument_gtis[Symbol(instrument)] = _gtis_load(JAXTAM_gti_path, instrument, bin_time)
         end
     end

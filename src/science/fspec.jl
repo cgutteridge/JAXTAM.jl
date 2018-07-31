@@ -44,8 +44,8 @@ function _best_gti_pow2(gtis::Dict{Int64,JAXTAM.GTIData})
     
     instrument = gtis[collect(keys(gtis))[1]].instrument
 
-    info("$instrument median pow2 length is $min_pow2, excluded $(count(exclude)) gtis, ", 
-        "$(length(gti_pow2s) - count(exclude)) remain")
+    @info "$instrument median pow2 length is $min_pow2, excluded $(count(exclude)) gtis, ", 
+        "$(length(gti_pow2s) - count(exclude)) remain"
 
     good_gtis = [gti for gti in gtis][.!exclude]
 
@@ -127,12 +127,12 @@ function _fspec(gtis::Dict{Int64,JAXTAM.GTIData}, fspec_bin::Real; pow2=true, fs
     end
 
     if !ispow2(fspec_bin_size)
-        warn("fspec_bin_size not pow2: $fspec_bin_size, fspec_bin = $fspec_bin ($(1/fspec_bin))")
+        @warn "fspec_bin_size not pow2: $fspec_bin_size, fspec_bin = $fspec_bin ($(1/fspec_bin))"
     end
 
     for gti in values(gtis)
         if length(gti.counts) < fspec_bin_size
-            warn(("Skipped gti $(gti.gti_index) as it is under the fspec_bin_size of $fspec_bin_size"))
+            @warn "Skipped gti $(gti.gti_index) as it is under the fspec_bin_size of $fspec_bin_size"
             continue
         end
 
@@ -206,7 +206,7 @@ function fspec(mission_name::Symbol, obs_row::DataFrames.DataFrame, bin_time::Re
     JAXTAM_all_fspec_metas = unique([isfile(meta) for meta in values(JAXTAM_fspec_metas)])
 
     if JAXTAM_all_gti_metas != [true] || overwrite
-        info("Not all GTI metas found")
+        @info "Not all GTI metas found"
     end
 
     gtis = JAXTAM.gtis(mission_name, obs_row, bin_time; overwrite=overwrite)
@@ -216,20 +216,20 @@ function fspec(mission_name::Symbol, obs_row::DataFrames.DataFrame, bin_time::Re
     for instrument in instruments
         if fspec_bin == 0
             fspec_bin = _best_gti_pow2(gtis[Symbol(instrument)])[2]*bin_time
-            info("Auto picking `fspec_bin`: $fspec_bin")
+            @info "Auto picking `fspec_bin`: $fspec_bin"
         end
 
         if !isfile(JAXTAM_fspec_metas[Symbol(instrument)]) || overwrite
-            info("Computing $instrument fspecs")
+            @info "Computing $instrument fspecs"
 
             fspec_data = _fspec(gtis[Symbol(instrument)], fspec_bin; pow2=pow2, fspec_bin_type=fspec_bin_type)
 
-            info("Saving $instrument fspecs -> $JAXTAM_fspec_path")
+            @info "Saving $instrument fspecs -> $JAXTAM_fspec_path"
             _fspec_save(fspec_data, JAXTAM_fspec_path)
 
             instrument_fspecs[Symbol(instrument)] = fspec_data
         else
-            info("Loading $instrument fspecs")
+            @info "Loading $instrument fspecs"
             instrument_fspecs[Symbol(instrument)] = _fspec_load(JAXTAM_fspec_path, instrument, bin_time, fspec_bin)
         end
     end

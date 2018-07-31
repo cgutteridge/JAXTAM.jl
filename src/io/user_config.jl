@@ -11,7 +11,7 @@ function _config_gen(config_path=string(Pkg.dir(), "/JAXTAM/user_configs.jld2"))
         rm(config_path)
     end
 
-    info("Creating config file at: $config_path")
+    @info "Creating config file at: $config_path"
     config_data = Dict{Any,Any}(:_config_edit_date => Dates.DateTime(now()))
 
     if !isdir(dirname(config_path))
@@ -28,7 +28,7 @@ Loads data from the configuration file.
 """
 function _config_load(config_path=string(Pkg.dir(), "/JAXTAM/user_configs.jld2"))
     if !isfile(config_path)
-        warn("Config file not found!")
+        @warn "Config file not found!"
         _config_gen()
     end
 
@@ -114,17 +114,17 @@ function config(key_name::Symbol, key_value::Union{String,Symbol,MissionDefiniti
         defaults = _get_default_missions()
 
         if key_name in keys(defaults)
-            info("$key_name found in defaults\nUsing $key_value as path")
+            @info "$key_name found in defaults\nUsing $key_value as path"
             mission = defaults[key_name]
             mission.path = key_value
             
             _config_edit(key_name, mission)
         elseif key_name == :default
-            info("Setting default mission to $key_value")
+            @info "Setting default mission to $key_value"
             _config_edit(key_name, key_value)
         else
-            info("$key_name not found in defaults, treated as a string")
-            info("If $key_name is a mission, use config(key_name, MissionDefinition) to fully set up the mission variables")
+            @info "$key_name not found in defaults, treated as a string"
+            @info "If $key_name is a mission, use config(key_name, MissionDefinition) to fully set up the mission variables"
             _config_edit(key_name, key_value)
         end
     end
@@ -152,7 +152,7 @@ end
 Removes `key_name` from the configuration file and saves changes.
 """
 function config_rm(key_name::Symbol)
-    info("Removing \"$key_name => $(_config_load()[key_name])\" from config file")
+    @info "Removing \"$key_name => $(_config_load()[key_name])\" from config file"
     _config_rm(key_name)
     return _config_load()
 end

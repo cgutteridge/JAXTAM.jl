@@ -87,12 +87,12 @@ function append(mission_name)
     append_path_jld = abspath(string(_config_key_value(mission_name).path, "append.jld2"))
 
     if isfile(append_path_jld)
-        info("Loading $append_path_jld")
+        @info "Loading $append_path_jld"
         return load(append_path_jld)["append_data"]
     else
         master_df = master(mission_name)
         append_df = _make_append(mission_name, master_df)
-        info("Saving $append_path_jld")
+        @info "Saving $append_path_jld"
         _append_save(append_path_jld, append_df)
         return append_df
     end
@@ -102,10 +102,11 @@ function append()
     config_dict = config()
 
     if :default in keys(config_dict)
-        info("Using default mission - $(config_dict[:default])")
+        @info "Using default mission - $(config_dict[:default])"
         return append(config_dict[:default])
     else
-        error("Default mission not found, set with config(:default, :default_mission_name)")
+        @warn "Default mission not found, set with config(:default, :default_mission_name)"
+        throw(KeyError(:default))
     end
 end
 
@@ -114,7 +115,7 @@ function append_update(mission_name)
 
     master_df = master(mission_name)
     append_df = _make_append(mission_name, master_df)
-    info("Saving $append_path_jld")
+    @info "Saving $append_path_jld"
     _append_save(append_path_jld, append_df)
     return append_df
 end
