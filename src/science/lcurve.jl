@@ -126,13 +126,18 @@ function lcurve(mission_name::Symbol, obs_row::DataFrame, bin_time::Number; over
 
     lightcurves = Dict{Symbol,BinnedData}()
 
+    if JAXTAM_c_files == 0
+        @warn "No calibrated files found, running calibration"
+        calibrate(mission_name, obs_row)
+    end
+
     if (JAXTAM_c_files > 0 && JAXTAM_c_files > JAXTAM_lc_files) || (JAXTAM_c_files > 0 && overwrite)
         calibrated_data = calibrate(mission_name, obs_row)
     
         for instrument in instruments
             lightcurve_data = _lcurve(calibrated_data[instrument], bin_time)
 
-            @info "Saving $instrument $bin_time\s lightcurve data"
+            @info "Saving `$instrument` $bin_time\s lightcurve data"
 
             _lcurve_save(lightcurve_data, JAXTAM_lc_path)
 
@@ -279,16 +284,16 @@ function gtis(mission_name::Symbol, obs_row::DataFrames.DataFrame, bin_time::Num
 
     for instrument in instruments
         if !isfile(JAXTAM_gti_metas[Symbol(instrument)]) || overwrite
-            @info "Computing $instrument GTIs"
+            @info "Computing `$instrument GTIs`"
 
             gtis_data = _gtis(lc[Symbol(instrument)])
 
-            @info "Saving $instrument GTIs"
+            @info "Saving `$instrument GTIs`"
             _gtis_save(gtis_data, JAXTAM_gti_path)
 
             instrument_gtis[Symbol(instrument)] = gtis_data
         else
-            @info "Loading $instrument GTIs"
+            @info "Loading `$instrument GTIs`"
             instrument_gtis[Symbol(instrument)] = _gtis_load(JAXTAM_gti_path, instrument, bin_time)
         end
     end

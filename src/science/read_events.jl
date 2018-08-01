@@ -86,12 +86,21 @@ function read_cl_fits(mission_name::Symbol, obs_row::DataFrames.DataFrame)
             append!(files, [string(file, ".gz")])
         else
             @warn "NOT found: $file"
+            @info "Start download for `$mission_name` $(obs_row[1, :obsid])? (y/n)"
+            response = readline(STDIN)
+            if response == "y" || response == "Y"
+                download(mission_name, obs_row[1, :obsid])
+                append!(files, [files])
+                @info "Found: $file"
+            elseif response == "n" || response == "N"
+                throw(SystemError("$mission_name $(obs_row[1, :obsid]) files not found", 2))
+            end
         end
     end
     
     file_no = length(files)
     
-    print("\n"); @info "Found $file_no file(s) for $(obsid[1])"
+    @info "Found $file_no file(s) for $(obsid[1])"
     
     if file_no == 1
         instrument_data = _read_fits_event(files[1])
@@ -137,7 +146,7 @@ function read_cl(mission_name::Symbol, obs_row::DataFrames.DataFrame)
         instruments = config(mission_name).instruments
 
         for instrument in instruments
-            info("Loading $(obsid): $instrument from $JAXTAM_path")
+            @info "Loading $(obsid): $instrument from $JAXTAM_path"
             inst_files = JAXTAM_content[contains.(JAXTAM_content, instrument)]
 
             path_events = joinpath(JAXTAM_path, inst_files[contains.(inst_files, "events")][1])
@@ -159,7 +168,7 @@ function read_cl(mission_name::Symbol, obs_row::DataFrames.DataFrame)
         mission_data = read_cl_fits(mission_name, obs_row)
 
         for key in keys(mission_data)
-            print("\n"); @info "Saving $(string(key))"
+            @info "Saving $(string(key))"
             
             _save_cl_feather(JAXTAM_path, mission_data[key].instrument, mission_data[key].events, mission_data[key].gtis, mission_data[key].header)
         end

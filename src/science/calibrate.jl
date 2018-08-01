@@ -69,6 +69,11 @@ function calibrate(mission_name::Symbol, obs_row::DataFrames.DataFrame)
 
     instruments = config(mission_name).instruments
 
+    if JAXTAM_e_files == 0
+        @warn "No events files found, running read_cl"
+        read_cl(mission_name, obs_row)
+    end
+
     if JAXTAM_e_files > 0 && JAXTAM_e_files > JAXTAM_c_files
         @info "Loading EVENTS for $(obsid) from $JAXTAM_path"
 

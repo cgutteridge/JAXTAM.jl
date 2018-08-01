@@ -123,6 +123,8 @@ function master(mission_name::Union{String,Symbol})
             end
 
             _master_download(master_path_tdat, mission.url)
+        elseif response=="n" || response=="N"
+            @error "Master file not found"
         end
     end
     
