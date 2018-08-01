@@ -13,6 +13,7 @@ using Compat
 using FITSIO
 using Feather
 using StatsBase
+using Mustache
 using DSP
 using Plots
 gr()
@@ -32,5 +33,6 @@ include("science/lcurve.jl")
 include("science/fspec.jl")
 include("science/plots.jl")
 include("web/webgen.jl")
+include("web/subgen.jl")
 
 end
