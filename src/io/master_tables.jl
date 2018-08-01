@@ -216,6 +216,12 @@ function master_query_public(master_df::DataFrame, key_type::Symbol, key_value::
     return observations
 end
 
+function master_query_public(mission_name::Symbol, key_type::Symbol, key_value::Any)
+    master_df = master(mission_name)
+
+    return master_query_public(master_df, key_type, key_value)
+end
+
 function master_query_public(master_df::DataFrame)
     observations = @from row in master_df begin
         @where row.public_date < now()
