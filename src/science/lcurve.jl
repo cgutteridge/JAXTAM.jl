@@ -113,7 +113,7 @@ end
 
 function lcurve(mission_name::Symbol, obs_row::DataFrame, bin_time::Number; overwrite=false)
     obsid          = obs_row[:obsid][1]
-    JAXTAM_path    = abspath(string(obs_row[:obs_path][1], "/JAXTAM/"))
+    JAXTAM_path    = abspath(string(obs_row[:obs_path][1], "/JAXTAM/")); mkpath(JAXTAM_path)
     JAXTAM_content = readdir(JAXTAM_path)
     JAXTAM_lc_path = joinpath(JAXTAM_path, "lc/$bin_time/")
     
