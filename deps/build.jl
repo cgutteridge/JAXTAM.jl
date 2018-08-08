@@ -1,4 +1,6 @@
-using BinDeps
+return
+
+using BinDep
 using Compat
 using Compat.Libdl
 
