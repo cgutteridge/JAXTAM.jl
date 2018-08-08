@@ -9,14 +9,20 @@ struct InstrumentData <: JAXTAMData
     header::DataFrame
 end
 
-function _read_fits_hdu(fits_file, hdu_id)
-    fits_cols_events = Array{String,1}
+function _read_fits_hdu(fits_file, hdu_id; cols="auto")
+    if cols == "auto"
+        fits_cols_events = Array{String,1}
 
-    try
-        fits_cols_events = FITSIO.colnames(fits_file[hdu_id])
-    catch UndefVarError
-        @warn "FITSIO colnames function not found, try trunning `Pkg.checkout(\"FITSIO\")`"
-        throw(UndefVarError("colnames not defined"))
+        try
+            fits_cols_events = FITSIO.colnames(fits_file[hdu_id])
+        catch UndefVarError
+            @warn "FITSIO colnames function not found, try trunning `Pkg.checkout(\"FITSIO\")`"
+            throw(UndefVarError("colnames not defined"))
+        end
+
+        println(fits_cols_events)
+    else
+        fits_cols_events = cols
     end
 
     fits_hdu_data = DataFrame()
@@ -28,8 +34,8 @@ function _read_fits_hdu(fits_file, hdu_id)
             if ndims(fits_col_data) == 1
                 fits_hdu_data[Symbol(col)] = fits_col_data
             end
-        catch
-            @warn "$col not supported by FITSIO, skipped"
+        catch error
+            @warn "$col not supported by FITSIO, skipped - $error"
         end
     end
 
@@ -37,16 +43,16 @@ function _read_fits_hdu(fits_file, hdu_id)
 end
 
 function _read_fits_event(fits_path)
-    print("\n"); @info "Loading $fits_path"
+    @info "Loading $fits_path"
     fits_file   = FITS(fits_path)
 
-    fits_header = read_header(fits_file[1])
+    fits_header = read_header(fits_file["EVENTS"])
 
     instrument_name = fits_header["INSTRUME"]
     fits_telescope  = fits_header["TELESCOP"]
     fits_telescope  = Symbol(lowercase(fits_telescope))
     
-    fits_events_df = _read_fits_hdu(fits_file, "EVENTS")
+    fits_events_df = _read_fits_hdu(fits_file, "EVENTS"; cols=String["TIME", "PI"])
     
     fits_gtis_df = _read_fits_hdu(fits_file, "GTI")
     
@@ -122,7 +128,7 @@ function _save_cl_feather(feather_dir, instrument_name, fits_events_df, fits_gti
     Feather.write(joinpath(feather_dir, "$instrument_name\_meta.feather"), fits_meta_df)
 end
 
-function read_cl(mission_name::Symbol, obs_row::DataFrames.DataFrame)
+function read_cl(mission_name::Symbol, obs_row::DataFrames.DataFrame; overwrite=false)
     obsid       = obs_row[:obsid][1]
     JAXTAM_path = abspath(string(obs_row[:obs_path][1], "/JAXTAM/"))
 
@@ -138,7 +144,7 @@ function read_cl(mission_name::Symbol, obs_row::DataFrames.DataFrame)
     JAXTAM_e_files = count(contains.(JAXTAM_content, "events"))
     JAXTAM_g_files = count(contains.(JAXTAM_content, "gtis"))
 
-    if JAXTAM_e_files > 0 && JAXTAM_g_files > 0 && JAXTAM_e_files == JAXTAM_g_files
+    if JAXTAM_e_files > 0 && JAXTAM_g_files > 0 && JAXTAM_e_files == JAXTAM_g_files && !overwrite
         mission_data = Dict{Symbol,InstrumentData}()
 
         #instruments = unique(replace.(JAXTAM_content, r"(_gtis|_events|_meta|_calib|.feather)", ""))
@@ -177,14 +183,14 @@ function read_cl(mission_name::Symbol, obs_row::DataFrames.DataFrame)
     return mission_data
 end
 
-function read_cl(mission_name::Symbol, append_df::DataFrames.DataFrame, obsid::String)
+function read_cl(mission_name::Symbol, append_df::DataFrames.DataFrame, obsid::String; overwrite=false)
     obs_row = master_query(append_df, :obsid, obsid)
 
-    return read_cl(mission_name, obs_row)
+    return read_cl(mission_name, obs_row; overwrite=overwrite)
 end
 
-function read_cl(mission_name::Symbol, obsid::String)
+function read_cl(mission_name::Symbol, obsid::String; overwrite=false)
     append_df = master_a(mission_name)
 
-    return read_cl(mission_name, append_df, obsid)
+    return read_cl(mission_name, append_df, obsid; overwrite=overwrite)
 end

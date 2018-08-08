@@ -98,7 +98,12 @@ function _webgen_mastertable(mission_name::Symbol)
 end
 
 function webgen_mission(mission_name::Symbol)
-    web_html = string(_webgen_home(mission_name), _webgen_mastertable(mission_name))
+    web_dir = config(:web)
+    
+    web_home_dir  = joinpath(web_dir, "index.html")
+    web_home_html = string(_webgen_home(mission_name), _webgen_mastertable(mission_name))
 
-    return web_html
+    write(web_home_dir, web_home_html)
+
+    return web_home_dir
 end
