@@ -29,7 +29,7 @@ function _fft(counts::SparseVector{Int64,Int64}, times::StepRangeLen, bin_time::
     freqs = Array(rfftfreq(fspec_bin_size, 1/bin_time))
 
     if leahy
-        amps = (2.*(amps.^2)) ./ sum(counts, 1)
+        amps = (2 .*(amps.^2)) ./ sum(counts, 1)
     end
     
     amps[1, :] = 0 # Zero the 0Hz amplitude

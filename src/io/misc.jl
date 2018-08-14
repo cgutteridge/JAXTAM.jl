@@ -21,7 +21,7 @@ function unzip!(path)
     end
 end
 
-function _datetime2mjd(human_time::DateTime)
+function _datetime2mjd(human_time::Dates.DateTime)
     return Dates.datetime2julian(human_time) - 2400000.5
 end
 
