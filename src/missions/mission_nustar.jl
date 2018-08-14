@@ -7,11 +7,7 @@ function _nustar_observation_dir(obs_row::DataFrames.DataFrame)
 end
 
 function _nustar_observation_dir(obsid::String, master_df::DataFrames.DataFrame)
-    obs_row = @from row in master_df begin
-        @where row.obsid == obsid
-        @select row
-        @collect DataFrame
-    end
+    obs_row = filter(row -> row[:obsid] == obsid, master_df)
 
     return _nustar_observation_dir(obs_row)
 end

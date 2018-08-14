@@ -69,13 +69,13 @@ function _fspec_save(fspec_data::Dict{Int64,JAXTAM.FFTData}, fspec_dir::String)
     fspec_starts   = [t.gti_start_time for t in values(fspec_data)]
     fspec_example  = fspec_data[fspec_indecies[1]]
 
-    fspec_basename = string("$(fspec_example.instrument)\_lc_$(fspec_example.bin_time)\_fspec")
+    fspec_basename = string("$(fspec_example.instrument)_lc_$(fspec_example.bin_time)_fspec")
     fspec_meta     = DataFrame(mission=String(fspec_example.mission), instrument=String(fspec_example.instrument), obsid=fspec_example.obsid, bin_time=fspec_example.bin_time, bin_size=fspec_example.bin_size, indecies=fspec_indecies, starts=fspec_starts)
 
-    Feather.write(joinpath(fspec_dir, "$fspec_basename\_meta.feather"), fspec_meta)
+    Feather.write(joinpath(fspec_dir, "$(fspec_basename)_meta.feather"), fspec_meta)
 
     for index in fspec_indecies
-        fspec_savepath  = joinpath(fspec_dir, "$fspec_basename\_$index\.feather")
+        fspec_savepath  = joinpath(fspec_dir, "$(fspec_basename)_$(index).feather")
 
         fspec_data_df = DataFrame(fspec_data[index].amps)
         fspec_data_df[:freqs]   = fspec_data[index].freqs
@@ -88,8 +88,8 @@ end
 function _fspec_load(fspec_dir, instrument, bin_time, fspec_bin)
     bin_time = float(bin_time)
 
-    fspec_basename  = string("$instrument\_lc_$bin_time\_fspec")
-    fspec_meta_path = joinpath(fspec_dir, "$fspec_basename\_meta.feather")
+    fspec_basename  = string("$(instrument)_lc_$(bin_time)_fspec")
+    fspec_meta_path = joinpath(fspec_dir, "$(fspec_basename)_meta.feather")
 
     fspec_meta = Feather.read(fspec_meta_path)
 
@@ -104,7 +104,7 @@ function _fspec_load(fspec_dir, instrument, bin_time, fspec_bin)
         fspec_bin_sze = current_row[:bin_size][1]
         fspec_idx     = current_row[:indecies][1]
         fspec_starts  = current_row[:starts][1]
-        fspec_file    = Feather.read(joinpath(fspec_dir, "$fspec_basename\_$fspec_idx\.feather"))
+        fspec_file    = Feather.read(joinpath(fspec_dir, "$(fspec_basename)_$(fspec_idx).feather"))
         fspec_freqs   = Array(fspec_file[:freqs]); delete!(fspec_file, :freqs)
         fspec_ampavg  = Array(fspec_file[:avg_amp]); delete!(fspec_file, :avg_amp)
         fspec_amps    = Array(fspec_file)
@@ -196,11 +196,11 @@ function fspec(mission_name::Symbol, obs_row::DataFrames.DataFrame, bin_time::Re
 
     JAXTAM_gti_path      = joinpath(JAXTAM_path, "lc/$bin_time/gtis/"); mkpath(JAXTAM_gti_path)
     JAXTAM_gti_content   = readdir(JAXTAM_gti_path)
-    JAXTAM_gti_metas     = Dict([Symbol(inst) => joinpath(JAXTAM_gti_path, "$inst\_lc_$(float(bin_time))\_gti_meta.feather") for inst in instruments])
+    JAXTAM_gti_metas     = Dict([Symbol(inst) => joinpath(JAXTAM_gti_path, "$(inst)_lc_$(float(bin_time))_gti_meta.feather") for inst in instruments])
 
     JAXTAM_fspec_path    = joinpath(JAXTAM_path, "lc/$bin_time/fspec/"); mkpath(JAXTAM_fspec_path)
     JAXTAM_fspec_content = readdir(JAXTAM_path)
-    JAXTAM_fspec_metas   = Dict([Symbol(inst) => joinpath(JAXTAM_fspec_path, "$inst\_lc_$(float(bin_time))_fspec_meta.feather") for inst in instruments])
+    JAXTAM_fspec_metas   = Dict([Symbol(inst) => joinpath(JAXTAM_fspec_path, "$(inst)_lc_$(float(bin_time))_fspec_meta.feather") for inst in instruments])
 
     JAXTAM_all_gti_metas   = unique([isfile(meta) for meta in values(JAXTAM_gti_metas)])
     JAXTAM_all_fspec_metas = unique([isfile(meta) for meta in values(JAXTAM_fspec_metas)])

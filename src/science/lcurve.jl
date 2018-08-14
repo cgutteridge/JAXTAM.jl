@@ -88,7 +88,7 @@ function _lcurve(instrument_data, bin_time)
 end
 
 function _lcurve_save(lightcurve_data::BinnedData, lc_dir::String)
-    lc_basename = string("$(lightcurve_data.instrument)\_lc_$(lightcurve_data.bin_time)")
+    lc_basename = string("$(lightcurve_data.instrument)_lc_$(lightcurve_data.bin_time)")
 
     lc_meta = DataFrame(mission=string(lightcurve_data.mission), instrument=string(lightcurve_data.instrument), obsid=lightcurve_data.obsid, bin_time=lightcurve_data.bin_time, times=[lightcurve_data.times[1], lightcurve_data.times[2] - lightcurve_data.times[1], lightcurve_data.times[end]])
 
@@ -96,17 +96,17 @@ function _lcurve_save(lightcurve_data::BinnedData, lc_dir::String)
 
     lc_data = DataFrame(counts=lightcurve_data.counts)
 
-    Feather.write(joinpath(lc_dir, "$lc_basename\_meta.feather"), lc_meta)
-    Feather.write(joinpath(lc_dir, "$lc_basename\_gtis.feather"), lc_gtis)
-    Feather.write(joinpath(lc_dir, "$lc_basename\_data.feather"), lc_data)
+    Feather.write(joinpath(lc_dir, "$(lc_basename)meta.feather"), lc_meta)
+    Feather.write(joinpath(lc_dir, "$(lc_basename)gtis.feather"), lc_gtis)
+    Feather.write(joinpath(lc_dir, "$(lc_basename)data.feather"), lc_data)
 end
 
 function _lc_read(lc_dir::String, instrument::Symbol, bin_time)
-    lc_basename = string("$(instrument)\_lc_$(string(bin_time))")
+    lc_basename = string("$(instrument)_lc_$(string(bin_time))")
 
-    lc_meta = Feather.read(joinpath(lc_dir, "$lc_basename\_meta.feather"))
-    lc_gtis = Feather.read(joinpath(lc_dir, "$lc_basename\_gtis.feather"))
-    lc_data = Feather.read(joinpath(lc_dir, "$lc_basename\_data.feather"))
+    lc_meta = Feather.read(joinpath(lc_dir, "$(lc_basename)meta.feather"))
+    lc_gtis = Feather.read(joinpath(lc_dir, "$(lc_basename)gtis.feather"))
+    lc_data = Feather.read(joinpath(lc_dir, "$(lc_basename)data.feather"))
 
     return BinnedData(Symbol(lc_meta[:mission][1]), Symbol(lc_meta[:instrument][1]), lc_meta[:obsid][1], lc_meta[:bin_time][1], lc_data[:counts], lc_meta[:times][1]:lc_meta[:times][2]:lc_meta[:times][3], hcat(lc_gtis[:start], lc_gtis[:stop]))
 end
@@ -137,7 +137,7 @@ function lcurve(mission_name::Symbol, obs_row::DataFrame, bin_time::Number; over
         for instrument in instruments
             lightcurve_data = _lcurve(calibrated_data[instrument], bin_time)
 
-            @info "Saving `$instrument` $bin_time\s lightcurve data"
+            @info "Saving `$instrument` $(bin_time)s lightcurve data"
 
             _lcurve_save(lightcurve_data, JAXTAM_lc_path)
 
@@ -222,13 +222,13 @@ function _gtis_save(gtis, gti_dir::String)
     gti_starts   = [t.gti_start_time for t in values(gtis)]
     gti_example  = gtis[gti_indecies[1]]
 
-    gti_basename = string("$(gti_example.instrument)\_lc_$(gti_example.bin_time)\_gti")
+    gti_basename = string("$(gti_example.instrument)_lc_$(gti_example.bin_time)_gti")
     gtis_meta    = DataFrame(mission=String(gti_example.mission), instrument=String(gti_example.instrument), obsid=gti_example.obsid, bin_time=gti_example.bin_time, indecies=gti_indecies, starts=gti_starts)
 
-    Feather.write(joinpath(gti_dir, "$gti_basename\_meta.feather"), gtis_meta)
+    Feather.write(joinpath(gti_dir, "$(gti_basename)_meta.feather"), gtis_meta)
 
     for index in gti_indecies
-        gti_savepath = joinpath(gti_dir, "$gti_basename\_$index\.feather")
+        gti_savepath = joinpath(gti_dir, "$(gti_basename)_$(index).feather")
         Feather.write(gti_savepath, DataFrame(counts=gtis[index].counts, times=gtis[index].times))
     end
 end
@@ -236,8 +236,8 @@ end
 function _gtis_load(gti_dir, instrument, bin_time)
     bin_time = float(bin_time)
 
-    gti_basename  = string("$instrument\_lc_$bin_time\_gti")
-    gti_meta_path = joinpath(gti_dir, "$gti_basename\_meta.feather")
+    gti_basename  = string("$(instrument)_lc_$(bin_time)_gti")
+    gti_meta_path = joinpath(gti_dir, "$(gti_basename)_meta.feather")
 
     gti_meta = Feather.read(gti_meta_path)
 
@@ -251,7 +251,7 @@ function _gtis_load(gti_dir, instrument, bin_time)
         gti_bin_t   = current_row[:bin_time][1]
         gti_idx     = current_row[:indecies][1]
         gti_starts  = current_row[:starts][1]
-        current_gti = Feather.read(joinpath(gti_dir, "$gti_basename\_$gti_idx\.feather"))
+        current_gti = Feather.read(joinpath(gti_dir, "$(gti_basename)_$(gti_idx).feather"))
         gti_counts  = current_gti[:counts]
         gti_times   = current_gti[:times]
         gti_times   = gti_times[1]:gti_bin_t:gti_times[end] # Convert Array to Step Range
@@ -272,7 +272,7 @@ function gtis(mission_name::Symbol, obs_row::DataFrames.DataFrame, bin_time::Num
     JAXTAM_lc_content  = readdir(JAXTAM_path)
     JAXTAM_gti_path    = joinpath(JAXTAM_path, "lc/$bin_time/gtis/"); mkpath(JAXTAM_gti_path)
     JAXTAM_gti_content = readdir(JAXTAM_gti_path)
-    JAXTAM_gti_metas   = Dict([Symbol(inst) => joinpath(JAXTAM_gti_path, "$inst\_lc_$(float(bin_time))\_gti_meta.feather") for inst in instruments])
+    JAXTAM_gti_metas   = Dict([Symbol(inst) => joinpath(JAXTAM_gti_path, "$(inst)_lc_$(float(bin_time))_gti_meta.feather") for inst in instruments])
     JAXTAM_all_metas   = unique([isfile(meta) for meta in values(JAXTAM_gti_metas)])
 
     if JAXTAM_all_metas != [true] || overwrite

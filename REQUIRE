@@ -1,5 +1,4 @@
 julia 0.6
-MicroLogging
 DataFrames
 FileIO
 CSVFiles
@@ -8,5 +7,7 @@ Query
 Compat
 FITSIO
 Feather
+StatsBase
+DSP
 Plots
 GR

@@ -123,9 +123,9 @@ function read_cl_fits(mission_name::Symbol, obs_row::DataFrames.DataFrame)
 end
 
 function _save_cl_feather(feather_dir, instrument_name, fits_events_df, fits_gtis_df, fits_meta_df)
-    Feather.write(joinpath(feather_dir, "$instrument_name\_events.feather"), fits_events_df)
-    Feather.write(joinpath(feather_dir, "$instrument_name\_gtis.feather"), fits_gtis_df)
-    Feather.write(joinpath(feather_dir, "$instrument_name\_meta.feather"), fits_meta_df)
+    Feather.write(joinpath(feather_dir, "$(instrument_name)events.feather"), fits_events_df)
+    Feather.write(joinpath(feather_dir, "$(instrument_name)gtis.feather"), fits_gtis_df)
+    Feather.write(joinpath(feather_dir, "$(instrument_name)meta.feather"), fits_meta_df)
 end
 
 function read_cl(mission_name::Symbol, obs_row::DataFrames.DataFrame; overwrite=false)

@@ -1,19 +1,15 @@
-#__precompile__() # Disable during dev
+__precompile__(false)
 
 module JAXTAM
 
-using MicroLogging
 using DataFrames
-using Missings
 using FileIO
 using CSVFiles
 using JLD2
-using Query
 using Compat
 using FITSIO
 using Feather
 using StatsBase
-using Mustache
 using DSP
 using Plots
 gr()
@@ -32,7 +28,7 @@ include("science/calibrate.jl")
 include("science/lcurve.jl")
 include("science/fspec.jl")
 include("science/plots.jl")
-include("web/webgen.jl")
-include("web/subgen.jl")
+#include("web/webgen.jl")
+#include("web/subgen.jl")
 
 end

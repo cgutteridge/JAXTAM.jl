@@ -168,11 +168,7 @@ search over (e.g. `obsid`), and a `key_value` to find (e.g. `0123456789`)
 Returns the full row for any observations matching the search criteria
 """
 function master_query(master_df::DataFrame, key_type::Symbol, key_value::Any)
-    observations = @from row in master_df begin
-        @where eval(Expr(:call, ==, getfield(row, key_type), key_value))
-        @select row
-        @collect DataFrame
-    end
+    observations = filter(row -> row[key_type] == key_value, master_df)
 
     if size(observations, 1) == 0
         @warn "master_query returned no results for $key_type with $key_value search"
@@ -203,12 +199,9 @@ function _public_date_int(public_date)
 end
 
 function master_query_public(master_df::DataFrame, key_type::Symbol, key_value::Any)
-    observations = @from row in master_df begin
-        @where eval(Expr(:call, ==, getfield(row, key_type), key_value)) && row.public_date < now()
-        @select row
-        @collect DataFrame
-    end
-
+    observations = filter(row -> row[key_type] == key_value, master_df)
+    observations = filter(row -> row[:public_date] < now(), observations)
+    
     if size(observations, 1) == 0
         @warn "master_query_public returned no results for $key_type with $key_value search"
     end
@@ -223,11 +216,7 @@ function master_query_public(mission_name::Symbol, key_type::Symbol, key_value::
 end
 
 function master_query_public(master_df::DataFrame)
-    observations = @from row in master_df begin
-        @where row.public_date < now()
-        @select row
-        @collect DataFrame
-    end
+    observations = filter(row -> row[:public_date] < now(), master_df)
 
     return observations
 end
