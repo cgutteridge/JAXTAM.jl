@@ -3,6 +3,8 @@ __precompile__(false)
 module JAXTAM
 
 using DataFrames
+using SparseArrays
+using Dates
 using FileIO
 using CSVFiles
 using JLD2
@@ -15,6 +17,9 @@ using Plots
 gr()
 
 abstract type JAXTAMData end
+
+# @__DIR__ returns the location of this file
+const __sourcedir__ = abspath(@__DIR__, "..")
 
 include("missions/mission_control.jl")
 include("missions/default_missions.jl")
