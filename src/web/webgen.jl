@@ -1,109 +1,67 @@
-function _html_escape(cell)
-    if typeof(cell) == Missings.Missing
-        return "missing"
-    end
+#@tags head title meta div p h1 h2 h3 hr intro table thead tbody tr th td
+#@tags_noescape script
 
-    cell = string(cell)
-
-    cell = replace(cell, "&"=>"&amp;")
-    cell = replace(cell, "<"=>"&lt;")
-    cell = replace(cell, ">"=>"&gt;")
-    return cell
-end
-
-function _webgen_head(; title="")
-    return_html = "<!DOCTYPE html>
-<html class=\"no-js\">
-<head>
-    <title>$title</title>
-    <meta charset=\"utf-8\">
-
-    <link rel=\"stylesheet\" type=\"text/css\" href=\"https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.1.1/css/bootstrap.css\">
-    <link rel=\"stylesheet\" type=\"text/css\" href=\"https://cdn.datatables.net/1.10.19/css/dataTables.bootstrap4.min.css\">
-    <link rel=\"stylesheet\" type=\"text/css\" href=\"https://cdn.datatables.net/v/bs4/dt-1.10.18/b-1.5.2/b-html5-1.5.2/fc-3.2.5/fh-3.1.4/sc-1.5.0/datatables.min.css\"/>
-    <style type=\"text/css\" class=\"init\">
-    
-    </style>
-    <script type=\"text/javascript\" language=\"javascript\" src=\"https://code.jquery.com/jquery-3.3.1.js\"></script>
-    <script type=\"text/javascript\" language=\"javascript\" src=\"https://cdn.datatables.net/1.10.19/js/jquery.dataTables.min.js\"></script>
-    <script type=\"text/javascript\" language=\"javascript\" src=\"https://cdn.datatables.net/1.10.19/js/dataTables.bootstrap4.min.js\"></script>
-    <script type=\"text/javascript\" src=\"https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.36/pdfmake.min.js\"></script>
-    <script type=\"text/javascript\" src=\"https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.36/vfs_fonts.js\"></script>
-    <script type=\"text/javascript\" src=\"https://cdn.datatables.net/v/bs4/dt-1.10.18/b-1.5.2/b-html5-1.5.2/fc-3.2.5/fh-3.1.4/sc-1.5.0/datatables.min.js\"></script>
-    <script type=\"text/javascript\" class=\"init\">
+function _webgen_head(;title_in="")
+    node = m("head",
+        m("title", title_in),
+        m("meta"; charset="utf-8"),
+        m("link"; rel="stylesheet", :type=>"text/css", href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.1.1/css/bootstrap.css"),
+        m("link"; rel="stylesheet", :type=>"text/css", href="https://cdn.datatables.net/1.10.19/css/dataTables.bootstrap4.min.css"),
+        m("link"; rel="stylesheet", :type=>"text/css", href="https://cdn.datatables.net/v/bs4/dt-1.10.18/b-1.5.2/b-html5-1.5.2/fc-3.2.5/fh-3.1.4/sc-1.5.0/datatables.min.css"),
+        m("style"; :type=>"text/css", class="init"),
+        m("script"; :type=>"text/javascript", language="javascript", src="https://code.jquery.com/jquery-3.3.1.js"),
+        m("script"; :type=>"text/javascript", language="javascript", src="https://cdn.datatables.net/1.10.19/js/jquery.dataTables.min.js"),
+        m("script"; :type=>"text/javascript", language="javascript", src="https://cdn.datatables.net/1.10.19/js/dataTables.bootstrap4.min.js"),
+        m("script"; :type=>"text/javascript", src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.36/pdfmake.min.js"),
+        m("script"; :type=>"text/javascript", src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.36/vfs_fonts.js"),
+        m("script"; :type=>"text/javascript", src="https://cdn.datatables.net/v/bs4/dt-1.10.18/b-1.5.2/b-html5-1.5.2/fc-3.2.5/fh-3.1.4/sc-1.5.0/datatables.min.js"),
+        m("script"; :type=>"text/javascript", class="init"),
+        m("script", "
         \$(document).ready(function() {
-            \$(\'#example\').DataTable();
-        } );
-    </script>
-</head>
-    "
+            \$('#example').DataTable();
+        } );"; :type=>"text/javascript", class="init")
+    )
 end
 
-function _webgen_home(mission_name::Symbol)
-    header = _webgen_head(title="JAXTAM.jl Web View")
-
-    body = "<body>
-    <div class=\"se-pre-con\"></div>
-    <div class=\"container\">
-    <h1>JAXTAM.jl WebView - $mission_name</h1>
-    <hr>
-    <p>This JAXTAM results summary page is for <b>$mission_name</b></p>
-    "
-
-    return string(header, body)
+function _webgen_home_intro(mission_name::Symbol)
+    node_intro = intro(
+        m("div"; class="se-pre-con"),
+        m("div"; class="container"),
+        m("h1", "JAXTAM.jl WebView - $mission_name"),
+        m("hr"),
+        m("p", "JAXTAM results summary page for $mission_name")
+    )
 end
 
-function _webgen_mastertable_row(row::DataFrames.DataFrame)
-    row_html = "\t<tr>
-                <td>$(_html_escape(row[1, :name]))</td>
-                <td>$(_html_escape(row[1, :obsid]))</td>
-                <td>$(_html_escape(row[1, :subject_category]))</td>
-                <td>$(_html_escape(row[1, :obs_type]))</td>
-                <td>$(_html_escape(row[1, :publicity]))</td>
-                <td>$(_html_escape(row[1, :downloaded]))</td>
-                <td>PLOTTED_PLACEHOLDER</td>
-        </tr>"
-end
+function _webgen_table(df::DataFrames.DataFrame)
+    headers = names(df)
 
-function _webgen_mastertable(mission_name::Symbol)
-    master_df = master_a(mission_name)
+    rows, cols = size(a)
 
-    table_header = "<table id=\"example\" class=\"table table-striped table-bordered\" style=\"width:100%\">
-        <thead>
-            <tr>
-                <th>name</th>
-                <th>obsid</th>
-                <th>category</th>
-                <th>obstype</th>
-                <th>public</th>
-                <th>downloaded</th>
-                <th>plotted</th>
-            </tr>
-        </thead>
-        <tbody>"
-
-    table_body = ""
-    
-    for row_i in 1:size(master_df,1)
-        row = master_df[row_i, :]
-        table_body = string(table_body, _webgen_mastertable_row(row))
-    end
-
-    table_footer = "</tbody>
-    </table>
-    </body>
-    "
-
-    return string(table_header, table_body, table_footer)
+    node_table = table(
+        thead(
+            tr(
+                th.(headers)
+            )
+        ),
+        tbody(
+            tr.([td.([df[r, c] for c in 1:cols]) for r in 1:rows])
+        )
+    )
 end
 
 function webgen_mission(mission_name::Symbol)
     web_dir = config(:web)
     
     web_home_dir  = joinpath(web_dir, "index.html")
-    web_home_html = string(_webgen_home(mission_name), _webgen_mastertable(mission_name))
 
-    write(web_home_dir, web_home_html)
+    html = html(
+        _webgen_head(mission_name),
+        _webgen_home_intro(mission_name),
+        _webgen_table(master_a(mission_name))
+    )
+
+    write(web_home_dir, Pretty(html))
 
     return web_home_dir
 end

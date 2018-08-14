@@ -6,13 +6,13 @@ using DataFrames
 using SparseArrays
 using Dates
 using FileIO
-using CSVFiles
 using JLD2
 using Compat
 using FITSIO
 using Feather
 using StatsBase
 using DSP
+using Hyperscript
 using Plots
 gr()
 
@@ -33,7 +33,7 @@ include("science/calibrate.jl")
 include("science/lcurve.jl")
 include("science/fspec.jl")
 include("science/plots.jl")
-#include("web/webgen.jl")
+include("web/webgen.jl")
 #include("web/subgen.jl")
 
 end
