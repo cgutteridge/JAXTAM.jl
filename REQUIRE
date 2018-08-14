@@ -1,9 +1,10 @@
 julia 0.7
+Dates
 DataFrames
+SparseArrays
 FileIO
 CSVFiles
 JLD2
-Query
 Compat
 FITSIO
 Feather
