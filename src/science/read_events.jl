@@ -64,7 +64,7 @@ function _read_fits_event(fits_path)
 
     for (i, key) in enumerate(keys(fits_header))
         key = Symbol(replace(key, '-', '_'))
-        if typeof(fits_header[i]) == Void
+        if typeof(fits_header[i]) == Nothing
             fits_header_df[Symbol(key)] =  ""
         else
             fits_header_df[Symbol(key)] = fits_header[i]
@@ -93,7 +93,7 @@ function read_cl_fits(mission_name::Symbol, obs_row::DataFrames.DataFrame)
         else
             @warn "NOT found: $file"
             @info "Start download for `$mission_name` $(obs_row[1, :obsid])? (y/n)"
-            response = readline(STDIN)
+            response = readline(stdin)
             if response == "y" || response == "Y"
                 download(mission_name, obs_row[1, :obsid])
                 append!(files, [files])

@@ -196,7 +196,7 @@ function _lc_filter_gtis(binned_times, binned_counts, gtis, time_start, time_sto
     total_counts = sum(binned_counts)[1]
     gti_counts   = sum([sum(gti.counts) for gti in values(gti_data)])
     count_delta  = gti_counts-total_counts
-    delta_prcnt  = round(count_delta/total_counts*100, 2)
+    delta_prcnt  = round(count_delta/total_counts*100, digits=2)
 
     @info "Original counts: $total_counts, counts in GTI: $gti_counts, delta: $count_delta ($delta_prcnt %)"
 

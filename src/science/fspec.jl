@@ -38,7 +38,7 @@ function _fft(counts::SparseVector{Int64,Int64}, times::StepRangeLen, bin_time::
 end
 
 function _best_gti_pow2(gtis::Dict{Int64,JAXTAM.GTIData})
-    gti_pow2s = [prevpow2(length(gti[2].counts)) for gti in gtis]
+    gti_pow2s = [prevpow(2, length(gti[2].counts)) for gti in gtis]
     min_pow2  = Int(median(gti_pow2s))
     exclude   = gti_pow2s .< min_pow2
     

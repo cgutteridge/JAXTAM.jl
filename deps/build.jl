@@ -2,7 +2,7 @@ return
 
 using BinDep
 using Compat
-using Compat.Libdl
+using Libdl
 
 @BinDeps.setup
 
@@ -45,7 +45,7 @@ provides(Yum,
         ),os=:Linux
 )
 
-if Compat.Sys.iswindows()
+if Sys.iswindows()
     using WinRPM
     provides(WinRPM.RPM, "hdf5", hdf5, os=:Windows)
     provides(WinRPM.RPM, "lftp", lftp, os=:Windows)

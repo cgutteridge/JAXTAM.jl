@@ -2,10 +2,8 @@ function _master_download(master_path, master_url)
     @info "Downloading latest master catalog"
     Base.download(master_url, master_path)
 
-    if VERSION >= v"0.7.0" || Sys.is_linux()
-        # Windows (used to) unzip .gz during download, unzip now if Linux
-        unzip!(master_path)
-    end
+    # Windows (used to) unzip .gz during download, unzip now if Linux
+    unzip!(master_path)
 end
 
 """
@@ -18,15 +16,15 @@ converts to `DataFrame`, and finally returns cleaned table as `DataFrame`
 function _master_read_tdat(master_path::String)
     master_ascii = readdlm(master_path, '\n')
 
-    data_start = Int(find(master_ascii .== "<DATA>")[1] + 1)
-    data_end   = Int(find(master_ascii .== "<END>")[1] - 1)
+    data_start = Int(findall(master_ascii .== "<DATA>")[1] + 1)
+    data_end   = Int(findall(master_ascii .== "<END>")[1] - 1)
     keys_line  = data_start - 2
 
     # Key names are given on the keys_line, split and make into symbols for use later
     key_names = Symbol.(split(master_ascii[keys_line][11:end])) # 11:end to remove 'line[1] = '
     no_cols   = length(key_names)
-    key_obsid = find(key_names .== :obsid)[1]
-    key_archv = find(key_names .== :processing_status)
+    key_obsid = findall(key_names .== :obsid)[1]
+    key_archv = findall(key_names .== :processing_status)
 
     master_ascii_data = master_ascii[data_start:data_end]
 
@@ -50,7 +48,7 @@ function _master_read_tdat(master_path::String)
 
             if cleaned != ""
                 if key in [:time, :end_time, :processing_date, :public_date]
-                    cleaned = _mjd2datetime(parse(obs_values[itr]))
+                    cleaned = _mjd2datetime(Meta.parse(obs_values[itr]))
                 end
             else
                 cleaned = missing
@@ -116,7 +114,7 @@ function master(mission_name::Union{String,Symbol})
     if !isfile(master_path_tdat) && !isfile(master_path_tdat)
         @warn "No master file found, looked for: \n\t$master_path_tdat \n\t$master_path_jld"
         @info "Download master files from `$(mission.url)`? (y/n)"
-        response = readline(STDIN)
+        response = readline(stdin)
         if response=="y" || response=="Y"
             if !isdir(mission.path)
                 mkpath(mission.path)
@@ -178,8 +176,8 @@ function master_query(master_df::DataFrame, key_type::Symbol, key_value::Any)
     # screws with functions later on which convert the values to strings
     # use get here to get them out of the DataVakue type, wrapped in try
     # for any cases where these columns don't exist in the master dataframe
-    try; observations[:obsid] = get(observations[:obsid][1]); end
-    try; observations[:time] = get(observations[:time][1]); end
+    try; observations[:obsid] = get(observations[:obsid][1]); catch; end
+    try; observations[:time] = get(observations[:time][1]); catch; end
 
     return observations
 end

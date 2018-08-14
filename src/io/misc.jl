@@ -29,6 +29,6 @@ function _mjd2datetime(mjd_time::Number)
     return Dates.julian2datetime(mjd_time + 2400000.5)
 end
 
-function _mjd2datetime(mjd_time::Void)
+function _mjd2datetime(mjd_time::Nothing)
     return missing
 end
