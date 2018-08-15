@@ -29,10 +29,10 @@ function _fft(counts::Array, times::StepRangeLen, bin_time::Real, fspec_bin_size
     freqs = Array(rfftfreq(fspec_bin_size, 1/bin_time))
 
     if leahy
-        amps = (2 .*(amps.^2)) ./ sum(counts, 1)
+        amps = (2 .*(amps.^2)) ./ sum(counts, dims=1)
     end
     
-    amps[1, :] = 0 # Zero the 0Hz amplitude
+    amps[1, :] .= 0 # Zero the 0Hz amplitude
 
     return freqs, amps
 end
@@ -132,7 +132,7 @@ function _fspec(gtis::Dict{Int64,JAXTAM.GTIData}, fspec_bin::Real; pow2=true, fs
 
     for gti in values(gtis)
         if length(gti.counts) < fspec_bin_size
-            @warn "Skipped gti $(gti.gti_index) as it is under the `fspec_bin_size` of $fspec_bin_size"
+            @info "Skipped gti $(gti.gti_index) as it is under the `fspec_bin_size` of $fspec_bin_size"
             continue
         end
 
