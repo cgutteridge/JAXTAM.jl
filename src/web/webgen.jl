@@ -1,4 +1,4 @@
-#@tags head title meta div p h1 h2 h3 hr intro table thead tbody tr th td
+@tags html head title meta div p h1 h2 h3 hr intro table thead tbody tr th td
 @tags_noescape script
 @tags intro
 
@@ -27,42 +27,48 @@ end
 function _webgen_home_intro(mission_name::Symbol)
     node_intro = intro(
         m("div"; class="se-pre-con"),
-        m("div"; class="container"),
-        m("h1", "JAXTAM.jl WebView - $mission_name"),
-        m("hr"),
-        m("p", "JAXTAM results summary page for $mission_name")
+        div(class="container",
+            m("div"; class="container"),
+            m("h1", "JAXTAM.jl WebView - $mission_name"),
+            m("hr"),
+            m("p", "JAXTAM results summary page for $mission_name")
+        )
     )
 end
 
 function _webgen_table(df::DataFrames.DataFrame)
     headers = names(df)
 
-    rows, cols = size(a)
+    rows, cols = size(df)
 
-    node_table = table(
-        thead(
-            tr(
-                th.(headers)
+    #<table id=\"example\" class=\"table table-striped table-bordered\" style=\"width:100%\">
+
+    node_table = div(class="container",
+        table(id="example", class="table table-striped table-bordered", style="width:100%", 
+            thead(
+                tr(
+                    th.(headers)
+                )
+            ),
+            tbody(
+                tr.([td.([df[r, c] for c in 1:cols]) for r in 1:rows])
             )
-        ),
-        tbody(
-            tr.([td.([df[r, c] for c in 1:cols]) for r in 1:rows])
         )
     )
 end
 
 function webgen_mission(mission_name::Symbol)
-    web_dir = config(:web)
+    web_dir = config(mission_name).path_web
     
     web_home_dir  = joinpath(web_dir, "index.html")
 
-    html = html(
-        _webgen_head(mission_name),
+    html_out = html(
+        _webgen_head(;title_in="JAXTAM $mission_name homepage"),
         _webgen_home_intro(mission_name),
-        _webgen_table(master_a(mission_name))
+        _webgen_table(master_a(mission_name)[:, [:name, :obsid, :subject_category, :obs_type, :publicity]])
     )
-
-    write(web_home_dir, Pretty(html))
+    
+    write(web_home_dir, string(Pretty(html_out)))
 
     return web_home_dir
 end
