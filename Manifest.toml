@@ -1,0 +1,428 @@
+[[AbstractFFTs]]
+deps = ["Compat", "LinearAlgebra"]
+git-tree-sha1 = "8d59c3b1463b5e0ad05a3698167f85fac90e184d"
+uuid = "621f4979-c628-5d54-868e-fcf4e3e8185c"
+version = "0.3.2"
+
+[[Arrow]]
+deps = ["CategoricalArrays", "Compat", "Pkg"]
+git-tree-sha1 = "5081382c0e5c78c1849b9841b9d8941437060b48"
+uuid = "69666777-d1a9-59fb-9406-91d4454c9d45"
+version = "0.2.0"
+
+[[Base64]]
+uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
+
+[[BinDeps]]
+deps = ["Compat", "Libdl", "SHA", "URIParser"]
+git-tree-sha1 = "a6e1f6b5818ef909cda3a7011dd97c3dac6dc369"
+uuid = "9e28174c-4ba2-5203-b857-d8d62c4213ee"
+version = "0.8.9"
+
+[[BinaryProvider]]
+deps = ["Libdl", "Pkg", "SHA", "Test"]
+git-tree-sha1 = "ffbf89cc49b073cffdb91381b7ee60557a03ec96"
+uuid = "b99e7846-7c00-51b0-8f62-c81ae34c0232"
+version = "0.4.1"
+
+[[Blosc]]
+deps = ["BinaryProvider", "CMakeWrapper", "Compat", "Libdl"]
+git-tree-sha1 = "71fb23581e1f0b0ae7be8ccf0ebfb3600e23ca41"
+uuid = "a74b3585-a348-5f62-a45c-50e91977d574"
+version = "0.5.1"
+
+[[BufferedStreams]]
+deps = ["Compat", "Pkg", "Test"]
+git-tree-sha1 = "5d55b9486590fdda5905c275bb21ce1f0754020f"
+uuid = "e1450e63-4bb3-523b-b2a4-4ffa8c0fd77d"
+version = "1.0.0"
+
+[[CMakeWrapper]]
+deps = ["BinDeps", "Libdl", "Parameters", "Test"]
+git-tree-sha1 = "ea8aeb3a42f1a0f8aa05b7c091fae26a9ec64c96"
+uuid = "d5fb7624-851a-54ee-a528-d3f3bac0b4a0"
+version = "0.2.0"
+
+[[CategoricalArrays]]
+deps = ["Compat", "Future", "JSON", "Missings", "Printf", "Reexport"]
+git-tree-sha1 = "8009a507e2e3db040d6854a82ce959fb5971cb37"
+uuid = "324d7699-5711-5eae-9e2f-1d82baa6b597"
+version = "0.3.13"
+
+[[CodecZlib]]
+deps = ["BinaryProvider", "Libdl", "Pkg", "Test", "TranscodingStreams"]
+git-tree-sha1 = "83cb3d65c37ea1364c2d5bf7bcea41843ba645dc"
+uuid = "944b1d66-785c-5afd-91f1-9de20f533193"
+version = "0.5.0"
+
+[[ColorTypes]]
+deps = ["FixedPointNumbers", "Random", "Test"]
+git-tree-sha1 = "b45e62af8eabea138c381c04972c4b25d47e6c69"
+uuid = "3da002f7-5984-5a60-b8a6-cbb66c0b333f"
+version = "0.7.3"
+
+[[Colors]]
+deps = ["ColorTypes", "FixedPointNumbers", "InteractiveUtils", "Pkg", "Printf", "Reexport", "Test"]
+git-tree-sha1 = "22dbaed87c2b5a2df5caeca48c5f25fe7b6b009a"
+uuid = "5ae59095-9a9b-59fe-a467-6f913c188581"
+version = "0.9.2"
+
+[[Compat]]
+deps = ["Base64", "Dates", "DelimitedFiles", "Distributed", "InteractiveUtils", "LibGit2", "Libdl", "LinearAlgebra", "Markdown", "Mmap", "Pkg", "Printf", "REPL", "Random", "Serialization", "SharedArrays", "Sockets", "SparseArrays", "Statistics", "Test", "UUIDs", "Unicode"]
+git-tree-sha1 = "277d3807440d9793421354b6680911fc95d91a84"
+uuid = "34da2185-b29b-5c13-b0c7-acf172513d20"
+version = "1.0.1"
+
+[[Conda]]
+deps = ["Compat", "JSON", "VersionParsing"]
+git-tree-sha1 = "a47f9a2c7b80095e6a935536795635522fe27f5d"
+uuid = "8f4d0f93-b110-5947-807f-2305c1781a2d"
+version = "1.0.1"
+
+[[Contour]]
+deps = ["LinearAlgebra", "StaticArrays", "Test"]
+git-tree-sha1 = "b974e164358fea753ef853ce7bad97afec15bb80"
+uuid = "d38c429a-6771-53c6-b99e-75d170b6e991"
+version = "0.5.1"
+
+[[DSP]]
+deps = ["AbstractFFTs", "Compat", "FFTW", "LinearAlgebra", "Polynomials", "Reexport", "SpecialFunctions"]
+path = "/home/robert/.julia/dev/DSP"
+uuid = "717857b8-e6f2-59f4-9121-6e50c889abd2"
+version = "0.5.0+"
+
+[[DataFrames]]
+deps = ["CategoricalArrays", "CodecZlib", "Compat", "DataStreams", "Dates", "InteractiveUtils", "LinearAlgebra", "Missings", "Printf", "Random", "Reexport", "SortingAlgorithms", "Statistics", "StatsBase", "Test", "TranscodingStreams", "Unicode", "WeakRefStrings"]
+git-tree-sha1 = "e57061e223fd63959623ff021ab90fdeb785a1b7"
+repo-rev = "master"
+repo-url = "https://github.com/JuliaData/DataFrames.jl.git"
+uuid = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+version = "0.13.0+"
+
+[[DataStreams]]
+deps = ["Dates", "Missings", "Test", "WeakRefStrings"]
+git-tree-sha1 = "c54fb051465fb0741caa57972b67bd21ce2f39c7"
+uuid = "9a8bc11e-79be-5b39-94d7-1ccc349a1a85"
+version = "0.4.0"
+
+[[DataStructures]]
+deps = ["InteractiveUtils", "REPL", "Random", "Serialization", "Test"]
+git-tree-sha1 = "6e72a9098f5774601c8c8d6a4511a68270594910"
+uuid = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
+version = "0.11.0"
+
+[[Dates]]
+deps = ["Printf"]
+uuid = "ade2ca70-3891-5945-98fb-dc099432e06a"
+
+[[DelimitedFiles]]
+deps = ["Mmap"]
+uuid = "8bb1440f-4735-579b-a4ab-409b98df4dab"
+
+[[Distributed]]
+deps = ["LinearAlgebra", "Random", "Serialization", "Sockets"]
+uuid = "8ba89e20-285c-5b6f-9357-94700520ee1b"
+
+[[FFTW]]
+deps = ["AbstractFFTs", "BinaryProvider", "Compat", "Conda", "Libdl", "LinearAlgebra", "Pkg", "Reexport", "Test"]
+git-tree-sha1 = "29cda58afbf62f35b1a094882ad6c745a47b2eaa"
+uuid = "7a1cc6ca-52ef-59f5-83cd-3a7055c09341"
+version = "0.2.4"
+
+[[FITSIO]]
+deps = ["BinaryProvider", "Compat", "Libdl", "Printf", "Random", "Test"]
+path = "/home/robert/.julia/dev/FITSIO"
+uuid = "525bcba6-941b-5504-bd06-fd0dc1a4d2eb"
+version = "0.11.0+"
+
+[[Feather]]
+deps = ["Arrow", "CategoricalArrays", "Compat", "DataFrames", "DataStreams", "Dates", "FlatBuffers"]
+git-tree-sha1 = "eaffdebc46130ff301dbcb22570381225b37eca6"
+repo-rev = "master"
+repo-url = "https://github.com/JuliaData/Feather.jl.git"
+uuid = "becb17da-46f6-5d3c-ad1b-1c5fe96bc73c"
+version = "0.3.1+"
+
+[[FileIO]]
+deps = ["Pkg", "Random", "Test"]
+git-tree-sha1 = "b80161b7e679a1241f9441ebfa60b62d4239cf99"
+uuid = "5789e2e9-d7fb-5bc7-8068-2c6fae9b9549"
+version = "1.0.1"
+
+[[FixedPointNumbers]]
+deps = ["Pkg", "Test"]
+git-tree-sha1 = "31cbf24d537a217475b37274df05de09882b53f1"
+uuid = "53c48c17-4a7d-5ca2-90c5-79b7896eea93"
+version = "0.5.2"
+
+[[FlatBuffers]]
+deps = ["Test"]
+git-tree-sha1 = "ab03ea4fc9bf5b3b57c9abf694cbfbad5ee9f8a2"
+uuid = "53afe959-3a16-52fa-a8da-cf864710bae9"
+version = "0.4.0"
+
+[[Future]]
+deps = ["Random"]
+uuid = "9fa8497b-333b-5362-9e8d-4d0656e87820"
+
+[[GR]]
+deps = ["Base64", "DelimitedFiles", "Random", "Serialization", "Sockets", "Test"]
+git-tree-sha1 = "67fcefb82ea66d6488d2e3fa276d0b8a4602f634"
+uuid = "28b8d3ca-fb5f-59d9-8090-bfdbd6d07a71"
+version = "0.32.2"
+
+[[HDF5]]
+deps = ["BinDeps", "Blosc", "Compat", "Homebrew", "Libdl", "Pkg", "WinRPM"]
+git-tree-sha1 = "6e1cd8a2a71fe223ceccd8779b43a7daf006db9e"
+repo-rev = "master"
+repo-url = "https://github.com/JuliaIO/HDF5.jl.git"
+uuid = "f67ccb44-e63f-5c2f-98bd-6dc0ccc4ba2f"
+version = "0.9.3+"
+
+[[HTTPClient]]
+deps = ["Compat", "LibCURL"]
+git-tree-sha1 = "161d5776ae8e585ac0b8c20fb81f17ab755b3671"
+uuid = "0862f596-cf2d-50af-8ef4-f2be67dfa83f"
+version = "0.2.1"
+
+[[Homebrew]]
+deps = ["BinDeps", "InteractiveUtils", "JSON", "Libdl", "Test", "Unicode"]
+git-tree-sha1 = "5582ec74f735cf8d12e562a2e65c47f34063bd51"
+uuid = "d9be37ee-ecc9-5288-90f1-b9ca67657a75"
+version = "0.7.0"
+
+[[Hyperscript]]
+deps = ["Test"]
+git-tree-sha1 = "c7a8cf90a16e2ca89e71d4a22f89c5832a6aa594"
+repo-rev = "master"
+repo-url = "https://github.com/yurivish/Hyperscript.jl.git"
+uuid = "61f73626-e61e-46c8-aded-7ef67e964bac"
+version = "0.0.4"
+
+[[InteractiveUtils]]
+deps = ["LinearAlgebra", "Markdown"]
+uuid = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
+
+[[JLD2]]
+deps = ["CodecZlib", "DataStructures", "FileIO", "LinearAlgebra", "Mmap", "Printf", "Random", "Test"]
+path = "/home/robert/.julia/dev/JLD2"
+uuid = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
+version = "0.1.0"
+
+[[JSON]]
+deps = ["Dates", "Distributed", "Mmap", "Pkg", "Sockets", "Test", "Unicode"]
+git-tree-sha1 = "fec8e4d433072731466d37ed0061b3ba7f70eeb9"
+uuid = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
+version = "0.19.0"
+
+[[LibCURL]]
+deps = ["BinaryProvider", "Compat", "Libdl", "Pkg"]
+git-tree-sha1 = "4f00f8f8bf59e2731ccd6929c33c436ed5d7765f"
+uuid = "b27032c2-a3e7-50c8-80cd-2d36dbcbfd21"
+version = "0.3.0"
+
+[[LibExpat]]
+deps = ["Compat"]
+git-tree-sha1 = "8ba2ca1635ec1755bcf1432c9a2aa6c91a3fb4fd"
+uuid = "522f3ed2-3f36-55e3-b6df-e94fee9b0c07"
+version = "0.4.2"
+
+[[LibGit2]]
+uuid = "76f85450-5226-5b5a-8eaa-529ad045b433"
+
+[[Libdl]]
+uuid = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
+
+[[Libz]]
+deps = ["BufferedStreams", "Random", "Test"]
+git-tree-sha1 = "d405194ffc0293c3519d4f7251ce51baac9cc871"
+uuid = "2ec943e9-cfe8-584d-b93d-64dcb6d567b7"
+version = "1.0.0"
+
+[[LinearAlgebra]]
+deps = ["Libdl"]
+uuid = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+
+[[Logging]]
+uuid = "56ddb016-857b-54e1-b83d-db4d58db5568"
+
+[[Markdown]]
+deps = ["Base64"]
+uuid = "d6f4376e-aef5-505a-96c1-9c027394607a"
+
+[[Measures]]
+deps = ["Compat"]
+git-tree-sha1 = "9cdd05418a7f2f7ce534014285edf01f465d6961"
+uuid = "442fdcdd-2543-5da2-b0f3-8c86c306513e"
+version = "0.2.0"
+
+[[Missings]]
+deps = ["Compat"]
+git-tree-sha1 = "866fb034899be6055dcb6cb1a70fbda379bb0b55"
+uuid = "e1d29d7a-bbdc-5cf2-9ac0-f12de2c33e28"
+version = "0.2.10"
+
+[[Mmap]]
+uuid = "a63ad114-7e13-5084-954f-fe012c677804"
+
+[[NaNMath]]
+deps = ["Compat"]
+git-tree-sha1 = "ce3b85e484a5d4c71dd5316215069311135fa9f2"
+uuid = "77ba4419-2d1f-58cd-9bb1-8ffee604a2e3"
+version = "0.3.2"
+
+[[Parameters]]
+deps = ["Compat", "DataStructures", "REPL"]
+git-tree-sha1 = "9554e6665968d1ff6f5342b188475163b05e527d"
+uuid = "d96e819e-fc66-5662-9728-84c9c7592b0a"
+version = "0.9.2"
+
+[[Pkg]]
+deps = ["Dates", "LibGit2", "Markdown", "Printf", "REPL", "Random", "SHA", "UUIDs"]
+uuid = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
+
+[[PlotThemes]]
+deps = ["PlotUtils", "Requires", "Test"]
+git-tree-sha1 = "f3afd2d58e1f6ac9be2cea46e4a9083ccc1d990b"
+uuid = "ccf2f8ad-2431-5c83-bf29-c5338b663b6a"
+version = "0.3.0"
+
+[[PlotUtils]]
+deps = ["Colors", "Dates", "Printf", "Random", "Reexport", "Test"]
+git-tree-sha1 = "3b32bd672faa513c7c288b61bd20ea1504930810"
+uuid = "995b91a9-d308-5afd-9ec6-746e21dbc043"
+version = "0.5.2"
+
+[[Plots]]
+deps = ["Base64", "Contour", "Dates", "FixedPointNumbers", "GR", "JSON", "LinearAlgebra", "Measures", "NaNMath", "Pkg", "PlotThemes", "PlotUtils", "Printf", "REPL", "RecipesBase", "Reexport", "Requires", "Showoff", "StaticArrays", "Statistics", "StatsBase", "Test", "UUIDs"]
+git-tree-sha1 = "c8e727ba8170f431e7581065bf92c26014d20bd2"
+uuid = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
+version = "0.19.1"
+
+[[Polynomials]]
+deps = ["LinearAlgebra", "SparseArrays", "Test"]
+git-tree-sha1 = "af883752c4935425a3ab30031a2069254c451b8b"
+uuid = "f27b6e38-b328-58d1-80ce-0feddd5e7a45"
+version = "0.5.0"
+
+[[Printf]]
+deps = ["Unicode"]
+uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
+
+[[REPL]]
+deps = ["InteractiveUtils", "Markdown", "Sockets"]
+uuid = "3fa0cd96-eef1-5676-8a61-b3b8758bbffb"
+
+[[Random]]
+deps = ["Serialization"]
+uuid = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+
+[[RecipesBase]]
+deps = ["Pkg", "Random", "Test"]
+git-tree-sha1 = "b18c3d875ad6805e3db59c4e81f206f04df71d66"
+uuid = "3cdcf5f2-1ef4-517c-9805-6587b60abb01"
+version = "0.5.0"
+
+[[Reexport]]
+deps = ["Pkg"]
+git-tree-sha1 = "7b1d07f411bc8ddb7977ec7f377b97b158514fe0"
+uuid = "189a3867-3050-52da-a836-e630ba90ab69"
+version = "0.2.0"
+
+[[Requires]]
+deps = ["Test"]
+git-tree-sha1 = "f6fbf4ba64d295e146e49e021207993b6b48c7d1"
+uuid = "ae029012-a4dd-5104-9daa-d747884805df"
+version = "0.5.2"
+
+[[SHA]]
+uuid = "ea8e919c-243c-51af-8825-aaa63cd721ce"
+
+[[Serialization]]
+uuid = "9e88b42a-f829-5b0c-bbe9-9e923198166b"
+
+[[SharedArrays]]
+deps = ["Distributed", "Mmap", "Random", "Serialization"]
+uuid = "1a1011a3-84de-559e-8e89-a11a2f7dc383"
+
+[[Showoff]]
+deps = ["Compat", "Pkg"]
+git-tree-sha1 = "276b24f3ace98bec911be7ff2928d497dc759085"
+uuid = "992d4aef-0814-514b-bc4d-f2e9a6c4116f"
+version = "0.2.1"
+
+[[Sockets]]
+uuid = "6462fe0b-24de-5631-8697-dd941f90decc"
+
+[[SortingAlgorithms]]
+deps = ["DataStructures", "Random", "Test"]
+git-tree-sha1 = "03f5898c9959f8115e30bc7226ada7d0df554ddd"
+uuid = "a2af1166-a08f-5f64-846c-94a0d3cef48c"
+version = "0.3.1"
+
+[[SparseArrays]]
+deps = ["LinearAlgebra", "Random"]
+uuid = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
+
+[[SpecialFunctions]]
+deps = ["BinDeps", "BinaryProvider", "Compat", "Libdl"]
+git-tree-sha1 = "d12f8917be3782f4b800ba16003b8d0d4858c2e5"
+uuid = "276daf66-3868-5448-9aa4-cd146d93841b"
+version = "0.7.0"
+
+[[StaticArrays]]
+deps = ["InteractiveUtils", "LinearAlgebra", "Random", "Statistics", "Test"]
+git-tree-sha1 = "d432c79bef174a830304f8601427a4357dfdbfb7"
+uuid = "90137ffa-7385-5640-81b9-e52037218182"
+version = "0.8.3"
+
+[[Statistics]]
+deps = ["LinearAlgebra", "SparseArrays"]
+uuid = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
+
+[[StatsBase]]
+deps = ["DataStructures", "LinearAlgebra", "Missings", "Printf", "Random", "SortingAlgorithms", "SparseArrays", "Statistics", "Test"]
+git-tree-sha1 = "723193a13e8078cec6dcd0b8fe245c8bfd81690e"
+uuid = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
+version = "0.25.0"
+
+[[Test]]
+deps = ["Distributed", "InteractiveUtils", "Logging", "Random"]
+uuid = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[[TranscodingStreams]]
+deps = ["DelimitedFiles", "Pkg", "Random", "Test"]
+git-tree-sha1 = "a27b3a1b9c1120ef67b4647b80c61a16c09b9218"
+uuid = "3bb67fe8-82b1-5028-8e26-92a6c54297fa"
+version = "0.8.0"
+
+[[URIParser]]
+deps = ["Test", "Unicode"]
+git-tree-sha1 = "6ddf8244220dfda2f17539fa8c9de20d6c575b69"
+uuid = "30578b45-9adc-5946-b283-645ec420af67"
+version = "0.4.0"
+
+[[UUIDs]]
+deps = ["Random"]
+uuid = "cf7118a7-6976-5b1a-9a39-7adc72f591a4"
+
+[[Unicode]]
+uuid = "4ec0a83e-493e-50e2-b9ac-8f72acf5a8f5"
+
+[[VersionParsing]]
+deps = ["Compat"]
+git-tree-sha1 = "c9d5aa108588b978bd859554660c8a5c4f2f7669"
+uuid = "81def892-9a0e-5fdd-b105-ffc91e053289"
+version = "1.1.2"
+
+[[WeakRefStrings]]
+deps = ["Missings", "Random", "Test"]
+git-tree-sha1 = "1c28233e41ef8351c86ef42ddd50604b48238ed3"
+uuid = "ea10d353-3f73-51f8-a26c-33c1cb351aa5"
+version = "0.5.1"
+
+[[WinRPM]]
+deps = ["BinDeps", "Compat", "HTTPClient", "LibExpat", "Libdl", "Libz", "SHA", "URIParser"]
+git-tree-sha1 = "023faa2430b4ad3f9cf073c03cf100d80630fb6d"
+uuid = "c17dfb99-b4f7-5aad-8812-456da1ad7187"
+version = "0.4.0"
