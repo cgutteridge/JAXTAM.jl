@@ -7,15 +7,27 @@ function _master_download(master_path, master_url)
 end
 
 function _type_master_df!(master_df)
-    pairs = Dict(:name=>string, :ra=>float, :dec=>float, :lii=>float, :bii=>float,
-        :time=>Dates.DateTime, :end_time=>Dates.DateTime, :obsid=>string, :exposure=>float,
-        :time_awarded=>float, :num_fpm=>Meta.parse, :processing_status=>string, :processing_date=>Dates.DateTime,
-        :public_date=>Dates.DateTime, :processing_version=>string, :num_processed=>Meta.parse, :caldb_version=>String,
-        :software_version=>string, :prnb=>string, :abstract=>string, :subject_category=>string, :category_code=>Meta.parse,
-        :pi_lname=>string, :pi_fname=>string, :cycle=>Meta.parse, :obs_type=>string, :title=>string, :remarks=>string)
+    pairs = Dict(:name=>string, :ra=>float, :dec=>float, :lii=>float, :bii=>float, :roll_angle=>float,
+        :time=>Dates.DateTime, :end_time=>Dates.DateTime, :obsid=>string, :exposure=>float, :exposure_a=>float,
+        :exposure_b=>float, :ontime_a=>float, :ontime_b=>float, :observation_mode=>string, :instrument_mode=>string,
+        :spacecraft_mode=>string, :slew_mode=>string, :time_awarded=>float, :num_fpm=>Meta.parse,
+        :processing_status=>string, :processing_date=>Dates.DateTime,:public_date=>Dates.DateTime,
+        :processing_version=>string, :num_processed=>Meta.parse, :caldb_version=>String, :software_version=>string,
+        :prnb=>string, :abstract=>string, :subject_category=>string, :category_code=>Meta.parse,:priority=>string,
+        :country=>string, :data_gap=>Meta.parse, :nupsdout=>Meta.parse, :solar_activity=>string, :coordinated=>string,
+        :issue_flag=>Meta.parse, :comments=>string, :satus=>string,  :pi_lname=>string, :pi_fname=>string,
+        :cycle=>Meta.parse, :obs_type=>string, :title=>string, :remarks=>string)
 
     for (name, coltype) in pairs
-        master_df[name] = coltype.(master_df[name])
+        # if true in ismissing.(master_df[name])
+        #     master_df[name] = Array{Union{Missing,}}
+        # else
+        # end
+        try
+            master_df[name] = coltype.(master_df[name])
+        catch e
+            @warn e
+        end
     end
 
     return master_df
@@ -218,7 +230,7 @@ end
 
 function master_query_public(master_df::DataFrame, key_type::Symbol, key_value::Any)
     observations = filter(row -> row[key_type] == key_value, master_df)
-    observations = filter(row -> row[:public_date] < now(), observations)
+    observations = filter(row -> convert(DateTime, row[:public_date]) < now(), observations)
     
     if size(observations, 1) == 0
         @warn "master_query_public returned no results for $key_type with $key_value search"
@@ -234,7 +246,7 @@ function master_query_public(mission_name::Symbol, key_type::Symbol, key_value::
 end
 
 function master_query_public(master_df::DataFrame)
-    observations = filter(row -> row[:public_date] < now(), master_df)
+    observations = filter(row -> convert(DateTime, row[:public_date]) < now(), master_df)
 
     return observations
 end
