@@ -89,13 +89,15 @@ version = "0.5.1"
 
 [[DSP]]
 deps = ["AbstractFFTs", "Compat", "FFTW", "LinearAlgebra", "Polynomials", "Random", "Reexport", "SpecialFunctions"]
-path = "/home/robert/.julia/dev/DSP"
+git-tree-sha1 = "c90967ff4c5e99f652b278624634dcef73b58848"
+repo-rev = "master"
+repo-url = "https://github.com/JuliaDSP/DSP.jl.git"
 uuid = "717857b8-e6f2-59f4-9121-6e50c889abd2"
 version = "0.5.1+"
 
 [[DataFrames]]
 deps = ["CategoricalArrays", "CodecZlib", "Compat", "DataStreams", "Dates", "InteractiveUtils", "LinearAlgebra", "Missings", "Printf", "Random", "Reexport", "SortingAlgorithms", "Statistics", "StatsBase", "Test", "TranscodingStreams", "Unicode", "WeakRefStrings"]
-git-tree-sha1 = "e57061e223fd63959623ff021ab90fdeb785a1b7"
+git-tree-sha1 = "3a073596a1f6c55e4c310cfdbe1e06e5654bad14"
 repo-rev = "master"
 repo-url = "https://github.com/JuliaData/DataFrames.jl.git"
 uuid = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
