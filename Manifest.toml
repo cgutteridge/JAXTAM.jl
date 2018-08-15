@@ -136,8 +136,10 @@ uuid = "7a1cc6ca-52ef-59f5-83cd-3a7055c09341"
 version = "0.2.4+"
 
 [[FITSIO]]
-deps = ["BinaryProvider", "Compat", "Libdl", "Printf", "Random", "Test"]
-path = "/home/robert/.julia/dev/FITSIO"
+deps = ["BinaryProvider", "Compat", "Printf", "Random", "Test"]
+git-tree-sha1 = "bed09b6c9c4de2c6e3ea89c84e08598ecce41c0e"
+repo-rev = "master"
+repo-url = "https://github.com/RobertRosca/FITSIO.jl"
 uuid = "525bcba6-941b-5504-bd06-fd0dc1a4d2eb"
 version = "0.11.0+"
 
@@ -211,7 +213,9 @@ uuid = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
 
 [[JLD2]]
 deps = ["CodecZlib", "DataStructures", "FileIO", "LinearAlgebra", "Mmap", "Printf", "Random", "Test"]
-path = "/home/robert/.julia/dev/JLD2"
+git-tree-sha1 = "9fffc7045f93c424a2b2e0ebb10bbaba6baebb2c"
+repo-rev = "master"
+repo-url = "https://github.com/RobertRosca/JLD2.jl"
 uuid = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
 version = "0.1.0"
 
