@@ -85,7 +85,7 @@ function calibrate(mission_name::Symbol, obs_row::DataFrames.DataFrame)
 
             @info "Saving $instrument CALIB energy"
 
-            Feather.write(joinpath(JAXTAM_path, "$(instrument)calib.feather"), DataFrame(E = instrument_data.events[:E]))
+            Feather.write(joinpath(JAXTAM_path, "$(instrument)_calib.feather"), DataFrame(E = instrument_data.events[:E]))
 
             calibrated_energy[Symbol(instrument)] = instrument_data
         end
@@ -95,10 +95,10 @@ function calibrate(mission_name::Symbol, obs_row::DataFrames.DataFrame)
         for instrument in instruments
             @info "Loading $instrument CALIB energy"
 
-            events = Feather.read(joinpath(JAXTAM_path, "$(instrument)events.feather"))
-            calib  = Feather.read(joinpath(JAXTAM_path, "$(instrument)calib.feather"))
-            gtis   = Feather.read(joinpath(JAXTAM_path, "$(instrument)gtis.feather"))
-            meta   = Feather.read(joinpath(JAXTAM_path, "$(instrument)meta.feather"))
+            events = Feather.read(joinpath(JAXTAM_path, "$(instrument)_events.feather"))
+            calib  = Feather.read(joinpath(JAXTAM_path, "$(instrument)_calib.feather"))
+            gtis   = Feather.read(joinpath(JAXTAM_path, "$(instrument)_gtis.feather"))
+            meta   = Feather.read(joinpath(JAXTAM_path, "$(instrument)_meta.feather"))
 
             events_calib = events
             events_calib[:E] = calib[:E]

@@ -96,17 +96,17 @@ function _lcurve_save(lightcurve_data::BinnedData, lc_dir::String)
 
     lc_data = DataFrame(counts=lightcurve_data.counts)
 
-    Feather.write(joinpath(lc_dir, "$(lc_basename)meta.feather"), lc_meta)
-    Feather.write(joinpath(lc_dir, "$(lc_basename)gtis.feather"), lc_gtis)
-    Feather.write(joinpath(lc_dir, "$(lc_basename)data.feather"), lc_data)
+    Feather.write(joinpath(lc_dir, "$(lc_basename)_meta.feather"), lc_meta)
+    Feather.write(joinpath(lc_dir, "$(lc_basename)_gtis.feather"), lc_gtis)
+    Feather.write(joinpath(lc_dir, "$(lc_basename)_data.feather"), lc_data)
 end
 
 function _lc_read(lc_dir::String, instrument::Symbol, bin_time)
     lc_basename = string("$(instrument)_lc_$(string(bin_time))")
 
-    lc_meta = Feather.read(joinpath(lc_dir, "$(lc_basename)meta.feather"))
-    lc_gtis = Feather.read(joinpath(lc_dir, "$(lc_basename)gtis.feather"))
-    lc_data = Feather.read(joinpath(lc_dir, "$(lc_basename)data.feather"))
+    lc_meta = Feather.read(joinpath(lc_dir, "$(lc_basename)_meta.feather"))
+    lc_gtis = Feather.read(joinpath(lc_dir, "$(lc_basename)_gtis.feather"))
+    lc_data = Feather.read(joinpath(lc_dir, "$(lc_basename)_data.feather"))
 
     return BinnedData(Symbol(lc_meta[:mission][1]), Symbol(lc_meta[:instrument][1]), lc_meta[:obsid][1], lc_meta[:bin_time][1], lc_data[:counts], lc_meta[:times][1]:lc_meta[:times][2]:lc_meta[:times][3], hcat(lc_gtis[:start], lc_gtis[:stop]))
 end
@@ -120,7 +120,7 @@ function lcurve(mission_name::Symbol, obs_row::DataFrame, bin_time::Number; over
     mkpath(JAXTAM_lc_path)
     
     JAXTAM_c_files  = count(contains.(JAXTAM_content, "calib"))
-    JAXTAM_lc_files = Int(count(contains.(readdir(JAXTAM_lc_path), "lc_"))/3)
+    JAXTAM_lc_files = count(contains.(readdir(JAXTAM_lc_path), "lc_"))/3
 
     instruments = Symbol.(config(mission_name).instruments)
 
