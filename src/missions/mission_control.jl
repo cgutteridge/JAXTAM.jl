@@ -12,6 +12,7 @@ mutable struct MissionDefinition
     path_cl::Function
     path_uf::Function
     path_rmf::String
+    path_web::String
     good_energy_max::Number
     good_energy_min::Number
     instruments::Array
