@@ -12,7 +12,7 @@ function _config_gen(config_path=string(__sourcedir__, "user_configs.jld2"))
     end
 
     @info "Creating config file at: $config_path"
-    config_data = Dict{Any,Any}(:_config_edit_date => DateTime(now()))
+    config_data = Dict{Any,Any}(:_config_version => __configver__)
 
     if !isdir(dirname(config_path))
         mkdir(dirname(config_path))
@@ -38,9 +38,6 @@ end
 """
     _config_edit(key_name::String, key_value::String;
             config_path=string(__sourcedir__, "user_configs.jld2"))
-
-Edit configuration file, automatically changes the `_config_edit_date`
-value.
 """
 function _config_edit(key_name::Symbol, key_value;
         config_path=string(__sourcedir__, "user_configs.jld2"))
@@ -51,7 +48,6 @@ function _config_edit(key_name::Symbol, key_value;
 
     config_data = _config_load(config_path)
 
-    config_data[:_config_edit_date] = DateTime(now())
     config_data[key_name] = key_value
 
     save(config_path, Dict("config_data" => config_data))
@@ -75,7 +71,6 @@ function _config_rm(key_name::Symbol;
     config_data = _config_load(config_path)
 
     delete!(config_data, key_name)
-    config_data[:_config_edit_date] = string(DateTime(now()))
 
     save(config_path, Dict("config_data" => config_data))
 end
@@ -117,6 +112,7 @@ function config(key_name::Symbol, key_value::Union{String,Symbol,MissionDefiniti
             @info "$key_name found in defaults\nUsing $key_value as path"
             mission = defaults[key_name]
             mission.path = key_value
+            mission.path_web = joinpath(key_value, "web/")
             
             _config_edit(key_name, mission)
         elseif key_name == :default
