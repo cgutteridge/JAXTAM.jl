@@ -3,13 +3,16 @@ __precompile__(false)
 module JAXTAM
 
 using DataFrames
+using FFTW
 using DelimitedFiles
 using SparseArrays
 using Dates
 using FileIO
 using JLD2
 using FITSIO
+using Arrow
 using Feather
+using Statistics
 using StatsBase
 using DSP
 using Hyperscript
