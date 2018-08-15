@@ -6,6 +6,21 @@ function _master_download(master_path, master_url)
     unzip!(master_path)
 end
 
+function _type_master_df!(master_df)
+    pairs = Dict(:name=>string, :ra=>float, :dec=>float, :lii=>float, :bii=>float,
+        :time=>Dates.DateTime, :end_time=>Dates.DateTime, :obsid=>string, :exposure=>float,
+        :time_awarded=>float, :num_fpm=>Meta.parse, :processing_status=>string, :processing_date=>Dates.DateTime,
+        :public_date=>Dates.DateTime, :processing_version=>string, :num_processed=>Meta.parse, :caldb_version=>String,
+        :software_version=>string, :prnb=>string, :abstract=>string, :subject_category=>string, :category_code=>Meta.parse,
+        :pi_lname=>string, :pi_fname=>string, :cycle=>Meta.parse, :obs_type=>string, :title=>string, :remarks=>string)
+
+    for (name, coltype) in pairs
+        master_df[name] = coltype.(master_df[name])
+    end
+
+    return master_df
+end
+
 """
     _master_read_tdat(master_path::String)
 
@@ -16,15 +31,18 @@ converts to `DataFrame`, and finally returns cleaned table as `DataFrame`
 function _master_read_tdat(master_path::String)
     master_ascii = readdlm(master_path, '\n')
 
-    data_start = Int(findall(master_ascii .== "<DATA>")[1] + 1)
-    data_end   = Int(findall(master_ascii .== "<END>")[1] - 1)
-    keys_line  = data_start - 2
+    data_start = Int(findfirst(master_ascii .== "<DATA>")[1] + 1)
+    data_end   = Int(findfirst(master_ascii .== "<END>")[1] - 1)
+    keys_line  = Int(findfirst(master_ascii .== "# Data Format Specification")[1] + 2)
+    field_line = Int(findfirst(master_ascii .== "# Table Parameters")[1] + 2)
 
     # Key names are given on the keys_line, split and make into symbols for use later
     key_names = Symbol.(split(master_ascii[keys_line][11:end])) # 11:end to remove 'line[1] = '
     no_cols   = length(key_names)
-    key_obsid = findall(key_names .== :obsid)[1]
-    key_archv = findall(key_names .== :processing_status)
+    key_obsid = findfirst(key_names .== :obsid)[1]
+    key_archv = findfirst(key_names .== :processing_status)
+
+    key_types = [line[3] for line in split.(master_ascii[field_line:field_line+no_cols-1], " ")]
 
     master_ascii_data = master_ascii[data_start:data_end]
 
@@ -43,8 +61,8 @@ function _master_read_tdat(master_path::String)
         df_tmp = DataFrame()
 
         for (itr, key) in enumerate(key_names) # Create DataFrame of key and val for row
-            cleaned = replace(obs_values[itr], ",", ".. ") # Remove some punctuation, screw with CSV
-            cleaned = replace(cleaned, ";", ".. ")
+            cleaned = replace(obs_values[itr], "," => ".. ") # Remove some punctuation, screw with CSV
+            cleaned = replace(cleaned, ";" => ".. ")
 
             if cleaned != ""
                 if key in [:time, :end_time, :processing_date, :public_date]
@@ -62,23 +80,25 @@ function _master_read_tdat(master_path::String)
 
     sort!(master_df, :name)
 
+    _type_master_df!(master_df)
+
     return master_df
 end
 
 """
-    _master_save(master_path_jld, master_data)
+    _master_save(master_path_feather, master_data)
 
 Saves the `DataFrame` master table to a `.jld` file, under the
 key `master_data`
 """
-function _master_save(master_path_jld, master_data)
-    save(master_path_jld, Dict("master_data" => master_data))
+function _master_save(master_path_feather, master_data)
+    Feather.write(master_path_feather, master_data)
 end
 
 function master_update(mission_name::Union{String,Symbol})
     mission = _config_key_value(mission_name)
     master_path_tdat = string(mission.path, "master.tdat")
-    master_path_jld = string(mission.path, "master.jld2")
+    master_path_feather = string(mission.path, "master.feather")
 
     if !isdir(mission.path)
         mkpath(mission.path)
@@ -88,8 +108,8 @@ function master_update(mission_name::Union{String,Symbol})
 
     @info "Loading $(master_path_tdat)"
     master_data = _master_read_tdat(master_path_tdat)
-    @info "Saving $master_path_jld"
-    _master_save(master_path_jld, master_data)
+    @info "Saving $master_path_feather"
+    _master_save(master_path_feather, master_data)
 end
 
 function master_update()
@@ -103,16 +123,16 @@ end
 """
     master(mission_name::Union{String,Symbol})
 
-Reads in a previously created `.jld` master table for a specific `mission_name`
+Reads in a previously created `.feather` master table for a specific `mission_name`
 using a path provided by `_config_key_value(mission_name)`
 """
 function master(mission_name::Union{String,Symbol})
     mission = _config_key_value(mission_name)
     master_path_tdat = string(mission.path, "master.tdat")
-    master_path_jld = string(mission.path, "master.jld2")
+    master_path_feather = string(mission.path, "master.feather")
 
     if !isfile(master_path_tdat) && !isfile(master_path_tdat)
-        @warn "No master file found, looked for: \n\t$master_path_tdat \n\t$master_path_jld"
+        @warn "No master file found, looked for: \n\t$master_path_tdat \n\t$master_path_feather"
         @info "Download master files from `$(mission.url)`? (y/n)"
         response = readline(stdin)
         if response=="y" || response=="Y"
@@ -126,14 +146,14 @@ function master(mission_name::Union{String,Symbol})
         end
     end
     
-    if isfile(master_path_jld)
-        @info "Loading $master_path_jld"
-        return load(master_path_jld)["master_data"]
+    if isfile(master_path_feather)
+        @info "Loading $master_path_feather"
+        return Feather.read(master_path_feather)
     elseif isfile(master_path_tdat)
         @info "Loading $(master_path_tdat)"
         master_data = _master_read_tdat(master_path_tdat)
-        @info "Saving $master_path_jld"
-        _master_save(master_path_jld, master_data)
+        @info "Saving $master_path_feather"
+        _master_save(master_path_feather, master_data)
         return master_data
     end
 end

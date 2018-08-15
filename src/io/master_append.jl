@@ -6,7 +6,7 @@ function _add_append_publicity!(append_df, master_df)
     append_publicity = Array{Union{Bool,Missing},1}(size(append_df, 1))
 
     for (i, obsid) in enumerate(append_df[:obsid])
-        append_publicity[i] = now() > master_df[i, :public_date]
+        append_publicity[i] = now() > convert(DateTime, master_df[i, :public_date])
     end
 
     return append_df[:publicity] = append_publicity
@@ -65,9 +65,9 @@ function _make_append(mission_name, master_df)
 
     _add_append_publicity!(append_df, master_df)
     _add_append_obspath!(append_df, master_df, mission_name)
-    _add_append_uf!(append_df, master_df, mission_name)
-    _add_append_cl!(append_df, master_df, mission_name)
-    _add_append_downloaded!(append_df, mission_name)
+    #_add_append_uf!(append_df, master_df, mission_name)
+    #_add_append_cl!(append_df, master_df, mission_name)
+    #_add_append_downloaded!(append_df, mission_name)
 
     return append_df
 end
@@ -79,21 +79,21 @@ function _make_append(mission_name)
     return append_df
 end
 
-function _append_save(append_path_jld, append_df)
-    save(append_path_jld, Dict("append_data" => append_df))
+function _append_save(append_path_feather, append_df)
+    Feather.write(append_path_feather, append_df)
 end
 
 function append(mission_name)
-    append_path_jld = abspath(string(_config_key_value(mission_name).path, "append.jld2"))
+    append_path_feather = abspath(string(_config_key_value(mission_name).path, "append.feather"))
 
-    if isfile(append_path_jld)
-        @info "Loading $append_path_jld"
-        return load(append_path_jld)["append_data"]
+    if isfile(append_path_feather)
+        @info "Loading $append_path_feather"
+        return Feather.read(append_path_feather)
     else
         master_df = master(mission_name)
         append_df = _make_append(mission_name, master_df)
-        @info "Saving $append_path_jld"
-        _append_save(append_path_jld, append_df)
+        @info "Saving $append_path_feather"
+        _append_save(append_path_feather, append_df)
         return append_df
     end
 end
@@ -111,12 +111,12 @@ function append()
 end
 
 function append_update(mission_name)
-    append_path_jld = abspath(string(_config_key_value(mission_name).path, "append.jld2"))
+    append_path_feather = abspath(string(_config_key_value(mission_name).path, "append.feather"))
 
     master_df = master(mission_name)
     append_df = _make_append(mission_name, master_df)
-    @info "Saving $append_path_jld"
-    _append_save(append_path_jld, append_df)
+    @info "Saving $append_path_feather"
+    _append_save(append_path_feather, append_df)
     return append_df
 end
 
