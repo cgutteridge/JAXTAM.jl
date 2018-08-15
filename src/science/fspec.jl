@@ -17,7 +17,7 @@ function _FFTData(gti, freqs, amps, fspec_bin_size)
         gti.gti_index, gti.gti_start_time, amps, mean(amps, 2)[:], freqs)
 end
 
-function _fft(counts::SparseVector{Int64,Int64}, times::StepRangeLen, bin_time::Real, fspec_bin_size; leahy=true)
+function _fft(counts::Array, times::StepRangeLen, bin_time::Real, fspec_bin_size; leahy=true)
     FFTW.set_num_threads(4)
 
     spec_no = Int(floor(length(counts)/fspec_bin_size))

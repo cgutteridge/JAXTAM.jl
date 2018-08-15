@@ -3,7 +3,7 @@ struct BinnedData <: JAXTAMData
     instrument::Symbol
     obsid::String
     bin_time::Real
-    counts::SparseVector
+    counts::Array
     times::StepRangeLen
     gtis::Array{Float64,2}
 end
@@ -15,7 +15,7 @@ struct GTIData <: JAXTAMData
     bin_time::Real
     gti_index::Int
     gti_start_time::Real
-    counts::SparseVector
+    counts::Array
     times::StepRangeLen
 end
 
@@ -31,8 +31,8 @@ function _lcurve_filter_time(event_times, event_energies, gtis, start_time, stop
 
     # WARNING: rounding GTIs up/down to get integers, shouldn't(?) cause a problem
     # TODO: check with Diego
-    gtis[:, 1] = ceil.(gtis[:, 1])
-    gtis[:, 2] = floor.(gtis[:, 2])
+    # gtis[:, 1] = ceil.(gtis[:, 1])
+    # gtis[:, 2] = floor.(gtis[:, 2])
 
     counts_per_gti_sec = [count(gtis[g, 1] .<= event_times .<= gtis[g, 2])/(gtis[g, 2] - gtis[g, 1]) for g in 1:size(gtis, 1)]
     mask_min_counts = counts_per_gti_sec .>= 1
@@ -68,7 +68,7 @@ function _lc_bin(event_times, bin_time, time_start, time_stop)
 
     binned_histogram = fit(Histogram, event_times, 0:bin_time:(time_stop-time_start), closed=:left)
 
-    counts = sparse(binned_histogram.weights)
+    counts = binned_histogram.weights
     times  = binned_histogram.edges[1][1:length(counts)]
     
     return times, counts
