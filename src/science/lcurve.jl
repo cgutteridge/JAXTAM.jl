@@ -174,6 +174,13 @@ function _lc_filter_gtis(binned_times, binned_counts, gtis, time_start, time_sto
     excluded_gti_count = 0
 
     for (i, gti) in enumerate(gtis) # For each GTI, store the selected times and count rate within that GTI
+        if gti[2] > binned_times[end]
+            if gti[2]-1 <= binned_times[end]
+                gti[2] = gti[2]-1
+            else
+                @error "GTI out of bounds\nContact developer for fix"
+            end
+        end
         start = findfirst(binned_times .> gti[1])
         stop  = findfirst(binned_times .>= gti[2])-1 # >= required for -1 to not overshoot
 
