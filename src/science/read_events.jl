@@ -19,8 +19,6 @@ function _read_fits_hdu(fits_file, hdu_id; cols="auto")
             @warn "FITSIO colnames function not found, try trunning `Pkg.checkout(\"FITSIO\")`"
             throw(UndefVarError("colnames not defined"))
         end
-
-        println(fits_cols_events)
     else
         fits_cols_events = cols
     end
@@ -65,7 +63,7 @@ function _read_fits_event(fits_path)
     for (i, key) in enumerate(keys(fits_header))
         key = Symbol(replace(key, '-', '_'))
         if typeof(fits_header[i]) == Nothing
-            fits_header_df[Symbol(key)] =  ""
+            fits_header_df[Symbol(key)] =  "empty" # Have to write something, or Feahter.jl throws a fit saving ""
         else
             fits_header_df[Symbol(key)] = fits_header[i]
         end
@@ -77,7 +75,12 @@ function _read_fits_event(fits_path)
 end
 
 function read_cl_fits(mission_name::Symbol, obs_row::DataFrames.DataFrame)
-    file_path = abspath.([i for i in obs_row[:event_cl][1]]) # Convert tuple to array, abdolute path
+    if :event_cl in names(obs_row)
+        file_path = abspath.([i for i in obs_row[:event_cl][1]]) # Convert tuple to array, abdolute path
+    else
+        file_path = config(mission_name).path_cl(obs_row, config(mission_name).path)
+        file_path = abspath.([i for i in file_path])
+    end
     
     obsid = obs_row[:obsid]
     
@@ -175,7 +178,7 @@ function read_cl(mission_name::Symbol, obs_row::DataFrames.DataFrame; overwrite=
 
         for key in keys(mission_data)
             @info "Saving $(string(key))"
-            
+
             _save_cl_feather(JAXTAM_path, mission_data[key].instrument, mission_data[key].events, mission_data[key].gtis, mission_data[key].header)
         end
     end
