@@ -42,8 +42,8 @@ function _webgen_subpage(mission_name, obs_row)
     results_page_dir = replace(results_page_dir, "//"=>"/")
     JAXTAM_path_web = joinpath(results_page_dir, "JAXTAM")
 
-    img_dir_lcurve = joinpath(results_page_dir, "JAXTAM/lc/1/images/lcurve.png")
-    img_dir_fspec  = joinpath(results_page_dir, "JAXTAM/lc/0.0009765625/images/fspec.png")
+    img_dir_lcurve = "./JAXTAM/lc/1/images/lcurve.png"
+    img_dir_fspec  = "./JAXTAM/lc/0.0009765625/images/fspec.png"
 
     img_dict = Dict("Light Curve"=>img_dir_lcurve, "Power Spectra"=>img_dir_fspec)
 
@@ -59,4 +59,10 @@ function _webgen_subpage(mission_name, obs_row)
     !islink(JAXTAM_path_web) ? symlink(JAXTAM_path, JAXTAM_path_web) : ""
     
     write(joinpath(results_page_dir, "result.html"), string(Pretty(html_out)))
+end
+
+function webgen_subpage(mission_name, obsid)
+    obs_row = master_query(mission_name, :obsid, obsid)
+
+    return _webgen_subpage(mission_name, obs_row)
 end
