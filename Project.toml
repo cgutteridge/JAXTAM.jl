@@ -1,7 +1,7 @@
 name = "JAXTAM"
 uuid = "c0c225ea-a005-11e8-11c7-71dab99cc9f2"
 authors = ["Robert Rosca <robertrosca@users.noreply.github.com>"]
-version = "0.1.0"
+version = "0.2.0"
 
 [deps]
 Arrow = "69666777-d1a9-59fb-9406-91d4454c9d45"
