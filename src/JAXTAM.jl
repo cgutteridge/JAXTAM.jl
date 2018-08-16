@@ -14,6 +14,7 @@ using Arrow
 using Feather
 using Statistics
 using StatsBase
+using OnlineStats
 using DSP
 using Hyperscript
 using Plots

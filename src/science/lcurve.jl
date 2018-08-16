@@ -19,12 +19,18 @@ struct GTIData <: JAXTAMData
     times::StepRangeLen
 end
 
-function _lcurve_filter_time(event_times::Arrow.Primitive{Float64}, event_energies::Arrow.Primitive{Float64}, gtis::DataFrames.DataFrame, start_time::Union{Float64,Int64}, stop_time::Union{Float64,Int64}, filter_low_count_gtis=true)
-    mask_good_times  = start_time .<= event_times .<= stop_time
-    
-    event_times    = event_times[mask_good_times]
-    event_energies = event_energies[mask_good_times]
-    
+function _lcurve_filter_time(event_times::Arrow.Primitive{Float64}, event_energies::Arrow.Primitive{Float64}, gtis::DataFrames.DataFrame, start_time::Union{Float64,Int64}, stop_time::Union{Float64,Int64}, filter_low_count_gtis=false)
+    @info "               -> Filtering times"
+
+    if abs(event_times[1] - start_time) < 2.0^-8 && abs(event_times[end] - stop_time) < 2.0^-8
+        # Times within tolerence
+    else
+        start_time_idx = findfirst(event_times .> start_time)
+        stop_time_idx  = findfirst(event_times .>= stop_time) - 1
+        event_times    = event_times[start_time_idx:stop_time_idx]
+        event_energies = event_energies[start_time_idx:stop_time_idx]
+    end
+
     event_times = event_times .- start_time
     gtis = hcat(gtis[:START], gtis[:STOP])
     gtis = gtis .- start_time
@@ -34,17 +40,20 @@ function _lcurve_filter_time(event_times::Arrow.Primitive{Float64}, event_energi
     # gtis[:, 1] = ceil.(gtis[:, 1])
     # gtis[:, 2] = floor.(gtis[:, 2])
 
-    counts_per_gti_sec = [count(gtis[g, 1] .<= event_times .<= gtis[g, 2])/(gtis[g, 2] - gtis[g, 1]) for g in 1:size(gtis, 1)]
-    mask_min_counts = counts_per_gti_sec .>= 1
+    if filter_low_count_gtis # Move GTI count filtering to post-binning stages
+        counts_per_gti_sec = [count(gtis[g, 1] .<= event_times .<= gtis[g, 2])/(gtis[g, 2] - gtis[g, 1]) for g in 1:size(gtis, 1)]
+        mask_min_counts = counts_per_gti_sec .>= 1
 
-    @info "Excluded $(size(gtis, 1) - count(mask_min_counts)) gtis under 1 count/sec"
+        @info "Excluded $(size(gtis, 1) - count(mask_min_counts)) gtis under 1 count/sec"
 
-    gtis = gtis[mask_min_counts, :]
+        gtis = gtis[mask_min_counts, :]
+    end
     
-    return event_times, event_energies, gtis
+    return Array(event_times), Array(event_energies), gtis
 end
 
 function _lc_filter_energy(event_times::Array{Float64,1}, event_energies::Array{Float64,1}, good_energy_max::Float64, good_energy_min::Float64)
+    @info "               -> Filtering energies"
     mask_good_energy = good_energy_min .<= event_energies .<= good_energy_max
     
     event_times = event_times[mask_good_energy]
@@ -54,6 +63,8 @@ function _lc_filter_energy(event_times::Array{Float64,1}, event_energies::Array{
 end
 
 function _lc_bin(event_times::Array{Float64,1}, bin_time::Float64, time_start::Union{Float64,Int64}, time_stop::Union{Float64,Int64})
+    @info "               -> Running OoM binning"
+
     if bin_time < 1
         if !ispow2(Int(1/bin_time))
             @warn "Bin time not pow2"
@@ -66,11 +77,13 @@ function _lc_bin(event_times::Array{Float64,1}, bin_time::Float64, time_start::U
         throw(ArgumentError("Bin time cannot be zero"))
     end
 
-    binned_histogram = fit(Histogram, event_times, 0:bin_time:(time_stop-time_start), closed=:left)
+    times = 0:bin_time:(time_stop-time_start)
+    online_hist_fit = Hist(times)
 
-    counts = binned_histogram.weights
-    times  = binned_histogram.edges[1][1:length(counts)]
-    
+    histogram = fit!(online_hist_fit, event_times)
+    counts    = value(histogram)[2]
+    times     = times[1:end-1] # One less count than times
+
     return times, counts
 end
 
@@ -138,7 +151,7 @@ function lcurve(mission_name::Symbol, obs_row::DataFrame, bin_time::Number; over
             @info "Binning LCURVE"
             lightcurve_data = _lcurve(calibrated_data[instrument], bin_time)
 
-            @info "Saving `$instrument` $(bin_time)s lightcurve data"
+            @info "               -> Saving `$instrument` $(bin_time)s lightcurve data"
 
             _lcurve_save(lightcurve_data, JAXTAM_lc_path)
 
