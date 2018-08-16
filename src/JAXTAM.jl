@@ -23,7 +23,7 @@ abstract type JAXTAMData end
 
 # @__DIR__ returns the location of this file
 const __sourcedir__ = abspath(@__DIR__, "..")
-const __configver__ = v"0.1.0"
+const __configver__ = v"0.2.0"
 
 include("missions/mission_control.jl")
 include("missions/default_missions.jl")
@@ -35,6 +35,7 @@ include("io/data_download.jl")
 include("science/read_events.jl")
 include("science/calibrate.jl")
 include("science/lcurve.jl")
+include("science/gtis.jl")
 include("science/fspec.jl")
 include("science/plots.jl")
 include("web/webgen.jl")

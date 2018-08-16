@@ -135,12 +135,6 @@ uuid = "ade2ca70-3891-5945-98fb-dc099432e06a"
 deps = ["Mmap"]
 uuid = "8bb1440f-4735-579b-a4ab-409b98df4dab"
 
-[[Discretizers]]
-deps = ["DataStructures", "SpecialFunctions", "Statistics", "StatsBase", "Test"]
-git-tree-sha1 = "05062165b5c53e5d91a25267d11df6a112d1627e"
-uuid = "6e83dbb3-75ca-525b-8ae2-3751f0dd50b4"
-version = "3.0.1"
-
 [[Distributed]]
 deps = ["LinearAlgebra", "Random", "Serialization", "Sockets"]
 uuid = "8ba89e20-285c-5b6f-9357-94700520ee1b"
