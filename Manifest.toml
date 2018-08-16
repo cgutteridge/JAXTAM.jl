@@ -51,6 +51,12 @@ git-tree-sha1 = "2b43d451639984e3571951cc687b8509b0a86c6d"
 uuid = "d5fb7624-851a-54ee-a528-d3f3bac0b4a0"
 version = "0.2.2"
 
+[[Calculus]]
+deps = ["Compat"]
+git-tree-sha1 = "f60954495a7afcee4136f78d1d60350abd37a409"
+uuid = "49dc2e85-a5d0-5ad3-a950-438e2897f1b9"
+version = "0.4.1"
+
 [[CategoricalArrays]]
 deps = ["Compat", "Future", "JSON", "Missings", "Printf", "Reexport"]
 git-tree-sha1 = "8009a507e2e3db040d6854a82ce959fb5971cb37"
@@ -128,6 +134,12 @@ uuid = "ade2ca70-3891-5945-98fb-dc099432e06a"
 [[DelimitedFiles]]
 deps = ["Mmap"]
 uuid = "8bb1440f-4735-579b-a4ab-409b98df4dab"
+
+[[Discretizers]]
+deps = ["DataStructures", "SpecialFunctions", "Statistics", "StatsBase", "Test"]
+git-tree-sha1 = "05062165b5c53e5d91a25267d11df6a112d1627e"
+uuid = "6e83dbb3-75ca-525b-8ae2-3751f0dd50b4"
+version = "3.0.1"
 
 [[Distributed]]
 deps = ["LinearAlgebra", "Random", "Serialization", "Sockets"]
@@ -233,9 +245,9 @@ version = "0.19.0"
 
 [[LibCURL]]
 deps = ["BinaryProvider", "Compat", "Libdl", "Pkg"]
-git-tree-sha1 = "4f00f8f8bf59e2731ccd6929c33c436ed5d7765f"
+git-tree-sha1 = "f7c4fd37291207ec6bd4b7b9abfc512d4bb8b88e"
 uuid = "b27032c2-a3e7-50c8-80cd-2d36dbcbfd21"
-version = "0.3.0"
+version = "0.3.1"
 
 [[LibExpat]]
 deps = ["Compat"]
@@ -262,9 +274,23 @@ uuid = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 [[Logging]]
 uuid = "56ddb016-857b-54e1-b83d-db4d58db5568"
 
+[[LombScargle]]
+deps = ["FFTW", "Measurements"]
+git-tree-sha1 = "56ad7deb9a0da3822727176ab55cbec6e45edfe4"
+repo-rev = "master"
+repo-url = "https://github.com/JuliaAstro/LombScargle.jl"
+uuid = "fc60dff9-86e7-5f2f-a8a0-edeadbb75bd9"
+version = "0.3.1+"
+
 [[Markdown]]
 deps = ["Base64"]
 uuid = "d6f4376e-aef5-505a-96c1-9c027394607a"
+
+[[Measurements]]
+deps = ["Calculus", "QuadGK", "RecipesBase", "Requires", "SpecialFunctions"]
+git-tree-sha1 = "f3e561c08142620eb65eb23884ec172baf004832"
+uuid = "eff96d63-e80a-5855-80a2-b1b0885c5ab7"
+version = "0.5.1"
 
 [[Measures]]
 deps = ["Compat"]
@@ -305,9 +331,9 @@ version = "0.3.0"
 
 [[PlotUtils]]
 deps = ["Colors", "Dates", "Printf", "Random", "Reexport", "Test"]
-git-tree-sha1 = "3b32bd672faa513c7c288b61bd20ea1504930810"
+git-tree-sha1 = "6fd6fafca71798236eccdf5fb1f7e997884e1ad2"
 uuid = "995b91a9-d308-5afd-9ec6-746e21dbc043"
-version = "0.5.2"
+version = "0.5.3"
 
 [[Plots]]
 deps = ["Base64", "Contour", "Dates", "FixedPointNumbers", "GR", "JSON", "LinearAlgebra", "Measures", "NaNMath", "Pkg", "PlotThemes", "PlotUtils", "Printf", "REPL", "RecipesBase", "Reexport", "Requires", "Showoff", "SparseArrays", "StaticArrays", "Statistics", "StatsBase", "Test", "UUIDs"]
@@ -324,6 +350,12 @@ version = "0.5.0"
 [[Printf]]
 deps = ["Unicode"]
 uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
+
+[[QuadGK]]
+deps = ["DataStructures", "LinearAlgebra", "Test"]
+git-tree-sha1 = "d136ea5b320aad2b1a8c3196e642c2282e601660"
+uuid = "1fd47b50-473d-5c70-9696-f719f8f3bcdc"
+version = "2.0.0"
 
 [[REPL]]
 deps = ["InteractiveUtils", "Markdown", "Sockets"]
