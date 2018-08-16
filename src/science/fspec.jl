@@ -107,7 +107,7 @@ function _fspec_load(fspec_dir, instrument, bin_time, fspec_bin)
         fspec_file    = Feather.read(joinpath(fspec_dir, "$(fspec_basename)_$(fspec_idx).feather"))
         fspec_freqs   = Array(fspec_file[:freqs]); delete!(fspec_file, :freqs)
         fspec_ampavg  = Array(fspec_file[:avg_amp]); delete!(fspec_file, :avg_amp)
-        fspec_amps    = Array(fspec_file)
+        fspec_amps    = convert(Array, fspec_file[:, names(fspec_file)])
 
         fspec_data[fspec_idx] = FFTData(fspec_mission, fspec_inst, fspec_obsid, fspec_bin_t, fspec_bin_sze, fspec_idx, fspec_starts, fspec_amps, fspec_ampavg, fspec_freqs)
     end

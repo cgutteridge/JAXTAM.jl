@@ -103,7 +103,7 @@ version = "0.5.1+"
 
 [[DataFrames]]
 deps = ["CategoricalArrays", "CodecZlib", "Compat", "DataStreams", "Dates", "InteractiveUtils", "LinearAlgebra", "Missings", "Printf", "Random", "Reexport", "SortingAlgorithms", "Statistics", "StatsBase", "Test", "TranscodingStreams", "Unicode", "WeakRefStrings"]
-git-tree-sha1 = "3a073596a1f6c55e4c310cfdbe1e06e5654bad14"
+git-tree-sha1 = "574fa6de9fb4fda220ea8501b9a5b6385465c133"
 repo-rev = "master"
 repo-url = "https://github.com/JuliaData/DataFrames.jl.git"
 uuid = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"

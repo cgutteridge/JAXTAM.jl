@@ -51,7 +51,7 @@ function plot!(data::FFTData; lab="", size_in=(1140,600), save_plt=true, norm=:R
     if norm == :RMS
         avg_amp = (avg_amp.*freqs).-2
         avg_amp[avg_amp .<=0] .= NaN
-        Plots.plot!(freqs, avg_amp, ylab="Amplitude (RMS)", yaxis=:log10, lab=lab)
+        Plots.plot!(freqs, avg_amp, ylab="Amplitude (RMS)", yaxis=:log10, xaxis=:log10, xlim=(10^-1, freqs[end]), lab=lab)
     elseif norm == :Leahy
         Plots.plot!(freqs, avg_amp, ylab="Amplitude (Leahy)", lab=lab)
     else

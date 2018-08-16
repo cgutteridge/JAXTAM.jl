@@ -19,7 +19,7 @@ struct GTIData <: JAXTAMData
     times::StepRangeLen
 end
 
-function _lcurve_filter_time(event_times, event_energies, gtis, start_time, stop_time, filter_low_count_gtis=true)
+function _lcurve_filter_time(event_times::Arrow.Primitive{Float64}, event_energies::Arrow.Primitive{Float64}, gtis::DataFrames.DataFrame, start_time::Int64, stop_time::Int64, filter_low_count_gtis=true)
     mask_good_times  = start_time .<= event_times .<= stop_time
     
     event_times    = event_times[mask_good_times]
@@ -44,7 +44,7 @@ function _lcurve_filter_time(event_times, event_energies, gtis, start_time, stop
     return event_times, event_energies, gtis
 end
 
-function _lc_filter_energy(event_times, event_energies, good_energy_max, good_energy_min)
+function _lc_filter_energy(event_times::Array{Float64,1}, event_energies::Array{Float64,1}, good_energy_max::Float64, good_energy_min::Float64)
     mask_good_energy = good_energy_min .<= event_energies .<= good_energy_max
     
     event_times = event_times[mask_good_energy]
@@ -53,7 +53,7 @@ function _lc_filter_energy(event_times, event_energies, good_energy_max, good_en
     return event_times, event_energies
 end
 
-function _lc_bin(event_times, bin_time, time_start, time_stop)
+function _lc_bin(event_times::Array{Float64,1}, bin_time::Float64, time_start::Int64, time_stop::Int64)
     if bin_time < 1
         if !ispow2(Int(1/bin_time))
             @warn "Bin time not pow2"
@@ -74,11 +74,11 @@ function _lc_bin(event_times, bin_time, time_start, time_stop)
     return times, counts
 end
 
-function _lcurve(instrument_data, bin_time)
+function _lcurve(instrument_data::InstrumentData, bin_time::Float64)
     event_times, event_energies, gtis = _lcurve_filter_time(instrument_data.events[:TIME], instrument_data.events[:E], instrument_data.gtis, instrument_data.start, instrument_data.stop)
 
     mission_name = instrument_data.mission
-    good_energy_min, good_energy_max = (config(mission_name).good_energy_min, config(mission_name).good_energy_max)
+    good_energy_min, good_energy_max = (Float64(config(mission_name).good_energy_min), Float64(config(mission_name).good_energy_max))
 
     event_times, event_energies = _lc_filter_energy(event_times, event_energies, good_energy_min, good_energy_max)
 
