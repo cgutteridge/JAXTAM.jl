@@ -135,6 +135,7 @@ function lcurve(mission_name::Symbol, obs_row::DataFrame, bin_time::Number; over
         calibrated_data = calibrate(mission_name, obs_row)
     
         for instrument in instruments
+            @info "Binning LCURVE"
             lightcurve_data = _lcurve(calibrated_data[instrument], bin_time)
 
             @info "Saving `$instrument` $(bin_time)s lightcurve data"
