@@ -1,98 +1,62 @@
-function _webgen_format_table(row::DataFrames.DataFrame)
-    col_num = size(row, 2)
-
-    table_th_full = ""
-    table_td_full = ""
-
-    for i = 1:col_num
-        table_th = """
-        <th>$(names(row)[i])</th>
-        """
-        
-        table_th_full = string(table_th_full, table_th)
-
-        table_td = """
-        <td>$(row[1, i])</td>
-        """
-
-        table_td_full = string(table_td_full, table_td)
-    end
-
-    table_html = """
-    <table id=\"example\" class=\"table table-striped table-bordered\" style=\"width:100%\">
-    <thead>
-    <tr>
-    $table_th_full</tr>
-    </thead>
-    <tbody>
-    <tr>
-    $table_td_full</tr>
-    </tbody>
-    </table>
-    """
-
-    return table_html
+function _webgen_results_intro(obs_row)
+    obsid = obs_row[1, :obsid]
+    name  = obs_row[1, :name]
+    abstract_text = obs_row[1, :abstract]
+    node_intro = intro(
+        div(class="se-pre-con"),
+        div(class="container",
+            h1("Observation $obsid - $name"),
+            h2("Abstract"),
+            p(abstract_text),
+            hr(),
+            h4("Status"),
+            _webgen_table(obs_row[:, [:public_date, :publicity, :time]]; table_id=""),
+            h4("Source Details"),
+            _webgen_table(obs_row[:, [:name, :ra, :dec, :lii, :bii, :obs_type]]; table_id=""),
+            h4("Observation Details"),
+            _webgen_table(obs_row[: ,[:time, :end_time, :exposure, :remarks]]; table_id=""),
+            h4("Misc"),
+            _webgen_table(obs_row[[:processing_status, :processing_date, :processing_version, :num_processed, :caldb_version, :remarks]], table_id="")
+        )
+    )
 end
 
-_webgen_sub_body_intro = mt"""
-<body>
-<div class=\"container\">
-<h1>Observation {{obsid}} - {{name}}</h1>
-<hr>
-<h2>Abstract</h2>
-<h4>{{title}} - {{subject_category}}</h4>
-<p>{{abstract}}</p>
-<hr>
-<h4>Status</h4>
-<table id=\"example\" class=\"table table-striped table-bordered\" style=\"width:100%\">
-<thead>
-<tr>
-<th>public_date</th>
-<th>publicity</th>
-<th>time</th>
-<th>downloaded</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>{{public_date}}</td>
-<td>{{publicity}}</td>
-<td>{{time}}</td>
-<td>{{downloaded}}</td>
-</tr>
-</tbody>
-</table>
-<h4>Source Details</h4>
-"""
+function _webgen_results_body(obs_row; img_dict=Dict())
 
-function _webgen_sub(row::DataFrames.DataFrame)
-    table_status = _webgen_format_table(row[[:public_date, :publicity, :time, :downloaded]])
-    table_source = _webgen_format_table(row[[:name, :ra, :dec, :lii, :bii, :obs_type]])
-    table_obsdet = _webgen_format_table(row[[:time, :end_time, :exposure, :remarks]])
-    table_misc   = _webgen_format_table(row[[:processing_status, :processing_date, :processing_version, :num_processed, :caldb_version, :remarks]])
+    node_body = div(class="container",
+        hr(),
+        h2("Plots"),
+        [(h4(imgpair[1]), img(src=imgpair[2])) for imgpair in img_dict]
+    )
+end
+
+function _webgen_subpage(mission_name, obs_row)
+    obsid = obs_row[1, :obsid] 
+
+    obs_dir  = _clean_path_dots(config(mission_name).path_obs(obs_row))
+    obs_path = string(config(mission_name).path, obs_dir)
+    obs_path = replace(obs_path, "//"=>"/")
+    JAXTAM_path = joinpath(obs_path, "JAXTAM")
     
-    header = _webgen_head(title="$(row[1, :obsid]) - $(row[1, :name])")
+    results_page_dir = string(config(mission_name).path_web, obs_dir)
+    results_page_dir = replace(results_page_dir, "//"=>"/")
+    JAXTAM_path_web = joinpath(results_page_dir, "JAXTAM")
 
-    result_html = """
-    $header
-    <body>
-    <div class=\"container\">
-    <h1>Observation {{obsid}} - {{name}}</h1>
-    <hr>
-    <h2>Abstract</h2>
-    <h4>{{title}} - {{subject_category}}</h4>
-    <p>{{abstract}}</p>
-    <hr>
-    <h4>Status</h4>
-    $table_status
-    <h4>Source Details</h4>
-    $table_source
-    <h4>Observation Details</h4>
-    $table_obsdet
-    <h4>Misc</h4>
-    $table_misc
-    </body>
-    """
+    img_dir_lcurve = joinpath(results_page_dir, "JAXTAM/lc/1/images/lcurve.png")
+    img_dir_fspec  = joinpath(results_page_dir, "JAXTAM/lc/0.0009765625/images/fspec.png")
 
-    return result_html
+    img_dict = Dict("Light Curve"=>img_dir_lcurve, "Power Spectra"=>img_dir_fspec)
+
+    html_out = html(
+        _webgen_head(;title_in="$mission_name - $obsid - Results"),
+        body(
+            _webgen_results_intro(obs_row),
+            _webgen_results_body(obs_row; img_dict=img_dict)
+        )
+    )
+
+    mkpath(results_page_dir)
+    !islink(JAXTAM_path_web) ? symlink(JAXTAM_path, JAXTAM_path_web) : ""
+    
+    write(joinpath(results_page_dir, "result.html"), string(Pretty(html_out)))
 end

@@ -38,6 +38,6 @@ include("science/lcurve.jl")
 include("science/fspec.jl")
 include("science/plots.jl")
 include("web/webgen.jl")
-#include("web/subgen.jl")
+include("web/subgen.jl")
 
 end

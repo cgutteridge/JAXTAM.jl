@@ -1,4 +1,4 @@
-@tags html head title meta div p h1 h2 h3 hr intro table thead tbody tr th td
+@tags html head body title meta div p h1 h2 h3 h4 hr intro table thead tbody tr th td img
 @tags_noescape script
 @tags intro
 
@@ -36,15 +36,13 @@ function _webgen_home_intro(mission_name::Symbol)
     )
 end
 
-function _webgen_table(df::DataFrames.DataFrame)
+function _webgen_table(df::DataFrames.DataFrame; table_id="example")
     headers = names(df)
 
     rows, cols = size(df)
 
-    #<table id=\"example\" class=\"table table-striped table-bordered\" style=\"width:100%\">
-
     node_table = div(class="container",
-        table(id="example", class="table table-striped table-bordered", style="width:100%", 
+        table(id=table_id, class="table table-striped table-bordered", style="width:100%", 
             thead(
                 tr(
                     th.(headers)
@@ -64,10 +62,12 @@ function webgen_mission(mission_name::Symbol)
 
     html_out = html(
         _webgen_head(;title_in="JAXTAM $mission_name homepage"),
-        _webgen_home_intro(mission_name),
-        _webgen_table(master_a(mission_name)[:, [:name, :obsid, :subject_category, :obs_type, :publicity]])
+        body(
+            _webgen_home_intro(mission_name),
+            _webgen_table(master_a(mission_name)[:, [:name, :obsid, :subject_category, :obs_type, :publicity]])
+        )
     )
-    
+
     write(web_home_dir, string(Pretty(html_out)))
 
     return web_home_dir
