@@ -163,7 +163,7 @@ function _scrunch_sections(mission_name::Symbol, powspecs::Dict{Symbol,Dict{Int6
         end
 
         if return_mean
-            powspecs[Symbol(instrument)][-1] = FFTData(mission_name, gti_example.instrument, gti_example.obsid, gti_example.bin_time, gti_example.bin_size, -1, -1, [], mean(joined_together, 2), gti_example.freqs)
+            powspecs[Symbol(instrument)][-1] = FFTData(mission_name, gti_example.instrument, gti_example.obsid, gti_example.bin_time, gti_example.bin_size, -1, -1, [], mean(joined_together, dims=2), gti_example.freqs)
         else
             powspecs[Symbol(instrument)][-2] = FFTData(mission_name, gti_example.instrument, gti_example.obsid, gti_example.bin_time, gti_example.bin_size, -1, -1, joined_together, [], gti_example.freqs)
         end
