@@ -41,7 +41,7 @@ function plot(instrument_data::Dict{Symbol,JAXTAM.BinnedData}; size_in=(1140,400
     return Plots.plot!(size=size_in)
 end
 
-function plot!(data::FFTData; lab="", size_in=(1140,600), save_plt=true, norm=:RMS)
+function plot!(data::FFTData; lab="", size_in=(1140,600), save_plt=true, norm=:RMS, rebin_log=true)
     bin_time_pow2 = Int(log2(data.bin_time))
 
     # Don't plot the 0Hz amplitude
@@ -51,7 +51,12 @@ function plot!(data::FFTData; lab="", size_in=(1140,600), save_plt=true, norm=:R
     if norm == :RMS
         avg_amp = (avg_amp.*freqs).-2
         avg_amp[avg_amp .<=0] .= NaN
-        Plots.plot!(freqs, avg_amp, ylab="Amplitude (RMS)", yaxis=:log10, xaxis=:log10, xlim=(10^-2, freqs[end]), lab=lab)
+
+        if rebin_log
+            freqs, avg_amp = fspec_rebin(avg_amp, freqs; rebin_type=:log10, rebin_factor=0.01)
+        end
+
+        Plots.plot!(freqs, avg_amp, ylab="Amplitude (Leahy - 2)", yaxis=:log10, xaxis=:log10, xlim=(10^-2, freqs[end]), lab=lab)
     elseif norm == :Leahy
         Plots.plot!(freqs, avg_amp, ylab="Amplitude (Leahy)", lab=lab)
     else
