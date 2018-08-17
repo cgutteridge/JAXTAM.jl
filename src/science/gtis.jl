@@ -11,6 +11,12 @@ function _lc_filter_gtis(binned_times, binned_counts, gtis, time_start, time_sto
 
     @info "               -> prelim. excluded $excluded_gti_count GTIs under $(min_gti_sec)s"
 
+    # Do this as the first GTI being zero screws with the initial start index
+    # in the upcoming `for gtis` loop
+    if gtis[1, 1] == 0
+        gtis[1, 1] = eps()
+    end
+
     # Dodgy way to convert a matrix into an array of arrays
     # so each GTI is stored as an array of [start; finish]
     # and each of those GTI arrays is an array itself
