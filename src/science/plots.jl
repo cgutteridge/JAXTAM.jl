@@ -41,30 +41,24 @@ function plot(instrument_data::Dict{Symbol,JAXTAM.BinnedData}; size_in=(1140,400
     return Plots.plot!(size=size_in)
 end
 
-function plot!(data::FFTData; lab="", size_in=(1140,600), save_plt=true, norm=:RMS, rebin_log=true)
+function plot!(data::FFTData; lab="", size_in=(1140,600), save_plt=true, norm=:RMS, rebin_type=:log10, rebin_factor=0.01)
     bin_time_pow2 = Int(log2(data.bin_time))
 
     # Don't plot the 0Hz amplitude
-    avg_amp = data.avg_amp[2:end]
-    freqs   = data.freqs[2:end]
+    avg_amp = data.avg_amp
+    freqs   = data.freqs
+    avg_amp[1] = NaN
+    freqs[1]   = NaN
+
+    freqs, avg_amp = fspec_rebin(avg_amp, freqs; rebin_type=rebin_type, rebin_factor=rebin_factor)
 
     if norm == :RMS
         avg_amp = (avg_amp.*freqs).-2
         avg_amp[avg_amp .<=0] .= NaN
-
-        if rebin_log
-            freqs, avg_amp = fspec_rebin(avg_amp, freqs; rebin_type=:log10, rebin_factor=0.01)
-        end
-
-        Plots.plot!(freqs, avg_amp, ylab="Amplitude (Leahy - 2)", yaxis=:log10, xaxis=:log10, xlim=(10^-2, freqs[end]), lab=lab)
+        
+        Plots.plot!(freqs, avg_amp, ylab="Amplitude (Leahy - 2)", xlim=(10^-2, freqs[end]), lab=lab)
     elseif norm == :Leahy
-        avg_amp[avg_amp .<=0] .= NaN
-
-        if rebin_log
-            freqs, avg_amp = fspec_rebin(avg_amp, freqs; rebin_type=:log10, rebin_factor=0.01)
-        end
-
-        Plots.plot!(freqs, avg_amp, ylab="Amplitude (Leahy)", lab=lab, xaxis=:log10, yaxis=:log10)
+        Plots.plot!(freqs, avg_amp, ylab="Amplitude (Leahy)", lab=lab)
     else
         @error "Plot norm type '$norm' not found"
     end
@@ -79,19 +73,23 @@ function plot!(data::FFTData; lab="", size_in=(1140,600), save_plt=true, norm=:R
     return Plots.plot!(size=size_in)
 end
 
-function plot(instrument_data::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}}; size_in=(1140,600), norm=:RMS, save_plt=true)
+function plot(instrument_data::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}}; size_in=(1140,600), norm=:RMS, rebin_type=:log10, logx=true, logy=true, rebin_factor=0.01, save_plt=true)
     instruments = keys(instrument_data)
 
     plt = Plots.plot()
     
     for instrument in instruments
-        plt = plot!(instrument_data[Symbol(instrument)][-1]; lab=String(instrument), save_plt=false, norm=norm)
+        plt = plot!(instrument_data[Symbol(instrument)][-1]; lab=String(instrument), norm=norm, rebin_type=rebin_type, rebin_factor=rebin_factor, save_plt=false)
     end
 
     if(save_plt)
         data = instrument_data[collect(keys(instrument_data))[1]][-1]
         _savefig_obsdir(data.mission, data.obsid, data.bin_time, "fspec.png")
     end
+
+    logx ? xaxis!(:log10) : ""
+    logy ? yaxis!(:log10) : ""
+
 
     return Plots.plot!(size=size_in)
 end

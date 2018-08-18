@@ -248,19 +248,16 @@ function fspec(mission_name::Symbol, obsid::String, bin_time::Number, fspec_bin:
 end
 
 function fspec_rebin(amps, freqs; rebin_type=:log10, rebin_factor=0.01)
+    freq_intervals = freqs[2] - freqs[1]
+
     if rebin_type == :log10
-        freq_intervals = freqs[2] - freqs[1]
         freq_max = freqs[end]
 
         scale_start  = log10(rebin_factor)
-        scale_length = ceil(Int, freq_max/rebin_factor)
-
-        #return range(scale_start, step=rebin_factor, length=scale_length)
 
         scale = exp10.(range(scale_start, step=rebin_factor, stop=log10(freq_max)))
 
         scale = [0; scale[1:end-1]]
-
         
         scale = scale./freq_intervals
         
@@ -278,11 +275,21 @@ function fspec_rebin(amps, freqs; rebin_type=:log10, rebin_factor=0.01)
         freq_scale = freqs[round.(Int, (scale[:, 2]+scale[:, 1])./2)]
         
         rebinned_fspec[rebinned_fspec.==0] .= NaN
+    elseif rebin_type == :linear
+        if rebin_factor < 1 || typeof(rebin_factor) != Int
+            error("Rebin factor must be a >1 integer for linear rebinning")
+        end
 
-        return freq_scale, rebinned_fspec
-    end
+        in_rebin = floor(Int, size(amps, 1)/rebin_factor).*rebin_factor
+
+        rebinned_fspec = mean(reshape(amps[1:in_rebin], rebin_factor, :), dims=1)'
+
+        freq_scale = mean(reshape(freqs[1:in_rebin], rebin_factor, :), dims=1)'
+    end 
+
+    return freq_scale, rebinned_fspec
 end
 
-function fspec_rebin(fs::JAXTAM.FFTData, rebin_type=:log10, rebin_factor=0.01)
+function fspec_rebin(fs::JAXTAM.FFTData; rebin_type=:log10, rebin_factor=0.01)
     return fspec_rebin(fs.avg_amp, fs.freqs; rebin_type=rebin_type, rebin_factor=rebin_factor)
 end
