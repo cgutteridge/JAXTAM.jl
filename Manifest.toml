@@ -10,7 +10,7 @@ git-tree-sha1 = "7f271e79b75ba3d603059259089a7e55eeb9b6e3"
 repo-rev = "master"
 repo-url = "https://github.com/ExpandingMan/Arrow.jl.git"
 uuid = "69666777-d1a9-59fb-9406-91d4454c9d45"
-version = "0.2.0+"
+version = "0.2.1+"
 
 [[Base64]]
 uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
@@ -197,7 +197,7 @@ git-tree-sha1 = "6e1cd8a2a71fe223ceccd8779b43a7daf006db9e"
 repo-rev = "master"
 repo-url = "https://github.com/JuliaIO/HDF5.jl.git"
 uuid = "f67ccb44-e63f-5c2f-98bd-6dc0ccc4ba2f"
-version = "0.9.3+"
+version = "0.9.4+"
 
 [[HTTPClient]]
 deps = ["Compat", "LibCURL"]
@@ -293,10 +293,10 @@ deps = ["Base64"]
 uuid = "d6f4376e-aef5-505a-96c1-9c027394607a"
 
 [[Measurements]]
-deps = ["Calculus", "QuadGK", "RecipesBase", "Requires", "SpecialFunctions"]
-git-tree-sha1 = "f3e561c08142620eb65eb23884ec172baf004832"
+deps = ["Calculus", "LinearAlgebra", "Pkg", "QuadGK", "RecipesBase", "Requires", "SpecialFunctions", "Statistics", "Test"]
+git-tree-sha1 = "5d4745b25566c59239c21b8db83d27ef27ee7a33"
 uuid = "eff96d63-e80a-5855-80a2-b1b0885c5ab7"
-version = "0.5.1"
+version = "1.0.0"
 
 [[Measures]]
 deps = ["Compat"]
@@ -361,9 +361,9 @@ version = "0.5.3"
 
 [[Plots]]
 deps = ["Base64", "Contour", "Dates", "FixedPointNumbers", "GR", "JSON", "LinearAlgebra", "Measures", "NaNMath", "Pkg", "PlotThemes", "PlotUtils", "Printf", "REPL", "RecipesBase", "Reexport", "Requires", "Showoff", "SparseArrays", "StaticArrays", "Statistics", "StatsBase", "Test", "UUIDs"]
-git-tree-sha1 = "11d668ff24983dd998e264488f4a91a06e11760f"
+git-tree-sha1 = "935241178e80158451cc33f4af7c57f671b881b8"
 uuid = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
-version = "0.19.2"
+version = "0.19.3"
 
 [[Polynomials]]
 deps = ["LinearAlgebra", "SparseArrays", "Test"]
@@ -377,9 +377,9 @@ uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 
 [[QuadGK]]
 deps = ["DataStructures", "LinearAlgebra", "Test"]
-git-tree-sha1 = "d136ea5b320aad2b1a8c3196e642c2282e601660"
+git-tree-sha1 = "7d61ca207f021be6574b365a1a077bea04935f19"
 uuid = "1fd47b50-473d-5c70-9696-f719f8f3bcdc"
-version = "2.0.0"
+version = "2.0.1"
 
 [[REPL]]
 deps = ["InteractiveUtils", "Markdown", "Sockets"]

@@ -247,8 +247,10 @@ function fspec(mission_name::Symbol, obsid::String, bin_time::Number, fspec_bin:
     return fspec(mission_name, obs_row, bin_time, fspec_bin; overwrite=overwrite, pow2=pow2, fspec_bin_type=fspec_bin_type, scrunched=scrunched)
 end
 
-function fspec_rebin(amps, freqs; rebin_type=:log10, rebin_factor=0.01)
-    freq_intervals = freqs[2] - freqs[1]
+function fspec_rebin(amps, freqs; rebin=(:log10, 0.01))
+    rebin_type   = rebin[1]
+    rebin_factor = rebin[2]
+    freq_intervals = freqs[3] - freqs[2]
 
     if rebin_type == :log10
         freq_max = freqs[end]
@@ -290,6 +292,6 @@ function fspec_rebin(amps, freqs; rebin_type=:log10, rebin_factor=0.01)
     return freq_scale, rebinned_fspec
 end
 
-function fspec_rebin(fs::JAXTAM.FFTData; rebin_type=:log10, rebin_factor=0.01)
-    return fspec_rebin(fs.avg_amp, fs.freqs; rebin_type=rebin_type, rebin_factor=rebin_factor)
+function fspec_rebin(fs::JAXTAM.FFTData; rebin=(:log10, 0.01))
+    return fspec_rebin(fs.avg_amp, fs.freqs; rebin=rebin)
 end

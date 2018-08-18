@@ -62,7 +62,7 @@ function _lc_filter_energy(event_times::Array{Float64,1}, event_energies::Array{
     return event_times, event_energies
 end
 
-function _lc_bin(event_times::Array{Float64,1}, bin_time::Float64, time_start::Union{Float64,Int64}, time_stop::Union{Float64,Int64})
+function _lc_bin(event_times::Array{Float64,1}, bin_time::Union{Float64,Int64}, time_start::Union{Float64,Int64}, time_stop::Union{Float64,Int64})
     @info "               -> Running OoM binning"
 
     if bin_time < 1
