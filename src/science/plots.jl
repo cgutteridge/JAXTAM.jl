@@ -58,7 +58,13 @@ function plot!(data::FFTData; lab="", size_in=(1140,600), save_plt=true, norm=:R
 
         Plots.plot!(freqs, avg_amp, ylab="Amplitude (Leahy - 2)", yaxis=:log10, xaxis=:log10, xlim=(10^-2, freqs[end]), lab=lab)
     elseif norm == :Leahy
-        Plots.plot!(freqs, avg_amp, ylab="Amplitude (Leahy)", lab=lab)
+        avg_amp[avg_amp .<=0] .= NaN
+
+        if rebin_log
+            freqs, avg_amp = fspec_rebin(avg_amp, freqs; rebin_type=:log10, rebin_factor=0.01)
+        end
+
+        Plots.plot!(freqs, avg_amp, ylab="Amplitude (Leahy)", lab=lab, xaxis=:log10, yaxis=:log10)
     else
         @error "Plot norm type '$norm' not found"
     end
@@ -73,13 +79,13 @@ function plot!(data::FFTData; lab="", size_in=(1140,600), save_plt=true, norm=:R
     return Plots.plot!(size=size_in)
 end
 
-function plot(instrument_data::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}}; size_in=(1140,600), save_plt=true)
+function plot(instrument_data::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}}; size_in=(1140,600), norm=:RMS, save_plt=true)
     instruments = keys(instrument_data)
 
     plt = Plots.plot()
     
     for instrument in instruments
-        plt = plot!(instrument_data[Symbol(instrument)][-1]; lab=String(instrument), save_plt=false)
+        plt = plot!(instrument_data[Symbol(instrument)][-1]; lab=String(instrument), save_plt=false, norm=norm)
     end
 
     if(save_plt)

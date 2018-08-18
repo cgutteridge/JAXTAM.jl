@@ -251,29 +251,32 @@ function fspec_rebin(amps, freqs; rebin_type=:log10, rebin_factor=0.01)
     if rebin_type == :log10
         freq_intervals = freqs[2] - freqs[1]
         freq_max = freqs[end]
-        intervals = rebin_factor
 
-        scale_start  = log10(intervals)
-        scale_length = ceil(Int, freq_max/intervals)
+        scale_start  = log10(rebin_factor)
+        scale_length = ceil(Int, freq_max/rebin_factor)
 
-        #return range(scale_start, step=intervals, length=scale_length)
+        #return range(scale_start, step=rebin_factor, length=scale_length)
 
-        scale = exp10.(range(scale_start, step=intervals, stop=log10(freq_max)))
+        scale = exp10.(range(scale_start, step=rebin_factor, stop=log10(freq_max)))
 
-        scale = [[0; scale[1:end-1]] scale]
+        scale = [0; scale[1:end-1]]
 
+        
         scale = scale./freq_intervals
-        scale[:, 1] = ceil.(Int, scale[:, 1])
-        scale[:, 2] = floor.(Int, scale[:, 2])
-
-        scale = Array{Int64,2}(scale)
-
+        
+        scale = ceil.(Int, scale[:, 1])
+        
         scale[1, 1] = 1
+        scale = unique(scale)
 
-        rebinned_fspec = [sum(amps[scale[i, 1]:scale[i, 1]]) for i = 1:size(scale, 1)]
+        final_scale_value = ceil(Int, exp10(log10(scale[end])+rebin_factor))
+        final_scale_value > length(amps) ? final_scale_value=length(amps) : ""
+        scale = [scale [scale[2:end]; final_scale_value].+1]
 
+        rebinned_fspec = [sum(amps[scale[i, 1]:scale[i, 2]]) for i = 1:size(scale, 1)]
+        
         freq_scale = freqs[round.(Int, (scale[:, 2]+scale[:, 1])./2)]
-
+        
         rebinned_fspec[rebinned_fspec.==0] .= NaN
 
         return freq_scale, rebinned_fspec
