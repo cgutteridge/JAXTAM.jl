@@ -1,25 +1,26 @@
+struct OrbitGTIs <: JAXTAMData
+    gti::Array{Int,1}
+    lc::Array{Int,2}
+end
+
 struct BinnedData <: JAXTAMData
     mission::Symbol
     instrument::Symbol
     obsid::String
     bin_time::Real
-    counts::Array
+    counts::Array{Int,1}
     times::StepRangeLen
     gtis::Array{Float64,2}
+    orbits::Union{OrbitGTIs,Missing}
 end
 
-struct GTIData <: JAXTAMData
-    mission::Symbol
-    instrument::Symbol
-    obsid::String
-    bin_time::Real
-    gti_index::Int
-    gti_start_time::Real
-    counts::Array
-    times::StepRangeLen
+function BinnedData(data::BinnedData, orbit::OrbitGTIs)
+    return BinnedData(data.mission, data.instrument, data.obsid, data.bin_time,
+        data.counts, data.times, data.gtis, orbit)
 end
 
-function _lcurve_filter_time(event_times::Arrow.Primitive{Float64}, event_energies::Arrow.Primitive{Float64}, gtis::DataFrames.DataFrame, start_time::Union{Float64,Int64}, stop_time::Union{Float64,Int64}, filter_low_count_gtis=false)
+function _lcurve_filter_time(event_times::Arrow.Primitive{Float64}, event_energies::Arrow.Primitive{Float64},
+    gtis::DataFrames.DataFrame, start_time::Union{Float64,Int64}, stop_time::Union{Float64,Int64}, filter_low_count_gtis=false)
     @info "               -> Filtering times"
 
     if abs(event_times[1] - start_time) < 2.0^-8 && abs(event_times[end] - stop_time) < 2.0^-8
@@ -97,13 +98,68 @@ function _lcurve(instrument_data::InstrumentData, bin_time::Union{Float64,Int64}
 
     binned_times, binned_counts = _lc_bin(event_times, bin_time, instrument_data.start, instrument_data.stop)
 
-    return BinnedData(instrument_data.mission, instrument_data.instrument, instrument_data.obsid, bin_time, binned_counts, binned_times, gtis)
+    return BinnedData(instrument_data.mission, instrument_data.instrument, instrument_data.obsid, bin_time, binned_counts, binned_times, gtis, missing)
+end
+
+function _orbit_select(data::BinnedData)
+    orbit_period = 92.49*60
+    orbit_times  = data.gtis[:, 1][findall(diff(data.gtis[:, 2]) .> orbit_period/2)]
+    orbit_times  = [orbit_times.-orbit_period/2 orbit_times]
+    
+    orbit_indecies = [findfirst(x .<= data.times) for x in orbit_times]
+
+    gti_indecies = zeros(Int, size(data.gtis, 1))
+    lc_indecies  = zeros(Int, size(orbit_indecies, 1), 2)
+
+    for i = 1:size(orbit_indecies, 1)
+        gtis_in_orbit  = data.gtis[(orbit_times[i, 1] .<= data.gtis[:, 2] .<= orbit_times[i, 2])[:], :]
+        gtis_orbit_idx = collect(1:size(data.gtis, 1))[(orbit_times[i, 1] .<= data.gtis[:, 2] .<= orbit_times[i, 2])[:]]
+        gti_indecies[gtis_orbit_idx] .= i
+
+        adjusted_indecies = [findfirst(data.times .>= gtis_in_orbit[1, 1]), findfirst(data.times .>= gtis_in_orbit[end, 2])]
+        lc_indecies[i, :] = adjusted_indecies
+    end
+
+    git_ind_reversed = @view gti_indecies[end:-1:1]
+    final_orbitless_gtis_count = findfirst(git_ind_reversed .!= 0)
+    gti_indecies[end-findfirst(git_ind_reversed .!= 0):end, :] .= maximum(gti_indecies)+1
+    gtis_in_final_orbit = data.gtis[end-findfirst(git_ind_reversed .!= 0):end, :]
+
+    # -1 on final gti because... it doesn't work otherwise
+    lc_indecies = vcat(lc_indecies, [findfirst(data.times .>= gtis_in_final_orbit[1, 1]) findfirst(data.times .>= gtis_in_final_orbit[end, 2]-1)])
+
+    return BinnedData(data, OrbitGTIs(gti_indecies, lc_indecies))
+end
+
+function _orbit_select_o(data::BinnedData)
+    orbit_period = 92.49*60
+    orbit_times  = data.gtis[:, 1][findall(diff(data.gtis[:, 2]) .> orbit_period/2)]
+    orbit_times  = [orbit_times.-orbit_period/2 orbit_times]
+    
+    orbit_indecies = [findfirst(x .<= data.times) for x in orbit_times]
+
+    lc_indecies = Array{Int,2}(undef, size(orbit_indecies,2), 2)
+    orbit_data = Dict{Int64, Core.NamedTuple}()
+    for i = 1:size(orbit_indecies, 1)
+        gtis_in_orbit = data.gtis[(orbit_times[i, 1] .<= data.gtis[:, 2] .<= orbit_times[i, 2])[:], :]
+
+        adjusted_indecies = [findfirst(data.times .>= gtis_in_orbit[1, 1]), findfirst(data.times .>= gtis_in_orbit[end, 2])]
+
+        #orbit_data[i] = BinnedData(data.mission, data.instrument, data.obsid, data.bin_time,
+        #    data.counts[adjusted_indecies[1]:adjusted_indecies[2]], data.times[adjusted_indecies[1]:adjusted_indecies[2]], gtis_in_orbit, missing)
+
+        orbit_data[i] = (counts=view(data.counts, adjusted_indecies[1]:adjusted_indecies[2]), times=view(data.times, adjusted_indecies[1]:adjusted_indecies[2]), gtis=gtis_in_orbit)
+    end
+
+    return orbit_data
 end
 
 function _lcurve_save(lightcurve_data::BinnedData, lc_dir::String)
     lc_basename = string("$(lightcurve_data.instrument)_lc_$(lightcurve_data.bin_time)")
 
-    lc_meta = DataFrame(mission=string(lightcurve_data.mission), instrument=string(lightcurve_data.instrument), obsid=lightcurve_data.obsid, bin_time=lightcurve_data.bin_time, times=[lightcurve_data.times[1], lightcurve_data.times[2] - lightcurve_data.times[1], lightcurve_data.times[end]])
+    lc_meta = DataFrame(mission=string(lightcurve_data.mission), instrument=string(lightcurve_data.instrument),
+        obsid=lightcurve_data.obsid, bin_time=lightcurve_data.bin_time, times=[lightcurve_data.times[1], 
+        lightcurve_data.times[2] - lightcurve_data.times[1], lightcurve_data.times[end]])
 
     lc_gtis = DataFrame(start=lightcurve_data.gtis[:, 1], stop=lightcurve_data.gtis[:, 2])
 
@@ -121,7 +177,9 @@ function _lc_read(lc_dir::String, instrument::Symbol, bin_time)
     lc_gtis = Feather.read(joinpath(lc_dir, "$(lc_basename)_gtis.feather"))
     lc_data = Feather.read(joinpath(lc_dir, "$(lc_basename)_data.feather"))
 
-    return BinnedData(Symbol(lc_meta[:mission][1]), Symbol(lc_meta[:instrument][1]), lc_meta[:obsid][1], lc_meta[:bin_time][1], lc_data[:counts], lc_meta[:times][1]:lc_meta[:times][2]:lc_meta[:times][3], hcat(lc_gtis[:start], lc_gtis[:stop]))
+    return BinnedData(Symbol(lc_meta[:mission][1]), Symbol(lc_meta[:instrument][1]), lc_meta[:obsid][1], 
+        lc_meta[:bin_time][1], lc_data[:counts], lc_meta[:times][1]:lc_meta[:times][2]:lc_meta[:times][3], 
+        hcat(lc_gtis[:start], lc_gtis[:stop]), missing)
 end
 
 function lcurve(mission_name::Symbol, obs_row::DataFrame, bin_time::Number; overwrite=false)
