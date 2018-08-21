@@ -1,4 +1,4 @@
-__precompile__(true)
+__precompile__(false)
 
 module JAXTAM
 
@@ -10,6 +10,7 @@ using JLD2
 using FITSIO
 using Arrow
 using Feather
+using NamedTuples
 
 using FFTW
 using Statistics
