@@ -1,6 +1,12 @@
-struct OrbitGTIs <: JAXTAMData
-    gti::Array{Int,1}
-    lc::Array{Int,2}
+struct BinnedOrbitData <: JAXTAMData
+    mission::Symbol
+    instrument::Symbol
+    obsid::String
+    bin_time::Real
+    counts::SubArray
+    times::SubArray
+    gtis::Array{Float64,2}
+    orbit_id::Int
 end
 
 struct BinnedData <: JAXTAMData
@@ -11,12 +17,7 @@ struct BinnedData <: JAXTAMData
     counts::Array{Int,1}
     times::StepRangeLen
     gtis::Array{Float64,2}
-    orbits::Union{OrbitGTIs,Missing}
-end
-
-function BinnedData(data::BinnedData, orbit::OrbitGTIs)
-    return BinnedData(data.mission, data.instrument, data.obsid, data.bin_time,
-        data.counts, data.times, data.gtis, orbit)
+    orbits::Union{Dict{Int64, BinnedOrbitData},Missing}
 end
 
 function _lcurve_filter_time(event_times::Arrow.Primitive{Float64}, event_energies::Arrow.Primitive{Float64},
@@ -102,56 +103,26 @@ function _lcurve(instrument_data::InstrumentData, bin_time::Union{Float64,Int64}
 end
 
 function _orbit_select(data::BinnedData)
-    orbit_period = 92.49*60
-    orbit_times  = data.gtis[:, 1][findall(diff(data.gtis[:, 2]) .> orbit_period/2)]
-    orbit_times  = [orbit_times.-orbit_period/2 orbit_times]
-    
-    orbit_indecies = [findfirst(x .<= data.times) for x in orbit_times]
-
-    gti_indecies = zeros(Int, size(data.gtis, 1))
-    lc_indecies  = zeros(Int, size(orbit_indecies, 1), 2)
-
-    for i = 1:size(orbit_indecies, 1)
-        gtis_in_orbit  = data.gtis[(orbit_times[i, 1] .<= data.gtis[:, 2] .<= orbit_times[i, 2])[:], :]
-        gtis_orbit_idx = collect(1:size(data.gtis, 1))[(orbit_times[i, 1] .<= data.gtis[:, 2] .<= orbit_times[i, 2])[:]]
-        gti_indecies[gtis_orbit_idx] .= i
-
-        adjusted_indecies = [findfirst(data.times .>= gtis_in_orbit[1, 1]), findfirst(data.times .>= gtis_in_orbit[end, 2])]
-        lc_indecies[i, :] = adjusted_indecies
-    end
-
-    git_ind_reversed = @view gti_indecies[end:-1:1]
-    final_orbitless_gtis_count = findfirst(git_ind_reversed .!= 0)
-    gti_indecies[end-findfirst(git_ind_reversed .!= 0):end, :] .= maximum(gti_indecies)+1
-    gtis_in_final_orbit = data.gtis[end-findfirst(git_ind_reversed .!= 0):end, :]
-
-    # -1 on final gti because... it doesn't work otherwise
-    lc_indecies = vcat(lc_indecies, [findfirst(data.times .>= gtis_in_final_orbit[1, 1]) findfirst(data.times .>= gtis_in_final_orbit[end, 2]-1)])
-
-    return BinnedData(data, OrbitGTIs(gti_indecies, lc_indecies))
-end
-
-function _orbit_select_o(data::BinnedData)
-    orbit_period = 92.49*60
+    orbit_period = 92*60 # Orbital persiod of ISS, used with NICER, TODO: GENERALISE WITH MISSION CONFIG
     orbit_times  = data.gtis[:, 1][findall(diff(data.gtis[:, 2]) .> orbit_period/2)]
     orbit_times  = [orbit_times.-orbit_period/2 orbit_times]
     
     orbit_indecies = [findfirst(x .<= data.times) for x in orbit_times]
 
     lc_indecies = Array{Int,2}(undef, size(orbit_indecies,2), 2)
-    orbit_data = Dict{Int64, Core.NamedTuple}()
+    orbit_data = Dict{Int64, BinnedOrbitData}()
     for i = 1:size(orbit_indecies, 1)
         gtis_in_orbit = data.gtis[(orbit_times[i, 1] .<= data.gtis[:, 2] .<= orbit_times[i, 2])[:], :]
 
         adjusted_indecies = [findfirst(data.times .>= gtis_in_orbit[1, 1]), findfirst(data.times .>= gtis_in_orbit[end, 2])]
 
-        #orbit_data[i] = BinnedData(data.mission, data.instrument, data.obsid, data.bin_time,
-        #    data.counts[adjusted_indecies[1]:adjusted_indecies[2]], data.times[adjusted_indecies[1]:adjusted_indecies[2]], gtis_in_orbit, missing)
-
-        orbit_data[i] = (counts=view(data.counts, adjusted_indecies[1]:adjusted_indecies[2]), times=view(data.times, adjusted_indecies[1]:adjusted_indecies[2]), gtis=gtis_in_orbit)
+        orbit_data[i] = BinnedOrbitData(data.mission, data.instrument, data.obsid, data.bin_time,
+            view(data.counts, adjusted_indecies[1]:adjusted_indecies[2]), view(data.times, adjusted_indecies[1]:adjusted_indecies[2]),
+            gtis_in_orbit, i)
     end
 
-    return orbit_data
+    return BinnedData(data.mission, data.instrument, data.obsid,
+        data.bin_time, data.counts, data.times, data.gtis, orbit_data)
 end
 
 function _lcurve_save(lightcurve_data::BinnedData, lc_dir::String)
