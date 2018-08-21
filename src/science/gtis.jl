@@ -1,3 +1,13 @@
+struct GTIData <: JAXTAMData
+    mission::Symbol
+    instrument::Symbol
+    obsid::String
+    bin_time::Real
+    gti_index::Int
+    gti_start_time::Real
+    counts::Array
+    times::StepRangeLen
+end
 
 function _lc_filter_gtis(binned_times, binned_counts, gtis, time_start, time_stop, mission, instrument, obsid; min_gti_sec=32)
     gti_data = Dict{Int,GTIData}()
@@ -25,13 +35,19 @@ function _lc_filter_gtis(binned_times, binned_counts, gtis, time_start, time_sto
 
     @info "               -> sorting GTIs"
 
+    if typeof(binned_times) <: SubArray
+        subarray_offset = binned_times.offset1
+    else
+        subarray_offset = 0
+    end
+
     for (i, gti) in enumerate(gtis) # For each GTI, store the selected times and count rate within that GTI
         if gti[1] == -1
             continue
         end
         
-        start = ceil(Int, gti[1]/bin_time)
-        stop  = floor(Int, gti[2]/bin_time)
+        start = ceil(Int, gti[1]/bin_time)+1 - subarray_offset
+        stop  = floor(Int, gti[2]/bin_time)-1 - subarray_offset
 
         # Subtract GTI start time from all times, so all start from t=0
         array_times = binned_times[start:stop].-gti[1]
@@ -55,7 +71,7 @@ function _lc_filter_gtis(binned_times, binned_counts, gtis, time_start, time_sto
     return gti_data
 end
 
-function _gtis(lc::BinnedData)
+function _gtis(lc::Union{BinnedData,BinnedOrbitData})
     gti_data = _lc_filter_gtis(lc.times, lc.counts, lc.gtis, lc.times[1], lc.times[end], lc.mission, lc.instrument, lc.obsid)
 
     return gti_data
@@ -89,8 +105,8 @@ function _gtis_load(gti_dir, instrument, bin_time)
 
     for row_idx in 1:size(gti_meta, 1)
         current_row = gti_meta[row_idx, :]
-        gti_mission = current_row[:mission][1]
-        gti_inst    = current_row[:instrument][1]
+        gti_mission = Symbol(current_row[:mission][1])
+        gti_inst    = Symbol(current_row[:instrument][1])
         gti_obsid   = current_row[:obsid][1]
         gti_bin_t   = current_row[:bin_time][1]
         gti_idx     = current_row[:indecies][1]
@@ -151,8 +167,4 @@ function gtis(mission_name::Symbol, obsid::String, bin_time::Number; overwrite=f
     obs_row = master_query(mission_name, :obsid, obsid)
 
     return gtis(mission_name, obs_row, bin_time, overwrite=overwrite)
-end
-
-function _git_orbits(instrument_gtis::Dict{Symbol,Dict{Int64,JAXTAM.GTIData}})
-    
 end
