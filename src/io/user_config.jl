@@ -39,7 +39,7 @@ end
     _config_edit(key_name::String, key_value::String;
             config_path=string(__sourcedir__, "user_configs.jld2"))
 """
-function _config_edit(key_name::Symbol, key_value;
+function _config_edit(key_name::Symbol, key_value,
         config_path=string(__sourcedir__, "user_configs.jld2"))
 
     if !isfile(config_path)
@@ -61,8 +61,7 @@ end
 Removes a the key `key_name` from the configuration file,
 then saves the changes.
 """
-function _config_rm(key_name::Symbol;
-        config_path=string(__sourcedir__, "user_configs.jld2"))
+function _config_rm(key_name::Symbol, config_path=string(__sourcedir__, "user_configs.jld2"))
 
     if !isfile(config_path)
         _config_gen(config_path)
@@ -81,7 +80,8 @@ end
 
 Loads and returns the value for `key_name`
 """
-function _config_key_value(key_name::Symbol, config_path=string(__sourcedir__, "user_configs.jld2"))
+function _config_key_value(key_name::Symbol,
+        config_path=string(__sourcedir__, "user_configs.jld2"))
     config_data = _config_load(config_path)
 
     return config_data[key_name]
@@ -92,8 +92,8 @@ end
 
 Returns the full configuration file data
 """
-function config()
-    return _config_load()
+function config(; config_path=string(__sourcedir__, "user_configs.jld2"))
+    return _config_load(config_path)
 end
 
 """
@@ -102,9 +102,10 @@ end
 
 Adds `key_name` with `key_value` to the configuration file and saves
 """
-function config(key_name::Symbol, key_value::Union{String,Symbol,MissionDefinition,Function})
+function config(key_name::Symbol, key_value::Union{String,Symbol,MissionDefinition,Function};
+    config_path=string(__sourcedir__, "user_configs.jld2"))
     if typeof(key_value) == MissionDefinition
-        _config_edit(key_name, key_value)
+        _config_edit(key_name, key_value, config_path)
     else
         defaults = _get_default_missions()
 
@@ -114,18 +115,18 @@ function config(key_name::Symbol, key_value::Union{String,Symbol,MissionDefiniti
             mission.path = key_value
             mission.path_web = joinpath(key_value, "web/")
             
-            _config_edit(key_name, mission)
+            _config_edit(key_name, mission, config_path)
         elseif key_name == :default
             @info "Setting default mission to $key_value"
-            _config_edit(key_name, key_value)
+            _config_edit(key_name, key_value, config_path)
         else
             @info "$key_name not found in defaults, treated as a string"
             @info "If $key_name is a mission, use config(key_name, MissionDefinition) to fully set up the mission variables"
-            _config_edit(key_name, key_value)
+            _config_edit(key_name, key_value, config_path)
         end
     end
 
-    return _config_load()
+    return _config_load(config_path)
 end
 
 
@@ -134,11 +135,11 @@ end
 
 Returns the value of `key_name`
 """
-function config(key_name::Symbol)
+function config(key_name::Symbol; config_path=string(__sourcedir__, "user_configs.jld2"))
     if key_name == "default" || key_name == :default
-        return _config_load()[_config_load()[:default]]
+        return _config_load(config_path)[_config_load(config_path)[:default]]
     else
-        return _config_load()[key_name]
+        return _config_load(config_path)[key_name]
     end
 end
 
@@ -147,8 +148,8 @@ end
 
 Removes `key_name` from the configuration file and saves changes.
 """
-function config_rm(key_name::Symbol)
-    @info "Removing \"$key_name => $(_config_load()[key_name])\" from config file"
-    _config_rm(key_name)
-    return _config_load()
+function config_rm(key_name::Symbol; config_path=string(__sourcedir__, "user_configs.jld2"))
+    @info "Removing \"$key_name => $(_config_load(config_path)[key_name])\" from config file"
+    _config_rm(key_name, config_path)
+    return _config_load(config_path)
 end
