@@ -62,7 +62,10 @@ function plot(instrument_data::Dict{Symbol,JAXTAM.BinnedData}; size_in=(1140,400
     return Plots.plot!(size=size_in)
 end
 
-function plot!(data::FFTData; lab="", size_in=(1140,600), save_plt=true, norm=:RMS, rebin=(:log10, 0.01), logx=true, logy=true)
+function plot!(data::FFTData; norm=:RMS, rebin=(:log10, 0.01),
+        lab="", logx=true, logy=true, show_errors=true,
+        size_in=(1140,600), save_plt=true,
+    )
     bin_time_pow2 = Int(log2(data.bin_time))
 
     # Don't plot the 0Hz amplitude
@@ -72,34 +75,43 @@ function plot!(data::FFTData; lab="", size_in=(1140,600), save_plt=true, norm=:R
     freq_min   = freqs[2] # Skip zero freq
     freqs[1]   = NaN
 
-    freqs, avg_amp = fspec_rebin(avg_amp, freqs; rebin=rebin)
-
+    
     if norm == :RMS
-        avg_amp = (avg_amp.*freqs).-2
+        freqs, avg_amp, errors = fspec_rebin(data, rebin=rebin)
+        errors = errors.*freqs
+        avg_amp = (avg_amp.-2).*freqs
         amp_max = maximum(avg_amp[2:end]); amp_min = minimum(abs.(avg_amp[2:end]))
         avg_amp[avg_amp .<=0] .= NaN
 
-        Plots.plot!(freqs, avg_amp, ylab="Amplitude (Leahy - 2)*freq", lab=lab)
+        if show_errors
+            Plots.plot!(freqs, avg_amp, color=:black,
+                yerr=errors, #yerr=errors, marker=stroke(0.01, :black, :none),
+                ylab="Amplitude (Leahy - 2)*freq", lab=lab)
+        else
+            Plots.plot!(freqs, avg_amp, color=:black,
+                ylab="Amplitude (Leahy - 2)*freq", lab=lab)
+        end
     elseif norm == :Leahy
+        freqs, avg_amp, errors = fspec_rebin(data, rebin=rebin)
         amp_max = maximum(avg_amp[2:end]); amp_min = minimum(avg_amp[2:end])
         
         Plots.plot!(freqs, avg_amp, ylab="Amplitude (Leahy)", lab=lab)
     else
-        @error "Plot norm type '$norm' not found"
+        @error "Plot norm type '$norm' not found" 
     end
-    
+
     if logx
         xaxis!(xscale=:log10, xformatter=xi->xi, xlim=(freq_min, freqs[end]))
     end
 
     if logy
         # If amp_min < 1, can't use prevpow10 for ylims, hacky little fix:
-        amp_min > 1 ? ylim = (prevpow(10, amp_min), nextpow(10, amp_max)) : ylim = (1/prevpow(10, 1/amp_min), nextpow(10, amp_max))
+        amp_min > 1 ? ylim = (prevpow(10, amp_min), nextpow(10, amp_max)) : ylim = (1, nextpow(10, amp_max))# 1/prevpow(10, 1/amp_min)
         yaxis!(yscale=:log10, yformatter=yi->yi, ylims=ylim)
     end
     
     Plots.plot!(xlab="Freq (Hz)", alpha=1,
-        title="FFT - $(data.obsid) - 2^$(bin_time_pow2) bt - $(data.bin_size*data.bin_time) bs - $rebin rebin")
+        title="FFT - $(data.obsid) - 2^$(bin_time_pow2) bt - $(data.bin_size*data.bin_time) bs - $rebin rebin - $(data.bin_count) sections averaged")
 
     if(save_plt)
         _savefig_obsdir(data.mission, data.obsid, data.bin_time, "fspec.png")
@@ -114,7 +126,8 @@ function plot(instrument_data::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}}; size_in=
     plt = Plots.plot()
     
     for instrument in instruments
-        plt = plot!(instrument_data[Symbol(instrument)][-1];norm=norm, rebin=rebin, logx=logx, logy=logy, lab=String(instrument), save_plt=false)
+        plt = JAXTAM.plot!(instrument_data[Symbol(instrument)][-1];
+            norm=norm, rebin=rebin, logx=logx, logy=logy, lab=String(instrument), save_plt=false)
     end
 
     Plots.plot!(title_location=:left, titlefontsize=12, margin=2mm, xguidefontsize=10, yguidefontsize=10)
