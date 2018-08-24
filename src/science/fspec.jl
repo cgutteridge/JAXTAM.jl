@@ -30,7 +30,7 @@ function _fft(counts::Array, times::StepRangeLen, bin_time::Real, fspec_bin_size
     freqs = Array(rfftfreq(fspec_bin_size, 1/bin_time))
 
     if leahy
-        amps = (2 .*(amps.^2)) ./ sum(counts, dims=1)
+        amps = (2 .*(amps.^2)) ./ sum(counts) # , dims=1
     end
     
     amps[1, :] .= 0 # Zero the 0Hz amplitude
@@ -271,7 +271,7 @@ function fspec(mission_name::Symbol, obsid::String, bin_time::Number, fspec_bin:
     return fs
 end
 
-function fspec_rebin(amps, freqs; rebin=(:log10, 0.01))
+function _fspec_rebin(amps, freqs, bin_count::Int, rebin=(:log10, 0.01))
     rebin_type   = rebin[1]
     rebin_factor = rebin[2]
     freq_intervals = freqs[3] - freqs[2]
@@ -282,13 +282,9 @@ function fspec_rebin(amps, freqs; rebin=(:log10, 0.01))
         scale_start  = log10(rebin_factor)
 
         scale = exp10.(range(scale_start, step=rebin_factor, stop=log10(freq_max)))
-
         scale = [0; scale[1:end-1]]
-        
         scale = scale./freq_intervals
-        
         scale = ceil.(Int, scale[:, 1])
-        
         scale[1, 1] = 1
         scale = unique(scale)
 
@@ -296,7 +292,11 @@ function fspec_rebin(amps, freqs; rebin=(:log10, 0.01))
         final_scale_value > length(amps) ? final_scale_value=length(amps) : ""
         scale = [scale [scale[2:end]; final_scale_value].+1]
 
-        rebinned_fspec = [sum(amps[scale[i, 1]:scale[i, 2]]) for i = 1:size(scale, 1)]
+        errors = amps
+        errors = [mean(errors[scale[i, 1]:scale[i, 2]]) for i = 1:size(scale, 1)]
+        errors = errors ./ sqrt.(diff(scale, dims=2).*bin_count)
+
+        rebinned_fspec = [mean(amps[scale[i, 1]:scale[i, 2]]) for i = 1:size(scale, 1)]
         
         freq_scale = freqs[round.(Int, (scale[:, 2]+scale[:, 1])./2)]
         
@@ -308,16 +308,19 @@ function fspec_rebin(amps, freqs; rebin=(:log10, 0.01))
 
         in_rebin = floor(Int, size(amps, 1)/rebin_factor).*rebin_factor
 
+        errors = amps ./ sqrt(bin_count*rebin_factor)
+        errors = mean(reshape(errors[1:in_rebin], rebin_factor, :), dims=1)'
+
         rebinned_fspec = mean(reshape(amps[1:in_rebin], rebin_factor, :), dims=1)'
 
         freq_scale = mean(reshape(freqs[1:in_rebin], rebin_factor, :), dims=1)'
     end 
 
-    return freq_scale, rebinned_fspec
+    return freq_scale, rebinned_fspec, errors
 end
 
 function fspec_rebin(fs::JAXTAM.FFTData; rebin=(:log10, 0.01))
-    rebinned_data = fspec_rebin(fs.avg_amp, fs.freqs; rebin=rebin)
+    rebinned_data = _fspec_rebin(fs.avg_amp, fs.freqs, fs.bin_count, rebin)
 
     return rebinned_data
 end
