@@ -7,15 +7,19 @@ struct GTIData <: JAXTAMData
     gti_start_time::Real
     counts::Array
     times::StepRangeLen
+    orbit::Int
 end
 
 function _lc_filter_gtis(binned_times, binned_counts, gtis, time_start, time_stop, mission, instrument, obsid; min_gti_sec=32)
     gti_data = Dict{Int,GTIData}()
+
+    gti_orbits = gtis[:orbit]
+    gti_times  = hcat(gtis[:start], gtis[:stop])
     
     bin_time = binned_times[2] - binned_times[1]
     
-    gti_mask = (gtis[:, 2] .- gtis[:, 1]) .>= min_gti_sec # Exclude GTIs under 32 seconds
-    gtis[gti_mask.==false, :] .= -1 # Set excluded GTIs to -1, GTIs aren't just discarded so that their absolute index can be kept track of
+    gti_mask = (gtis[:stop] .- gtis[:start]) .>= min_gti_sec # Exclude GTIs under 32 seconds
+    gti_times[gti_mask.==false, :] .= -1 # Set excluded GTIs to -1, GTIs aren't just discarded so that their absolute index can be kept track of
 
     excluded_gti_count = count(gti_mask.==false)
 
@@ -23,25 +27,26 @@ function _lc_filter_gtis(binned_times, binned_counts, gtis, time_start, time_sto
 
     # Do this as the first GTI being zero screws with the initial start index
     # in the upcoming `for gtis` loop
-    if gtis[1, 1] == 0
-        gtis[1, 1] = eps()
+    if gti_times[1, 1] == 0
+        gti_times[1, 1] = eps()
     end
 
     # Dodgy way to convert a matrix into an array of arrays
     # so each GTI is stored as an array of [start; finish]
     # and each of those GTI arrays is an array itself
     # makes life a bit easier for the following `for gti in gtis` loop
-    gtis = [gtis[x, :] for x in 1:size(gtis, 1)]
+    gti_times = [gti_times[x, :] for x in 1:size(gti_times, 1)]
 
     @info "               -> sorting GTIs"
 
+    # Offset if binned_times are a subarray of the lightcurve
     if typeof(binned_times) <: SubArray
         subarray_offset = binned_times.offset1
     else
         subarray_offset = 0
     end
 
-    for (i, gti) in enumerate(gtis) # For each GTI, store the selected times and count rate within that GTI
+    for (i, gti) in enumerate(gti_times) # For each GTI, store the selected times and count rate within that GTI
         if gti[1] == -1
             continue
         end
@@ -54,7 +59,7 @@ function _lc_filter_gtis(binned_times, binned_counts, gtis, time_start, time_sto
         range_times = array_times[1]:bin_time:array_times[end]
 
         gti_data[Int(i)] = GTIData(mission, instrument, obsid, bin_time, i, start, 
-            binned_counts[start:stop], range_times)
+            binned_counts[start:stop], range_times, gti_orbits[i])
     end
 
     total_counts = sum(binned_counts)[1]
@@ -71,7 +76,7 @@ function _lc_filter_gtis(binned_times, binned_counts, gtis, time_start, time_sto
     return gti_data
 end
 
-function _gtis(lc::Union{BinnedData,BinnedOrbitData})
+function _gtis(lc::BinnedData)
     gti_data = _lc_filter_gtis(lc.times, lc.counts, lc.gtis, lc.times[1], lc.times[end], lc.mission, lc.instrument, lc.obsid)
 
     return gti_data
@@ -81,9 +86,11 @@ function _gtis_save(gtis, gti_dir::String)
     gti_indecies = [k for k in keys(gtis)]
     gti_starts   = [t.gti_start_time for t in values(gtis)]
     gti_example  = gtis[gti_indecies[1]]
+    gti_orbits   = [o.orbit for o in values(gtis)]
 
     gti_basename = string("$(gti_example.instrument)_lc_$(gti_example.bin_time)_gti")
-    gtis_meta    = DataFrame(mission=String(gti_example.mission), instrument=String(gti_example.instrument), obsid=gti_example.obsid, bin_time=gti_example.bin_time, indecies=gti_indecies, starts=gti_starts)
+    gtis_meta    = DataFrame(mission=String(gti_example.mission), instrument=String(gti_example.instrument),
+        obsid=gti_example.obsid, bin_time=gti_example.bin_time, indecies=gti_indecies, starts=gti_starts, orbits=gti_orbits)
 
     Feather.write(joinpath(gti_dir, "$(gti_basename)_meta.feather"), gtis_meta)
 
@@ -115,9 +122,10 @@ function _gtis_load(gti_dir, instrument, bin_time)
         gti_counts  = current_gti[:counts]
         gti_times   = current_gti[:times]
         gti_times   = gti_times[1]:gti_bin_t:gti_times[end] # Convert Array to Step Range
+        gti_orbit   = current_row[:orbits][1]
         
-
-        gti_data[gti_idx] = GTIData(gti_mission, gti_inst, gti_obsid, gti_bin_t, gti_idx, gti_starts, gti_counts, gti_times)
+        gti_data[gti_idx] = GTIData(gti_mission, gti_inst, gti_obsid, gti_bin_t, gti_idx,
+            gti_starts, gti_counts, gti_times, gti_orbit)
     end
 
     return gti_data
