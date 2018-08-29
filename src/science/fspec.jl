@@ -7,6 +7,7 @@ struct FFTData <: JAXTAMData
     bin_count::Int
     gti_index::Int
     gti_start_time::Real
+    orbit::Int
     amps::Array
     avg_amp::Array
     freqs::Array
@@ -15,7 +16,7 @@ end
 function _FFTData(gti, freqs, amps, fspec_bin_size, bin_count)
 
     return FFTData(gti.mission, gti.instrument, gti.obsid, gti.bin_time, fspec_bin_size, bin_count,
-        gti.gti_index, gti.gti_start_time, amps, mean(amps, dims=2)[:], freqs)
+        gti.gti_index, gti.gti_start_time, gti.orbit, amps, mean(amps, dims=2)[:], freqs)
 end
 
 function _fft(counts::Array, times::StepRangeLen, bin_time::Real, fspec_bin_size; leahy=true)
@@ -69,13 +70,13 @@ function _fspec_save(fspec_data::Dict{Int64,JAXTAM.FFTData}, fspec_dir::String)
     fspec_indecies = collect(keys(fspec_data))
     fspec_starts   = [t.gti_start_time for t in values(fspec_data)]
     fspec_b_counts = [t.bin_count for t in values(fspec_data)]
+    fspec_orbits   = [o.orbit for o in values(fspec_data)]
     fspec_example  = fspec_data[fspec_indecies[1]]
 
-    
     fspec_basename = string("$(fspec_example.instrument)_lc_$(fspec_example.bin_time)_fspec")
     fspec_meta     = DataFrame(mission=String(fspec_example.mission),
     instrument=String(fspec_example.instrument), obsid=fspec_example.obsid,
-    bin_time=fspec_example.bin_time, bin_size=fspec_example.bin_size,
+    bin_time=fspec_example.bin_time, bin_size=fspec_example.bin_size, orbits=fspec_orbits,
     indecies=fspec_indecies, starts=fspec_starts, b_counts=fspec_b_counts)
     
     Feather.write(joinpath(fspec_dir, "$(fspec_basename)_meta.feather"), fspec_meta)
@@ -111,6 +112,7 @@ function _fspec_load(fspec_dir, instrument, bin_time, fspec_bin)
         fspec_idx     = current_row[:indecies][1]
         fspec_starts  = current_row[:starts][1]
         fspec_b_count = current_row[:b_counts][1]
+        fspec_orbit   = current_row[:orbits][1]
         fspec_file    = Feather.read(joinpath(fspec_dir, "$(fspec_basename)_$(fspec_idx).feather"))
         fspec_freqs   = Array(fspec_file[:freqs]); delete!(fspec_file, :freqs)
         fspec_ampavg  = Array(fspec_file[:avg_amp]); delete!(fspec_file, :avg_amp)
@@ -121,7 +123,7 @@ function _fspec_load(fspec_dir, instrument, bin_time, fspec_bin)
         end
 
         fspec_data[fspec_idx] = FFTData(fspec_mission, fspec_inst, fspec_obsid, fspec_bin_t,
-            fspec_bin_sze, fspec_b_count, fspec_idx, fspec_starts, fspec_amps, fspec_ampavg,
+            fspec_bin_sze, fspec_b_count, fspec_idx, fspec_starts, fspec_orbit, fspec_amps, fspec_ampavg,
             fspec_freqs)
     end
 
@@ -180,7 +182,7 @@ function _scrunch_sections(instrument_data::Dict{Int64,JAXTAM.FFTData}; append_m
     if append_mean
         instrument_data[-1] = FFTData(
             gti_example.mission, gti_example.instrument, gti_example.obsid,
-            gti_example.bin_time, gti_example.bin_size, bin_count_sum, -1, -1, [],
+            gti_example.bin_time, gti_example.bin_size, bin_count_sum, -1, -1, -1, [],
             mean(joined_together, dims=2)[:], gti_example.freqs
         )
     end
@@ -206,7 +208,7 @@ function fspec(mission_name::Symbol, gtis::Dict{Symbol,Dict{Int64,JAXTAM.GTIData
 end
 
 function fspec(mission_name::Symbol, obs_row::DataFrames.DataFrame, bin_time::Real, fspec_bin::Real;
-        overwrite_fs=false, overwrite_gtis=false, pow2=true, fspec_bin_type=:time, scrunched=true)
+        overwrite_fs=false, overwrite_gtis=false, save_fspec=false, pow2=true, fspec_bin_type=:time, scrunched=true)
     obsid       = obs_row[:obsid][1]
     instruments = Symbol.(config(mission_name).instruments)
 
@@ -247,8 +249,10 @@ function fspec(mission_name::Symbol, obs_row::DataFrames.DataFrame, bin_time::Re
                 fspec_data = _scrunch_sections(fspec_data)
             end
 
-            @info "                       -> saving $instrument -> $JAXTAM_fspec_path"
-            _fspec_save(fspec_data, JAXTAM_fspec_path)
+            if save_fspec
+                @info "                       -> saving $instrument -> $JAXTAM_fspec_path"
+                _fspec_save(fspec_data, JAXTAM_fspec_path)
+            end
 
             instrument_fspecs[instrument] = fspec_data
         else
