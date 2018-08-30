@@ -1,14 +1,16 @@
 # Helper functions
 
-function _savefig_obsdir(obs_row, mission_name, obsid, bin_time, bin_size, fig_name)
+function _savefig_obsdir(obs_row, mission_name, obsid, bin_time, bin_size, subfolder, fig_name)
     if bin_size == NaN
-        plot_dir = joinpath(obs_row[1, :obs_path], "JAXTAM/lc/$bin_time/images/$(bin_time*bin_size)/")
+        plot_dir = joinpath(obs_row[1, :obs_path], "JAXTAM/lc/$bin_time/images/$(bin_time*bin_size)/", subfolder)
     else
-        plot_dir = joinpath(obs_row[1, :obs_path], "JAXTAM/lc/$bin_time/images/")
+        plot_dir = joinpath(obs_row[1, :obs_path], "JAXTAM/lc/$bin_time/images/", subfolder)
     end
 
     mkpath(plot_dir)
     savefig(joinpath(plot_dir, fig_name))
+
+    @info "Saved $(joinpath(plot_dir, fig_name))"
 end
 
 function _savefig_obsdir(mission_name, obsid, bin_time, bin_size, fig_name)
@@ -64,7 +66,7 @@ function plot!(data::BinnedData; lab="", size_in=(1140,400), save_plt=true, titl
     end
 
     if(save_plt)
-        _savefig_obsdir(data.mission, data.obsid, data.bin_time, NaN, "$(data.instrument)_lcurve.png")
+        _savefig_obsdir(data.mission, data.obsid, data.bin_time, NaN, "lc", "$(data.instrument)_lcurve.png")
     end
 
     return Plots.plot!(size=size_in)
@@ -81,7 +83,8 @@ function plot(instrument_data::Dict{Symbol,JAXTAM.BinnedData}; size_in=(1140,400
 
     if(save_plt)
         example_lc = _pull_data(instrument_data)
-        _savefig_obsdir(example_lc.mission, example_lc.obsid, example_lc.bin_time, NaN, "lcurve.png")
+        obs_row    = master_query(example_lc.mission, :obsid, example_lc.obsid)
+        _savefig_obsdir(obs_row, example_lc.mission, example_lc.obsid, example_lc.bin_time, NaN, "lc", "lcurve.png")
     end
 
     return Plots.plot!(size=size_in)
@@ -96,39 +99,18 @@ function plot_orbits(instrument_data::Dict{Symbol,JAXTAM.BinnedData}; size_in=(1
     obs_row     = master_query(example_gti.mission, :obsid, example_gti.obsid)
 
     for instrument in instruments
-        gtis = instrument_data[instrument].gtis
-        gtis = gtis[(gtis[:, :stop]-gtis[:, :start]) .>= 16, :]
-        available_orbits = unique(gtis[:orbit])
-
+        instrument_orbit_data  = _orbit_return(instrument_data[instrument])
         instrument_orbit_plots = Dict{Int64,Plots.Plot}()
+
+        available_orbits = collect(keys(instrument_orbit_data))
+
         for orbit in available_orbits
-            instrument_data_orbit = Dict{Int64,JAXTAM.FFTData}()
-
-            first_gti_idx = findfirst(gtis[:orbit] .== orbit)
-            last_gti_idx  = findlast(gtis[:orbit] .== orbit)
-
-            first_gti = gtis[first_gti_idx, :]
-            last_gti  = gtis[last_gti_idx,  :]
-
-            first_idx = findfirst(instrument_data[instrument].times .>= first_gti[:start])
-            last_idx  = findfirst(instrument_data[instrument].times .>= last_gti[:stop])
-
-            if last_gti[1, :stop] >= instrument_data[instrument].times[end]
-                last_idx = length(instrument_data[instrument].times)
-            end
-
-            orbit_lc = BinnedData(
-                instrument_data[instrument].mission,
-                instrument_data[instrument].instrument,
-                instrument_data[instrument].obsid,
-                instrument_data[instrument].bin_time,
-                instrument_data[instrument].counts[first_idx:last_idx],
-                instrument_data[instrument].times[first_idx:last_idx],
-                instrument_data[instrument].gtis[first_gti_idx:last_gti_idx, :]
-            )
+            orbit_lc = instrument_orbit_data[orbit]
 
             if orbit == 0
-                title_append = " - orbit unknown (likely end of lc)"
+                # Signifies orbit is after the last 'full' orbit
+                orbit = maximum(available_orbits) + 1
+                title_append = " - orbit $orbit/$(maximum(available_orbits)) (likely end of lc)"
             else
                 title_append = " - orbit $orbit/$(maximum(available_orbits))"
             end
@@ -137,7 +119,7 @@ function plot_orbits(instrument_data::Dict{Symbol,JAXTAM.BinnedData}; size_in=(1
                     title_append=title_append)
 
             if save_plt
-                _savefig_obsdir(obs_row, orbit_lc.mission, orbit_lc.obsid, orbit_lc.bin_time, NaN, "$(instrument)_$(orbit)_lcurve.png")
+                _savefig_obsdir(obs_row, orbit_lc.mission, orbit_lc.obsid, orbit_lc.bin_time, NaN, "lc/orbits/", "$(orbit)_lcurve.png")
             end
         end
 
@@ -225,7 +207,8 @@ function plot(instrument_data::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}}; title_ap
 
     if(save_plt)
         example_gti = _pull_data(instrument_data)
-        _savefig_obsdir(example_gti.mission, example_gti.obsid, example_gti.bin_time, example_gti.bin_size, "$fspec.png")
+        obs_row    = master_query(example_gti.mission, :obsid, example_gti.obsid)
+        _savefig_obsdir(obs_row, example_gti.mission, example_gti.obsid, example_gti.bin_time, NaN, "fspec/$(example_gti.bin_size*example_gti.bin_time)", "fspec.png")
     end
 
     return Plots.plot!(size=size_in)
@@ -255,7 +238,9 @@ function plot_orbits(instrument_data::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}};
             end
 
             if orbit == 0
-                title_append = " - orbit unknown (likely end of lc)"
+                # Signifies orbit is after the last 'full' orbit
+                orbit = maximum(available_orbits) + 1
+                title_append = " - orbit $orbit/$(maximum(available_orbits)) (likely end of lc)"
             else
                 title_append = " - orbit $orbit/$(maximum(available_orbits))"
             end
@@ -267,7 +252,7 @@ function plot_orbits(instrument_data::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}};
             
             if save_plt
                 data = instrument_data_orbit[gtis_in_orbit[1]]
-                _savefig_obsdir(obs_row, data.mission, data.obsid, data.bin_time, data.bin_size, "$(instrument)_$(orbit)_fspec.png")
+                _savefig_obsdir(obs_row, data.mission, data.obsid, data.bin_time, data.bin_size, "fspec/$(data.bin_size.*data.bin_time)/orbits/", "$(orbit)_fspec.png")
             end
         end
 

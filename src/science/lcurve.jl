@@ -90,17 +90,56 @@ function _orbit_select(data::BinnedData)
         gtis_in_orbit = data.gtis[(orbit_times[i, 1] .<= data.gtis[:, 2] .<= orbit_times[i, 2])[:], :]
 
         gti_orbit_index[orbit_times[i, 1] .<= data.gtis[:, 2] .<= orbit_times[i, 2]] .= i
-
-        # adjusted_indecies = [findfirst(data.times .>= gtis_in_orbit[1, 1]), findfirst(data.times .>= gtis_in_orbit[end, 2])]
-
-        # orbit_data[i] = BinnedOrbitData(data.mission, data.instrument, data.obsid, data.bin_time,
-        #     view(data.counts, adjusted_indecies[1]:adjusted_indecies[2]), view(data.times, adjusted_indecies[1]:adjusted_indecies[2]),
-        #     gtis_in_orbit, i)
     end
 
     data.gtis[:orbit] = gti_orbit_index
 
     return data
+end
+
+function _orbit_return(data::BinnedData)
+    gtis = data.gtis
+    gtis = gtis[(gtis[:, :stop]-gtis[:, :start]) .>= 16, :] # Ignore gtis under 16s long
+    available_orbits = unique(gtis[:orbit])
+
+    data_orbit = Dict{Int64,JAXTAM.BinnedData}()
+    for orbit in available_orbits
+        if orbit == 0
+            end_gti_idx = findfirst(data.gtis[:orbit] .== maximum(available_orbits))
+
+            first_gti_idx = findfirst(data.gtis[:orbit][end_gti_idx:end] .== orbit) + end_gti_idx
+            last_gti_idx  = findlast(data.gtis[:orbit][end_gti_idx:end] .== orbit) + end_gti_idx
+
+            if last_gti_idx > size(data.gtis, 1)
+                last_gti_idx = size(data.gtis, 1)
+            end
+        else
+            first_gti_idx = findfirst(data.gtis[:orbit] .== orbit)
+            last_gti_idx  = findlast(data.gtis[:orbit] .== orbit)
+        end
+
+        first_gti = data.gtis[first_gti_idx, :]
+        last_gti  = data.gtis[last_gti_idx,  :]
+
+        first_idx = findfirst(data.times .>= first_gti[:start])
+        last_idx  = findfirst(data.times .>= last_gti[:stop])
+
+        if last_gti[1, :stop] >= data.times[end]
+            last_idx = length(data.times)
+        end
+        
+        data_orbit[orbit] = BinnedData(
+            data.mission,
+            data.instrument,
+            data.obsid,
+            data.bin_time,
+            data.counts[first_idx:last_idx],
+            data.times[first_idx:last_idx],
+            data.gtis[first_gti_idx:last_gti_idx, :]
+        )
+    end
+
+    return data_orbit
 end
 
 function _lcurve(instrument_data::InstrumentData, bin_time::Union{Float64,Int64})
