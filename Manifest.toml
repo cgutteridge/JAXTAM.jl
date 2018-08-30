@@ -6,7 +6,7 @@ version = "0.3.2"
 
 [[Arrow]]
 deps = ["CategoricalArrays", "Compat"]
-git-tree-sha1 = "7f271e79b75ba3d603059259089a7e55eeb9b6e3"
+git-tree-sha1 = "ecfe11bd0874ab41b78be0ca8d0f680ba37978dc"
 repo-rev = "master"
 repo-url = "https://github.com/ExpandingMan/Arrow.jl.git"
 uuid = "69666777-d1a9-59fb-9406-91d4454c9d45"
@@ -101,7 +101,7 @@ version = "0.5.1"
 
 [[DSP]]
 deps = ["AbstractFFTs", "Compat", "FFTW", "LinearAlgebra", "Polynomials", "Random", "Reexport", "SpecialFunctions"]
-git-tree-sha1 = "c90967ff4c5e99f652b278624634dcef73b58848"
+git-tree-sha1 = "39ed103936b1a786264b2a9a3071e60f9c067ad1"
 repo-rev = "master"
 repo-url = "https://github.com/JuliaDSP/DSP.jl.git"
 uuid = "717857b8-e6f2-59f4-9121-6e50c889abd2"
@@ -109,7 +109,7 @@ version = "0.5.1+"
 
 [[DataFrames]]
 deps = ["CategoricalArrays", "CodecZlib", "Compat", "DataStreams", "Dates", "InteractiveUtils", "LinearAlgebra", "Missings", "Printf", "Random", "Reexport", "SortingAlgorithms", "Statistics", "StatsBase", "Test", "TranscodingStreams", "Unicode", "WeakRefStrings"]
-git-tree-sha1 = "574fa6de9fb4fda220ea8501b9a5b6385465c133"
+git-tree-sha1 = "3c24f4fb667d8ed47d0f3f8dd7b4c60a30579fca"
 repo-rev = "master"
 repo-url = "https://github.com/JuliaData/DataFrames.jl.git"
 uuid = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
@@ -157,7 +157,7 @@ version = "0.11.0+"
 
 [[Feather]]
 deps = ["Arrow", "CategoricalArrays", "Compat", "DataFrames", "DataStreams", "Dates", "FlatBuffers"]
-git-tree-sha1 = "eaffdebc46130ff301dbcb22570381225b37eca6"
+git-tree-sha1 = "41ffda8d631176b6a3cd659425c35a72177a53fd"
 repo-rev = "master"
 repo-url = "https://github.com/JuliaData/Feather.jl.git"
 uuid = "becb17da-46f6-5d3c-ad1b-1c5fe96bc73c"
@@ -192,8 +192,8 @@ uuid = "28b8d3ca-fb5f-59d9-8090-bfdbd6d07a71"
 version = "0.32.3"
 
 [[HDF5]]
-deps = ["BinDeps", "Blosc", "Compat", "Homebrew", "Libdl", "Pkg", "WinRPM"]
-git-tree-sha1 = "6e1cd8a2a71fe223ceccd8779b43a7daf006db9e"
+deps = ["BinDeps", "Blosc", "Distributed", "Homebrew", "Libdl", "LinearAlgebra", "Pkg", "Test", "WinRPM"]
+git-tree-sha1 = "2407ec97bdb872ed0d569ff8e592c7a5d60675bc"
 repo-rev = "master"
 repo-url = "https://github.com/JuliaIO/HDF5.jl.git"
 uuid = "f67ccb44-e63f-5c2f-98bd-6dc0ccc4ba2f"

@@ -65,9 +65,63 @@ function _make_append(mission_name, master_df)
 
     _add_append_publicity!(append_df, master_df)
     _add_append_obspath!(append_df, master_df, mission_name)
-    #_add_append_uf!(append_df, master_df, mission_name)
-    #_add_append_cl!(append_df, master_df, mission_name)
-    #_add_append_downloaded!(append_df, mission_name)
+    _add_append_uf!(append_df, master_df, mission_name)
+    _add_append_cl!(append_df, master_df, mission_name)
+    _add_append_downloaded!(append_df, mission_name)
+
+    return append_df
+end
+
+function _tuple2feather(append_df::DataFrames.DataFrame)
+    columns = names(append_df)
+
+    for col in columns
+        if typeof(append_df[1, col]) <: Tuple
+            tuple_length = length(append_df[1, col])
+            tuple_count  = size(append_df[col], 1)
+
+            if tuple_length > 9
+                @warn "Tuples > 9 don't load properly, contact developer for fix"
+            end
+
+            tuple_new_cols = [Symbol("__tuple__$col$i") for i in 1:tuple_length]
+
+            tuple_array = Array{String,2}(undef, tuple_count, tuple_length+1)
+
+            for i in 1:tuple_count
+                tuple_array[i, 1:tuple_length] = [i for i in append_df[i, col]]
+                tuple_array[i, tuple_length+1] = append_df[i, :obsid]
+            end
+
+            tuple_df = DataFrame(tuple_array, [tuple_new_cols; :obsid])
+
+            append_df = join(append_df, tuple_df, on=:obsid)
+
+            append_df = append_df[:, setdiff(names(append_df), [col])]
+        end
+    end
+    
+    return append_df    
+end
+
+function _feather2tuple(append_df::DataFrames.DataFrame)
+    columns = names(append_df)
+    columns_tuple = columns[occursin.("__tuple__", string.(columns))]
+
+    # Assumes maximum 9-length tuples
+    tuple_names = unique([string(x)[10:end-1] for x in columns_tuple])
+
+    for tuple_name in tuple_names
+        cols = columns_tuple[occursin.(tuple_name, string.(columns_tuple))]
+
+        tuple_df = DataFrame()
+        tuple_df[Symbol(tuple_name)] = [tuple(convert(Array, x)...) for x in DataFrames.eachrow(append_df[:, cols])]
+        tuple_df[:obsid]             = [convert(String, x) for x in append_df[:, :obsid]]
+
+        append_df = join(append_df, tuple_df, on=:obsid)
+
+        append_df = append_df[:, setdiff(names(append_df), cols)]
+    end
 
     return append_df
 end
@@ -80,7 +134,15 @@ function _make_append(mission_name)
 end
 
 function _append_save(append_path_feather, append_df)
+    append_df = _tuple2feather(append_df)
+
     Feather.write(append_path_feather, append_df)
+end
+
+function _append_load(append_path_feather)
+    append_df = Feather.read(append_path_feather)
+    
+    return _feather2tuple(append_df)
 end
 
 function append(mission_name)
@@ -88,7 +150,7 @@ function append(mission_name)
 
     if isfile(append_path_feather)
         @info "Loading $append_path_feather"
-        return Feather.read(append_path_feather)
+        return _append_load(append_path_feather)
     else
         master_df = master(mission_name)
         append_df = _make_append(mission_name, master_df)
