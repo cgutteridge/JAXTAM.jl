@@ -228,8 +228,8 @@ function plot_orbits(instrument_data::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}};
         available_orbits = unique([gti.orbit for gti in values(instrument_data[instrument])])
         available_orbits = available_orbits[available_orbits .>= 0] # Excluse -1, -2, etc... for scrunched/mean FFTData
 
-        instrument_orbit_plots = Dict{Int64,Plots.Plot}()
         for orbit in available_orbits
+            instrument_orbit_plots = Dict{Int64,Plots.Plot}()
             instrument_data_orbit = Dict{Int64,JAXTAM.FFTData}()
             gtis_in_orbit = [gti.gti_index for gti in values(instrument_data[instrument]) if gti.orbit == orbit]
 
@@ -262,12 +262,33 @@ function plot_orbits(instrument_data::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}};
     return orbit_plots
 end
 
-function plot_summary(mission_name::Symbol, obsid::String)
-    lc_1s = lcurve(mission_name, obsid, 1)
+# Periodogram plotting functions
 
-    fs_2m13 = fspec(mission_name, obsid, 2.0^-13, 256)
-    fs_low1 = fspec(mission_name, obsid, 2.0^-3, 512)
-    fs_low2 = fspec(mission_name, obsid, 2.0^-1, 512)
+function plot!(data::PgramData; title_append="", rebin=(:linear, 10),
+        lab="", logx=true, logy=true, size_in=(1140,600), save_plt=false
+    )
+    bin_time_pow2 = Int(log2(data.bin_time))
 
-    plt_lc = plot(lc_1s; size_in=(1000, 400))
+    # Don't plot the 0Hz amplitude
+    powers = data.powers
+    freqs  = data.freqs
+    powers[1] = NaN
+    freqs[1]   = NaN
+
+    freqs, powers, errors = _fspec_rebin(powers, freqs, 1, rebin)
+
+    ylab = "Amplitude"
+
+    Plots.plot!(freqs, powers, color=:black, ylab=ylab, lab=lab)
+
+    Plots.plot!(xlab="Freq (Hz)", alpha=1,
+        title="Periodogram - $(data.obsid) - 2^$(bin_time_pow2) bt - $rebin rebin")
+
+    logy ? yaxis!(:log10) : ""
+
+    if(save_plt)
+        _savefig_obsdir(data.mission, data.obsid, data.bin_time, data.bin_size, "fspec.png")
+    end
+
+    return Plots.plot!(size=size_in)
 end
