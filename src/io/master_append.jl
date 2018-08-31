@@ -3,7 +3,7 @@ function _build_append(master_df)
 end
 
 function _add_append_publicity!(append_df, master_df)
-    append_publicity = Array{Union{Bool,Missing},1}(size(append_df, 1))
+    append_publicity = Array{Union{Bool,Missing},1}(undef, size(append_df, 1))
 
     for (i, obsid) in enumerate(append_df[:obsid])
         append_publicity[i] = now() > convert(DateTime, master_df[i, :public_date])
@@ -15,7 +15,7 @@ end
 function _add_append_obspath!(append_df, master_df, mission_name)
     obs_path_function = config(mission_name).path_obs
     mission_path = config(mission_name).path
-    append_obspath = Array{Union{String,Missing},1}(size(append_df, 1))
+    append_obspath = Array{Union{String,Missing},1}(undef, size(append_df, 1))
 
     for (i, obsid) in enumerate(append_df[:obsid])
         append_obspath[i] = abspath(string(mission_path, _clean_path_dots(obs_path_function(master_df[i, :]))))
@@ -25,7 +25,7 @@ function _add_append_obspath!(append_df, master_df, mission_name)
 end
 
 function _add_append_uf!(append_df, master_df, mission_name)
-    append_uf = Array{Union{Tuple,Missing},1}(size(append_df, 1))
+    append_uf = Array{Union{Tuple,Missing},1}(undef, size(append_df, 1))
     root_dir  = config(mission_name).path
     uf_path_function = config(mission_name).path_uf
 
@@ -37,7 +37,7 @@ function _add_append_uf!(append_df, master_df, mission_name)
 end
 
 function _add_append_cl!(append_df, master_df, mission_name)
-    append_cl = Array{Union{Tuple,Missing},1}(size(append_df, 1))
+    append_cl = Array{Union{Tuple,Missing},1}(undef, size(append_df, 1))
     root_dir  = config(mission_name).path
     cl_path_function = config(mission_name).path_cl
 
@@ -49,7 +49,7 @@ function _add_append_cl!(append_df, master_df, mission_name)
 end
 
 function _add_append_downloaded!(append_df, mission_name)
-    append_downloaded = Array{Union{Bool,Missing},1}(size(append_df, 1))
+    append_downloaded = Array{Union{Bool,Missing},1}(undef, size(append_df, 1))
     root_dir  = config(mission_name).path
     cl_path_function = config(mission_name).path_cl
 

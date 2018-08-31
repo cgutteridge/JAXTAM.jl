@@ -38,7 +38,7 @@ function download(mission_name::Symbol, master::DataFrames.DataFrame, obsid::Str
     download_command = `lftp heasarc.gsfc.nasa.gov -e "mirror \"$dir_down\" \"$dir_dest\" --parallel=10 --only-newer --exclude-glob *ufa.evt.gz --exclude-glob *ufa.evt --exclude-glob *uf.evt.gz && exit"`
     
 
-    if isdir(dir_dest) && overwrite
+    if isdir(dir_dest) && !overwrite
         @warn "Skipping download, dir exists"
         return
     else
