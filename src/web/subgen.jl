@@ -140,7 +140,7 @@ function _webgen_subpage_findimg(JAXTAM_path)
     end
 
     image_path_df = DataFrame(
-                                path=paths,
+                                path=replace.(paths, JAXTAM_path=>"./JAXTAM/"),
                                 bin_times=img_bin_times,
                                 kinds=img_kinds,
                                 bin_size=img_bin_sizes,
