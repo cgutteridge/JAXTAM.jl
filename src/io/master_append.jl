@@ -54,13 +54,40 @@ function _add_append_downloaded!(append_df, mission_name)
     cl_path_function = config(mission_name).path_cl
 
     for (i, obspath) in enumerate(append_df[:obs_path])
-        append_downloaded[i] = isdir(obspath)
+        cl_files = append_df[i, :event_cl]
+        append_downloaded[i] = all(isfile.(cl_files))
     end
 
     return append_df[:downloaded] = append_downloaded
 end
 
-function _make_append(mission_name, master_df)
+function _add_append_analysed!(append_df, mission_name)
+    append_analysed = Array{Union{Bool,Missing},1}(undef, size(append_df, 1))
+
+    for (i, obspath) in enumerate(append_df[:obs_path])
+        append_analysed[i] = isdir(joinpath(obspath, "JAXTAM"))
+    end
+
+    return append_df[:analysed] = append_analysed
+end
+
+function _add_append_imagelog!(append_df, mission_name)
+    append_imagelog = Array{String,1}(undef, size(append_df, 1))
+
+    for (i, obspath) in enumerate(append_df[:obs_path])
+        imagelog_path = joinpath(obspath, "JAXTAM/image_log.jld2")
+        if isfile(imagelog_path)
+            append_imagelog[i] = imagelog_path
+        else
+            append_imagelog[i] = "NA"
+        end
+        
+    end
+
+    return append_df[:image_log] = append_imagelog
+end
+
+function _append_gen(mission_name, master_df)
     append_df = _build_append(master_df)
 
     _add_append_publicity!(append_df, master_df)
@@ -68,6 +95,8 @@ function _make_append(mission_name, master_df)
     _add_append_uf!(append_df, master_df, mission_name)
     _add_append_cl!(append_df, master_df, mission_name)
     _add_append_downloaded!(append_df, mission_name)
+    _add_append_analysed!(append_df, mission_name)
+    _add_append_imagelog!(append_df, mission_name)
 
     return append_df
 end
@@ -126,9 +155,9 @@ function _feather2tuple(append_df::DataFrames.DataFrame)
     return append_df
 end
 
-function _make_append(mission_name)
+function _append_gen(mission_name)
     master_df = master(mission_name)
-    append_df = _make_append(mission_name, master_df)
+    append_df = _append_gen(mission_name, master_df)
 
     return append_df
 end
@@ -153,7 +182,7 @@ function append(mission_name)
         return _append_load(append_path_feather)
     else
         master_df = master(mission_name)
-        append_df = _make_append(mission_name, master_df)
+        append_df = _append_gen(mission_name, master_df)
         @info "Saving $append_path_feather"
         _append_save(append_path_feather, append_df)
         return append_df
@@ -176,7 +205,7 @@ function append_update(mission_name)
     append_path_feather = abspath(string(_config_key_value(mission_name).path, "append.feather"))
 
     master_df = master(mission_name)
-    append_df = _make_append(mission_name, master_df)
+    append_df = _append_gen(mission_name, master_df)
     @info "Saving $append_path_feather"
     _append_save(append_path_feather, append_df)
     return append_df

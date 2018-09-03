@@ -51,12 +51,6 @@ git-tree-sha1 = "2b43d451639984e3571951cc687b8509b0a86c6d"
 uuid = "d5fb7624-851a-54ee-a528-d3f3bac0b4a0"
 version = "0.2.2"
 
-[[Calculus]]
-deps = ["Compat"]
-git-tree-sha1 = "f60954495a7afcee4136f78d1d60350abd37a409"
-uuid = "49dc2e85-a5d0-5ad3-a950-438e2897f1b9"
-version = "0.4.1"
-
 [[CategoricalArrays]]
 deps = ["Compat", "Future", "JSON", "Missings", "Printf", "Reexport"]
 git-tree-sha1 = "8009a507e2e3db040d6854a82ce959fb5971cb37"
@@ -101,7 +95,7 @@ version = "0.5.1"
 
 [[DSP]]
 deps = ["AbstractFFTs", "Compat", "FFTW", "LinearAlgebra", "Polynomials", "Random", "Reexport", "SpecialFunctions"]
-git-tree-sha1 = "39ed103936b1a786264b2a9a3071e60f9c067ad1"
+git-tree-sha1 = "7a5a3208e1b3bbee7ab6eea328c0ede0aee56fbc"
 repo-rev = "master"
 repo-url = "https://github.com/JuliaDSP/DSP.jl.git"
 uuid = "717857b8-e6f2-59f4-9121-6e50c889abd2"
@@ -109,7 +103,7 @@ version = "0.5.1+"
 
 [[DataFrames]]
 deps = ["CategoricalArrays", "CodecZlib", "Compat", "DataStreams", "Dates", "InteractiveUtils", "LinearAlgebra", "Missings", "Printf", "Random", "Reexport", "SortingAlgorithms", "Statistics", "StatsBase", "Test", "TranscodingStreams", "Unicode", "WeakRefStrings"]
-git-tree-sha1 = "3c24f4fb667d8ed47d0f3f8dd7b4c60a30579fca"
+git-tree-sha1 = "e051de7e3d4c6d21c1e6cf4909957a3ea54c842d"
 repo-rev = "master"
 repo-url = "https://github.com/JuliaData/DataFrames.jl.git"
 uuid = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
@@ -225,11 +219,11 @@ uuid = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
 
 [[JLD2]]
 deps = ["CodecZlib", "DataStructures", "FileIO", "LinearAlgebra", "Mmap", "Printf", "Random", "Test"]
-git-tree-sha1 = "9fffc7045f93c424a2b2e0ebb10bbaba6baebb2c"
+git-tree-sha1 = "8f0b471c05fd5c256932bd08bb71729cbb7b966f"
 repo-rev = "master"
-repo-url = "https://github.com/RobertRosca/JLD2.jl"
+repo-url = "https://github.com/simonster/JLD2.jl.git"
 uuid = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
-version = "0.1.0"
+version = "0.1.1+"
 
 [[JSON]]
 deps = ["Dates", "Distributed", "Mmap", "Pkg", "Sockets", "Test", "Unicode"]
@@ -274,29 +268,15 @@ uuid = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 [[Logging]]
 uuid = "56ddb016-857b-54e1-b83d-db4d58db5568"
 
-[[LombScargle]]
-deps = ["FFTW", "LinearAlgebra", "Measurements", "Random", "SpecialFunctions", "Statistics", "Test"]
-git-tree-sha1 = "90cf1a43a4b694fe6f7191f9e94db1a34b6dc667"
-repo-rev = "master"
-repo-url = "https://github.com/JuliaAstro/LombScargle.jl"
-uuid = "fc60dff9-86e7-5f2f-a8a0-edeadbb75bd9"
-version = "0.4.0+"
-
 [[LossFunctions]]
-deps = ["InteractiveUtils", "LearnBase", "Markdown", "Random", "RecipesBase", "SparseArrays", "Statistics", "StatsBase", "Test"]
-git-tree-sha1 = "9ce0911a375841814509a113fc1a604e86295dd9"
+deps = ["InteractiveUtils", "LearnBase", "Markdown", "Pkg", "Random", "RecipesBase", "SparseArrays", "Statistics", "StatsBase", "Test"]
+git-tree-sha1 = "8398797a203f4d2e65823657c78e9b588006f4a5"
 uuid = "30fc2ffe-d236-52d8-8643-a9d8f7c094a7"
-version = "0.3.1"
+version = "0.4.0"
 
 [[Markdown]]
 deps = ["Base64"]
 uuid = "d6f4376e-aef5-505a-96c1-9c027394607a"
-
-[[Measurements]]
-deps = ["Calculus", "LinearAlgebra", "Pkg", "QuadGK", "RecipesBase", "Requires", "SpecialFunctions", "Statistics", "Test"]
-git-tree-sha1 = "5d4745b25566c59239c21b8db83d27ef27ee7a33"
-uuid = "eff96d63-e80a-5855-80a2-b1b0885c5ab7"
-version = "1.0.0"
 
 [[Measures]]
 deps = ["Compat"]
@@ -379,12 +359,6 @@ version = "0.5.0"
 [[Printf]]
 deps = ["Unicode"]
 uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
-
-[[QuadGK]]
-deps = ["DataStructures", "LinearAlgebra", "Test"]
-git-tree-sha1 = "7d61ca207f021be6574b365a1a077bea04935f19"
-uuid = "1fd47b50-473d-5c70-9696-f719f8f3bcdc"
-version = "2.0.1"
 
 [[REPL]]
 deps = ["InteractiveUtils", "Markdown", "Sockets"]

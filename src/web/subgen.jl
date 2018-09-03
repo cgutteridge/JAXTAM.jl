@@ -30,6 +30,126 @@ function _webgen_results_body(obs_row; img_dict=Dict())
     )
 end
 
+function _webgen_subpage_findimg(JAXTAM_path)
+    paths = []
+    for (root, dirs, files) in walkdir(JAXTAM_path)
+        for file in files
+            if file[end-3:end] == ".png"
+                append!(paths, [joinpath(root, file)])
+            end
+        end
+    end
+
+    img_bin_times  = []
+    img_kinds      = []
+    img_bin_sizes  = []
+    img_orbits     = []
+    img_titles     = []
+    img_kind_ordrs = Array{Int64,1}()
+    for path in paths
+        img_dir  = splitdir(replace.(path, JAXTAM_path=>""))[1]
+        img_name = splitdir(replace.(path, JAXTAM_path=>""))[2]
+
+        img_dir_splt = split(img_dir, "/")
+
+        # 1  - empty string, as split("/", "/") = ""
+        @assert img_dir_splt[1] == ""
+
+        # 2  - lc diectory
+        @assert img_dir_splt[2] == "lc"
+
+        # 3  - bin time
+        img_bin_time = Meta.parse(img_dir_splt[3])
+        @assert typeof(img_bin_time) == Float64
+        if img_bin_time < 1.0
+            # Pray this is a power of 2
+            if ispow2(Int(1/img_bin_time))
+                # Adopt semi-standard notation that -ve value implies a -ve power of 2
+                img_bin_time = -log2(1/img_bin_time)
+            else
+                @warn "img_bin_time doesn't seem to be a power of 2"
+            end
+        end
+        append!(img_bin_times, img_bin_time)
+
+        try
+            img_bin_time = Int(img_bin_time)
+        finally
+            if img_bin_time < 0
+                img_bin_time = "2^$(img_bin_time)"
+            end
+        end
+        
+        # 4  - /images/ directory
+        @assert img_dir_splt[4] == "images"
+
+        # 5  - folder named after on of the plot kinds: fspec, lc, or pgram
+        img_kind = img_dir_splt[5]
+        @assert img_kind in ["fspec", "lc", "pgram"]
+        append!(img_kinds, [img_kind])
+
+        # 6  - Diverges based on kind
+        if img_kind == "fspec"
+            # 6a - fspec bin_size
+            img_bin_size = img_dir_splt[6]
+            if length(img_dir_splt) > 6 && img_dir_splt[7] == "orbits"
+                # 7a1 - fspec orbits folder
+                img_kind_ordr = 30
+                img_orbit = parse(Int, replace(img_name, "_fspec.png"=>""))
+                img_title = "Power Spectra - Orbit $img_orbit - $img_bin_time bt - $img_bin_size bs"
+            else
+                # 7a2 - not an orbit plot
+                img_kind_ordr = 3
+                img_title = "Power Spectra - $img_bin_time bt - $img_bin_size bs"
+                img_orbit = 0
+            end
+        elseif img_kind == "lc"
+            # 6b - lc has no bin size
+            img_bin_size = missing
+            if length(img_dir_splt) > 5 && img_dir_splt[6] == "orbits"
+                # 6b1 - lc orbits folder
+                img_kind_ordr = 10
+                img_orbit = parse(Int, replace(img_name, "_lcurve.png"=>""))
+                img_title = "Light Curve - Orbit $img_orbit - $img_bin_time bt"
+            else
+                # 6b2 - not an orbit plot
+                img_kind_ordr = 1
+                img_title = "Light Curve - $img_bin_time bt"
+                img_orbit = 0
+            end
+        elseif img_kind == "pgram"
+            # 6c - pgram has no bin size
+            img_bin_size = missing
+            if length(img_dir_splt) > 5 && img_dir_splt[6] == "orbits"
+                # 6b1 - lc orbits folder
+                img_kind_ordr = 20
+                img_orbit = parse(Int, replace(img_name, "_pgram.png"=>""))
+                img_title = "Periodogram - Orbit $img_orbit - $img_bin_time bt"
+            else
+                # 6b2 - not an orbit plot
+                img_kind_ordr = 2
+                img_title = "Periodogram - $img_bin_time bt"
+                img_orbit = 0
+            end
+        end
+
+        append!(img_bin_sizes, [img_bin_size])
+        append!(img_orbits, [img_orbit])
+        append!(img_titles, [img_title])
+        append!(img_kind_ordrs, img_kind_ordr)
+    end
+
+    image_path_df = DataFrame(
+                                path=paths,
+                                bin_times=img_bin_times,
+                                kinds=img_kinds,
+                                bin_size=img_bin_sizes,
+                                img_orbit=img_orbits,
+                                img_title=img_titles,
+                                img_kind_ordr=img_kind_ordrs
+                            )
+end
+
 function _webgen_subpage(mission_name, obs_row)
     obsid = obs_row[1, :obsid] 
 
@@ -42,10 +162,15 @@ function _webgen_subpage(mission_name, obs_row)
     results_page_dir = replace(results_page_dir, "//"=>"/")
     JAXTAM_path_web = joinpath(results_page_dir, "JAXTAM")
 
-    img_dir_lcurve = "./JAXTAM/lc/1/images/lcurve.png"
-    img_dir_fspec  = "./JAXTAM/lc/0.0009765625/images/fspec.png"
+    img_details = _webgen_subpage_findimg(JAXTAM_path)
+    img_details = sort(img_details, (:img_orbit, :img_kind_ordr))
+    img_tuple   = [img[:img_title]=>img[:path] for img in DataFrames.eachrow(img_details)]
+    img_dict    = OrderedDict(img_tuple)
 
-    img_dict = Dict("Light Curve"=>img_dir_lcurve, "Power Spectra"=>img_dir_fspec)
+    # img_dir_lcurve = "./JAXTAM/lc/1/images/lcurve.png"
+    # img_dir_fspec  = "./JAXTAM/lc/0.0009765625/images/fspec.png"
+
+    # img_dict = Dict("Light Curve"=>img_dir_lcurve, "Power Spectra"=>img_dir_fspec)
 
     html_out = html(
         _webgen_head(;title_in="$mission_name - $obsid - Results"),
@@ -59,6 +184,7 @@ function _webgen_subpage(mission_name, obs_row)
     !islink(JAXTAM_path_web) ? symlink(JAXTAM_path, JAXTAM_path_web) : ""
     
     write(joinpath(results_page_dir, "result.html"), string(Pretty(html_out)))
+    println(results_page_dir)
 end
 
 function webgen_subpage(mission_name, obsid)

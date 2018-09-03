@@ -11,6 +11,7 @@ using FITSIO
 using Arrow
 using Feather
 using NamedTuples
+using DataStructures
 
 using FFTW
 using Statistics

@@ -1,21 +1,19 @@
 # Helper functions
 
-function _savefig_obsdir(obs_row, mission_name, obsid, bin_time, bin_size, subfolder, fig_name)
-    if bin_size == NaN
-        plot_dir = joinpath(obs_row[1, :obs_path], "JAXTAM/lc/$bin_time/images/$(bin_time*bin_size)/", subfolder)
-    else
-        plot_dir = joinpath(obs_row[1, :obs_path], "JAXTAM/lc/$bin_time/images/", subfolder)
-    end
+function _savefig_obsdir(obs_row, mission_name, obsid, bin_time, subfolder, fig_name)
+    plot_dir = joinpath(obs_row[1, :obs_path], "JAXTAM/lc/$bin_time/images/", subfolder)
+
+    plot_path = joinpath(plot_dir, fig_name)
 
     mkpath(plot_dir)
-    savefig(joinpath(plot_dir, fig_name))
 
-    @info "Saved $(joinpath(plot_dir, fig_name))"
+    savefig(plot_path)
+    @info "Saved $(plot_path)"
 end
 
-function _savefig_obsdir(mission_name, obsid, bin_time, bin_size, fig_name)
+function _savefig_obsdir(mission_name, obsid, bin_time, fig_name)
     obs_row = master_query(mission_name, :obsid, obsid)
-    _savefig_obsdir(obs_row, mission_name, obsid, bin_time, bin_size, fig_name)
+    _savefig_obsdir(obs_row, mission_name, obsid, bin_time, fig_name)
 end
 
 function _pull_data(instrument_data::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}})
@@ -26,7 +24,7 @@ function _pull_data(instrument_data::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}})
     return row1
 end
 
-function _pull_data(instrument_data::Dict{Symbol,JAXTAM.BinnedData})
+function _pull_data(instrument_data::Union{Dict{Symbol,JAXTAM.BinnedData},Dict{Symbol,JAXTAM.PgramData}})
     inst1 = collect(keys(instrument_data))[1]
     row1  = instrument_data[inst1]
 
@@ -84,7 +82,7 @@ function plot(instrument_data::Dict{Symbol,JAXTAM.BinnedData}; size_in=(1140,400
     if(save_plt)
         example_lc = _pull_data(instrument_data)
         obs_row    = master_query(example_lc.mission, :obsid, example_lc.obsid)
-        _savefig_obsdir(obs_row, example_lc.mission, example_lc.obsid, example_lc.bin_time, NaN, "lc", "lcurve.png")
+        _savefig_obsdir(obs_row, example_lc.mission, example_lc.obsid, example_lc.bin_time, "lc", "lcurve.png")
     end
 
     return Plots.plot!(size=size_in)
@@ -119,7 +117,7 @@ function plot_orbits(instrument_data::Dict{Symbol,JAXTAM.BinnedData}; size_in=(1
                     title_append=title_append)
 
             if save_plt
-                _savefig_obsdir(obs_row, orbit_lc.mission, orbit_lc.obsid, orbit_lc.bin_time, NaN, "lc/orbits/", "$(orbit)_lcurve.png")
+                _savefig_obsdir(obs_row, orbit_lc.mission, orbit_lc.obsid, orbit_lc.bin_time, "lc/orbits/", "$(orbit)_lcurve.png")
             end
         end
 
@@ -186,7 +184,7 @@ function plot!(data::FFTData; title_append="", norm=:rms, rebin=(:log10, 0.01),
         title="FFT - $(data.obsid) - 2^$(bin_time_pow2) bt - $(data.bin_size*data.bin_time) bs - $rebin rebin - $(data.bin_count) sections averaged $title_append")
 
     if(save_plt)
-        _savefig_obsdir(data.mission, data.obsid, data.bin_time, data.bin_size, "fspec.png")
+        _savefig_obsdir(data.mission, data.obsid, data.bin_time, "fspec.png")
     end
 
     return Plots.plot!(size=size_in)
@@ -208,7 +206,7 @@ function plot(instrument_data::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}}; title_ap
     if(save_plt)
         example_gti = _pull_data(instrument_data)
         obs_row    = master_query(example_gti.mission, :obsid, example_gti.obsid)
-        _savefig_obsdir(obs_row, example_gti.mission, example_gti.obsid, example_gti.bin_time, NaN, "fspec/$(example_gti.bin_size*example_gti.bin_time)", "fspec.png")
+        _savefig_obsdir(obs_row, example_gti.mission, example_gti.obsid, example_gti.bin_time, "fspec/$(example_gti.bin_size*example_gti.bin_time)", "fspec.png")
     end
 
     return Plots.plot!(size=size_in)
@@ -228,8 +226,9 @@ function plot_orbits(instrument_data::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}};
         available_orbits = unique([gti.orbit for gti in values(instrument_data[instrument])])
         available_orbits = available_orbits[available_orbits .>= 0] # Excluse -1, -2, etc... for scrunched/mean FFTData
 
+        instrument_orbit_plots = Dict{Int64,Plots.Plot}()
+
         for orbit in available_orbits
-            instrument_orbit_plots = Dict{Int64,Plots.Plot}()
             instrument_data_orbit = Dict{Int64,JAXTAM.FFTData}()
             gtis_in_orbit = [gti.gti_index for gti in values(instrument_data[instrument]) if gti.orbit == orbit]
 
@@ -252,8 +251,10 @@ function plot_orbits(instrument_data::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}};
             
             if save_plt
                 data = instrument_data_orbit[gtis_in_orbit[1]]
-                _savefig_obsdir(obs_row, data.mission, data.obsid, data.bin_time, data.bin_size, "fspec/$(data.bin_size.*data.bin_time)/orbits/", "$(orbit)_fspec.png")
+                _savefig_obsdir(obs_row, data.mission, data.obsid, data.bin_time,
+                    "fspec/$(data.bin_size.*data.bin_time)/orbits/", "$(orbit)_fspec.png")
             end
+
         end
 
         orbit_plots[instrument] = instrument_orbit_plots
@@ -265,7 +266,7 @@ end
 # Periodogram plotting functions
 
 function plot!(data::PgramData; title_append="", rebin=(:linear, 10),
-        lab="", logx=true, logy=true, size_in=(1140,600), save_plt=false
+        lab="", logx=true, logy=true, size_in=(1140,600)
     )
     bin_time_pow2 = Int(log2(data.bin_time))
 
@@ -279,16 +280,33 @@ function plot!(data::PgramData; title_append="", rebin=(:linear, 10),
 
     ylab = "Amplitude"
 
-    Plots.plot!(freqs, powers, color=:black, ylab=ylab, lab=lab)
+    Plots.plot!(freqs, powers, color=:black, ylab=ylab, lab="$lab - $(data.pg_type)")
 
     Plots.plot!(xlab="Freq (Hz)", alpha=1,
         title="Periodogram - $(data.obsid) - 2^$(bin_time_pow2) bt - $rebin rebin")
 
     logy ? yaxis!(:log10) : ""
 
-    if(save_plt)
-        _savefig_obsdir(data.mission, data.obsid, data.bin_time, data.bin_size, "fspec.png")
+    return Plots.plot!(size=size_in)
+end
+
+function plot(instrument_data::Dict{Symbol,JAXTAM.PgramData};
+        rebin=(:linear, 1), logx=false, logy=true, save_plt=true,
+        size_in=(1140,400), title_append="")
+
+    instruments = keys(instrument_data)
+
+    plt = Plots.plot()
+
+    for instrument in instruments
+        plt = plot!(instrument_data[instrument], lab=string(instrument),
+            rebin=rebin, size_in=size_in, logx=logx, logy=logy)
     end
 
-    return Plots.plot!(size=size_in)
+    if save_plt
+        example_pgram = _pull_data(instrument_data)
+        obs_row       = master_query(example_pgram.mission, :obsid, example_pgram.obsid)
+        _savefig_obsdir(obs_row, example_pgram.mission, example_pgram.obsid, example_pgram.bin_time,
+            "pgram", "$(example_pgram.pg_type)_pgram.png")
+    end
 end
