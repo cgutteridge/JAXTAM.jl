@@ -184,11 +184,47 @@ function _webgen_subpage(mission_name, obs_row)
     !islink(JAXTAM_path_web) ? symlink(JAXTAM_path, JAXTAM_path_web) : ""
     
     write(joinpath(results_page_dir, "result.html"), string(Pretty(html_out)))
-    println(results_page_dir)
+    return joinpath(results_page_dir, "result.html")
 end
 
 function webgen_subpage(mission_name, obsid)
     obs_row = master_query(mission_name, :obsid, obsid)
+
+    return _webgen_subpage(mission_name, obs_row)
+end
+
+function report(mission_name, obsid)
+    obs_row = master_query(mission_name, :obsid, obsid)
+
+    obsid = obs_row[1, :obsid] 
+
+    obs_dir  = _clean_path_dots(config(mission_name).path_obs(obs_row))
+    obs_path = string(config(mission_name).path, obs_dir)
+    obs_path = replace(obs_path, "//"=>"/")
+    JAXTAM_path = joinpath(obs_path, "JAXTAM")
+
+    if isdir(JAXTAM_path)
+        images = _webgen_subpage_findimg(JAXTAM_path)
+    else
+        images = []
+    end
+
+    if size(images, 1) < 1
+        lc = lcurve(mission_name, obs_row, 2.0^0)
+        JAXTAM.plot(lc); JAXTAM.plot_orbits(lc)
+        pgf = pgram(lc); JAXTAM.plot(pgf);
+        lc = 0; GC.gc()
+
+        lcurve(mission_name, obs_row, 2.0^-13); gc()
+
+        fs = fspec(mission_name, obs_row, 2.0^-13, 128)
+        JAXTAM.plot(fs); JAXTAM.plot_orbits(fs)
+        fs = 0; GC.gc()
+
+        fs = fspec(mission_name, obs_row, 2.0^-13, 64)
+        JAXTAM.plot(fs); JAXTAM.plot_orbits(fs)
+        fs = 0; GC.gc()
+    end
 
     return _webgen_subpage(mission_name, obs_row)
 end

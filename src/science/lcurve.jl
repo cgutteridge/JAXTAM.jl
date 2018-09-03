@@ -16,7 +16,12 @@ function _lcurve_filter_time(event_times::Arrow.Primitive{Float64}, event_energi
         # Times within tolerence
     else
         start_time_idx = findfirst(event_times .> start_time)
-        stop_time_idx  = findfirst(event_times .>= stop_time) - 1
+        stop_time_idx  = findfirst(event_times .>= stop_time)
+        if stop_time_idx == nothing
+            stop_time_idx = length(event_times)
+        else
+            stop_time_idx = stop_time_idx - 1
+        end
         event_times    = event_times[start_time_idx:stop_time_idx]
         event_energies = event_energies[start_time_idx:stop_time_idx]
     end
@@ -207,6 +212,7 @@ function lcurve(mission_name::Symbol, obs_row::DataFrame, bin_time::Number; over
     if JAXTAM_c_files == 0
         @warn "No calibrated files found, running calibration"
         calibrate(mission_name, obs_row)
+        return lcurve(mission_name, obs_row, bin_time; overwrite=overwrite)
     end
 
     if (JAXTAM_c_files > 0 && JAXTAM_c_files > JAXTAM_lc_files) || (JAXTAM_c_files > 0 && overwrite)
