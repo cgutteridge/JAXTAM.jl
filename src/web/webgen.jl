@@ -1,4 +1,4 @@
-@tags html head body title meta div p h1 h2 h3 h4 hr intro table thead tbody tr th td img
+@tags html head body title meta div p h1 h2 h3 h4 hr intro table thead tbody tr th td img a
 @tags_noescape script
 @tags intro
 
@@ -36,11 +36,28 @@ function _webgen_home_intro(mission_name::Symbol)
     )
 end
 
+function _add_obsid_url(obsid, results_path)
+    results_exist = results_path .!= "NA"
+
+    obsid_url = Array{Union{Hyperscript.Node{Hyperscript.HTMLSVG},String},1}(undef, size(results_exist, 1))
+
+    obsid_url[results_exist] = [a(obsid[i], href=results_path[i]) for i in findall(results_exist)]
+    obsid_url[results_exist .!= true] = obsid[results_exist .!= true]
+
+    return obsid_url
+end
+
 function _webgen_table(df::DataFrames.DataFrame; table_id="example")
-    headers = names(df)
-
+    if :obsid in names(df)
+        obsid_url = _add_obsid_url(df[:obsid], df[:results_path])
+        delete!(df, [:obsid, :results_path])
+        df[:obsid] = obsid_url
+        permutecols!(df, [:obsid; names(df)[1:end-1][:]])
+    end
+    
     rows, cols = size(df)
-
+    headers = names(df)
+    
     node_table = div(class="container",
         table(id=table_id, class="table table-striped table-bordered", style="width:100%", 
             thead(
@@ -64,7 +81,7 @@ function webgen_mission(mission_name::Symbol)
         _webgen_head(;title_in="JAXTAM $mission_name homepage"),
         body(
             _webgen_home_intro(mission_name),
-            _webgen_table(master_a(mission_name)[:, [:name, :obsid, :subject_category, :obs_type, :publicity]])
+            _webgen_table(master_a(mission_name)[:, [:name, :obsid, :subject_category, :obs_type, :publicity, :downloaded, :analysed, :time, :results_path]])
         )
     )
 

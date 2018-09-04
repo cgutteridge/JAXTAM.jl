@@ -226,5 +226,9 @@ function report(mission_name, obsid)
         fs = 0; GC.gc()
     end
 
-    return _webgen_subpage(mission_name, obs_row)
+    sp =  _webgen_subpage(mission_name, obs_row)
+
+    webgen_mission(mission_name)
+
+    return sp
 end

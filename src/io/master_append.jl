@@ -71,20 +71,24 @@ function _add_append_analysed!(append_df, mission_name)
     return append_df[:analysed] = append_analysed
 end
 
-function _add_append_imagelog!(append_df, mission_name)
+function _add_append_results!(append_df, mission_name)
     append_imagelog = Array{String,1}(undef, size(append_df, 1))
 
+    path_obs = config(mission_name).path
+    path_web = config(mission_name).path_web
+
     for (i, obspath) in enumerate(append_df[:obs_path])
-        imagelog_path = joinpath(obspath, "JAXTAM/image_log.jld2")
-        if isfile(imagelog_path)
-            append_imagelog[i] = imagelog_path
+        results_page_dir = replace(obspath, path_obs => path_web)
+        results_page_path = joinpath(results_page_dir, "result.html")
+        if isfile(results_page_path)
+            append_imagelog[i] = results_page_path
         else
             append_imagelog[i] = "NA"
         end
         
     end
 
-    return append_df[:image_log] = append_imagelog
+    return append_df[:results_path] = append_imagelog
 end
 
 function _append_gen(mission_name, master_df)
@@ -96,7 +100,7 @@ function _append_gen(mission_name, master_df)
     _add_append_cl!(append_df, master_df, mission_name)
     _add_append_downloaded!(append_df, mission_name)
     _add_append_analysed!(append_df, mission_name)
-    _add_append_imagelog!(append_df, mission_name)
+    _add_append_results!(append_df, mission_name)
 
     return append_df
 end
