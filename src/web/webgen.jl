@@ -73,6 +73,8 @@ function _webgen_table(df::DataFrames.DataFrame; table_id="example")
 end
 
 function webgen_mission(mission_name::Symbol)
+    append_update(mission_name)
+    
     web_dir = config(mission_name).path_web
     
     web_home_dir  = joinpath(web_dir, "index.html")

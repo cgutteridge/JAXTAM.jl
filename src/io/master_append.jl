@@ -72,7 +72,7 @@ function _add_append_analysed!(append_df, mission_name)
 end
 
 function _add_append_results!(append_df, mission_name)
-    append_imagelog = Array{String,1}(undef, size(append_df, 1))
+    append_resultspath = Array{String,1}(undef, size(append_df, 1))
 
     path_obs = config(mission_name).path
     path_web = config(mission_name).path_web
@@ -81,14 +81,14 @@ function _add_append_results!(append_df, mission_name)
         results_page_dir = replace(obspath, path_obs => path_web)
         results_page_path = joinpath(results_page_dir, "result.html")
         if isfile(results_page_path)
-            append_imagelog[i] = results_page_path
+            append_resultspath[i] = replace(results_page_path, path_web => "./")
         else
-            append_imagelog[i] = "NA"
+            append_resultspath[i] = "NA"
         end
         
     end
 
-    return append_df[:results_path] = append_imagelog
+    return append_df[:results_path] = append_resultspath
 end
 
 function _append_gen(mission_name, master_df)
