@@ -131,7 +131,7 @@ end
 
 function plot!(data::FFTData; title_append="", norm=:rms, rebin=(:log10, 0.01),
         lab="", logx=true, logy=true, show_errors=true,
-        size_in=(1140,600), save_plt=true
+        size_in=(1140,600), save_plt=false
     )
     bin_time_pow2 = Int(log2(data.bin_time))
 

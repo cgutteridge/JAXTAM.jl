@@ -208,7 +208,7 @@ function fspec(mission_name::Symbol, gtis::Dict{Symbol,Dict{Int64,JAXTAM.GTIData
 end
 
 function fspec(mission_name::Symbol, obs_row::DataFrames.DataFrame, bin_time::Real, fspec_bin::Real;
-        overwrite_fs=false, overwrite_gtis=false, save_fspec=false, pow2=true, fspec_bin_type=:time, scrunched=true)
+        overwrite_fs=true, overwrite_gtis=true, save_fspec=false, pow2=true, fspec_bin_type=:time, scrunched=true)
     obsid       = obs_row[:obsid][1]
     instruments = Symbol.(config(mission_name).instruments)
 

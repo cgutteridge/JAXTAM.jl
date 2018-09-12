@@ -45,6 +45,7 @@ include("science/gtis.jl")
 include("science/fspec.jl")
 include("science/pgram.jl")
 include("science/plots.jl")
+include("science/sgram.jl")
 include("web/webgen.jl")
 include("web/subgen.jl")
 
