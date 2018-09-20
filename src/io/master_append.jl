@@ -1,7 +1,18 @@
+"""
+    _build_append(master_df)
+
+First step in creating append table, just returns the `obsid` column from
+a missions master table
+"""
 function _build_append(master_df)
     return DataFrame(obsid=master_df[:obsid])
 end
 
+"""
+    _add_append_publicity!(append_df, master_df)
+
+Returns column of `Union{Bool,Missing}`, true if `public_date <=`now()`
+"""
 function _add_append_publicity!(append_df, master_df)
     append_publicity = Array{Union{Bool,Missing},1}(undef, size(append_df, 1))
 

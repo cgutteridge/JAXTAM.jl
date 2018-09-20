@@ -1,3 +1,9 @@
+"""
+    _master_download(master_path, master_url)
+
+Downloads (and unzips) a master table from HEASARC given its `url`
+and a destination `path`
+"""
 function _master_download(master_path, master_url)
     @info "Downloading latest master catalog"
     Base.download(master_url, master_path)
@@ -6,6 +12,14 @@ function _master_download(master_path, master_url)
     unzip!(master_path)
 end
 
+"""
+    _type_master_df!(master_df)
+
+Slightly janky way to strongly type columns in the master table, this
+needs to be done to ensure the `.feather` file is saved/read correctly
+
+TODO: Make this less... stupid
+"""
 function _type_master_df!(master_df)
     pairs = Dict(:name=>string, :ra=>float, :dec=>float, :lii=>float, :bii=>float, :roll_angle=>float,
         :time=>Dates.DateTime, :end_time=>Dates.DateTime, :obsid=>string, :exposure=>float, :exposure_a=>float,
@@ -38,7 +52,8 @@ end
 
 Reads a raw `.tdat` table from HEASARC mastertable archives,
 parses the ASCII data, finds and stores column names, cleans punctuation,
-converts to `DataFrame`, and finally returns cleaned table as `DataFrame`
+converts to `DataFrame`, strongly types the columsn, and finally returns
+cleaned table as `DataFrame`
 """
 function _master_read_tdat(master_path::String)
     master_ascii = readdlm(master_path, '\n')
@@ -100,13 +115,17 @@ end
 """
     _master_save(master_path_feather, master_data)
 
-Saves the `DataFrame` master table to a `.jld` file, under the
-key `master_data`
+Saves the `DataFrame` master table to a `.feather` file
 """
 function _master_save(master_path_feather, master_data)
     Feather.write(master_path_feather, master_data)
 end
 
+"""
+    master_update(mission_name::Union{String,Symbol})
+
+Downloads mastertable from HEASARC and overwrites old conerted tables
+"""
 function master_update(mission_name::Union{String,Symbol})
     mission = _config_key_value(mission_name)
     master_path_tdat = string(mission.path, "master.tdat")
@@ -124,6 +143,11 @@ function master_update(mission_name::Union{String,Symbol})
     _master_save(master_path_feather, master_data)
 end
 
+"""
+    master_update()
+
+Calls `master_update(mission_name::Union{String,Symbol})` using the `:default` mission
+"""
 function master_update()
     mission_name = _config_key_value(:default)
 
@@ -191,11 +215,12 @@ end
 """
     master_query(master_df::DataFrame, key_type::Symbol, key_value::Any)
 
-
 Wrapper for a query, takes in an already loaded DataFrame `master_df`, a `key_type` to
 search over (e.g. `obsid`), and a `key_value` to find (e.g. `0123456789`)
 
 Returns the full row for any observations matching the search criteria
+
+TODO: Fix the DataValue bug properly
 """
 function master_query(master_df::DataFrame, key_type::Symbol, key_value::Any)
     observations = filter(row -> row[key_type] == key_value, master_df)
@@ -206,7 +231,7 @@ function master_query(master_df::DataFrame, key_type::Symbol, key_value::Any)
 
     # Some DataFrames update changed the types of data to DataValue
     # screws with functions later on which convert the values to strings
-    # use get here to get them out of the DataVakue type, wrapped in try
+    # use get here to get them out of the DataValue type, wrapped in try
     # for any cases where these columns don't exist in the master dataframe
     try; observations[:obsid] = get(observations[:obsid][1]); catch; end
     try; observations[:time] = get(observations[:time][1]); catch; end
@@ -214,11 +239,25 @@ function master_query(master_df::DataFrame, key_type::Symbol, key_value::Any)
     return observations
 end
 
+"""
+    master_query(mission_name::Symbol, key_type::Symbol, key_value::Any)
+
+Calls `master_query(master_df::DataFrame, key_type::Symbol, key_value::Any)` by
+loading the master and append tables for `mission_name`
+"""
 function master_query(mission_name::Symbol, key_type::Symbol, key_value::Any)
 
     return master_query(master_a(mission_name), key_type, key_value)
 end
 
+"""
+    _public_date_int(public_date)
+
+Converts the public date to an integer, if that fails just returns the
+arbitrary sort-of-far-away `2e10` date
+
+TODO: Don't return 2e10 on Float64 parse error
+"""
 function _public_date_int(public_date)
     public_date = get(public_date)
     try
@@ -228,6 +267,11 @@ function _public_date_int(public_date)
     end
 end
 
+"""
+    master_query_public(master_df::DataFrame, key_type::Symbol, key_value::Any)
+
+Calls `master_query` for given query, but restricted to currently public observations
+"""
 function master_query_public(master_df::DataFrame, key_type::Symbol, key_value::Any)
     observations = filter(row -> row[key_type] == key_value, master_df)
     observations = filter(row -> convert(DateTime, row[:public_date]) < now(), observations)
@@ -239,18 +283,35 @@ function master_query_public(master_df::DataFrame, key_type::Symbol, key_value::
     return observations
 end
 
+"""
+    master_query_public(mission_name::Symbol, key_type::Symbol, key_value::Any)
+
+Loads mission master table, then calls
+`master_query_public(master_df::DataFrame, key_type::Symbol, key_value::Any)`
+"""
 function master_query_public(mission_name::Symbol, key_type::Symbol, key_value::Any)
     master_df = master(mission_name)
 
     return master_query_public(master_df, key_type, key_value)
 end
 
+"""
+    master_query_public(master_df::DataFrame)
+
+Returns all the currently public observations in `master_df`
+"""
 function master_query_public(master_df::DataFrame)
     observations = filter(row -> convert(DateTime, row[:public_date]) < now(), master_df)
 
     return observations
 end
 
+"""
+    master_query_public(mission_name::Symbol)
+
+Loads master table for `mission_name`, calls `master_query_public(master_df::DataFrame)`
+returning all currently public observations
+"""
 function master_query_public(mission_name::Symbol)
     master_df = master_a(mission_name)
 

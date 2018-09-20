@@ -1,5 +1,6 @@
 # NuSTAR Mission Definition
 # Good energy range: 3 - 78.4 keV
+# Refer to `mission_nicer.jl` for documentation, concept behind functions is identical
 
 function _nustar_observation_dir(obs_row::DataFrames.DataFrame)
     obsid = obs_row[:obsid][1]

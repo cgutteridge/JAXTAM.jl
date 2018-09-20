@@ -9,10 +9,6 @@ include("mission_nustar.jl")
 Function returning dictionary of some pre-set HEASARC missions,
 using the `MissionDefinition` type. Name and heasarc url pre-set,
 mission path is left as blank string
-
-NB: JLD cannot save functions as of 0.5.0+, instead an expression
-is saved, which then calls a function in the JAXTAM package. Thus send
-a PR if you want another dir function to be added to JAXTAM
 """
 function _get_default_missions()
     mission_nicer = MissionDefinition("nicer",

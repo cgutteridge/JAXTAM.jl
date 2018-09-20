@@ -1,8 +1,8 @@
 """
     MissionDefinition
 
-Type holding critical mission variables: mission name,
-HEASARC mastertable url, and mission folder path
+Type holding mission specific variables and functions, either set manually or
+pulled from the `default_missions.jl`.
 """
 mutable struct MissionDefinition
     name::String

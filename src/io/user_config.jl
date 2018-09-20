@@ -2,9 +2,11 @@
     _config_gen(string(__sourcedir__, "user_configs.jld2"))
 
 Generates a user configuration file at `config_path`,
-by default, file is placed in the JAXTAM module dir.
+by default, file is placed in the JAXTAM module dir
 
-Config file is `/user_configs.jld2`, excluded from git.
+Config file is `/user_configs.jld2`, excluded from git
+
+Also used to overwrite the old config file
 """
 function _config_gen(config_path=string(__sourcedir__, "user_configs.jld2"))
     if isfile(config_path)
@@ -24,7 +26,7 @@ end
 """
     _config_load(config_path=string(__sourcedir__, "user_configs.jld2"))
 
-Loads data from the configuration file.
+Loads data from the configuration file
 """
 function _config_load(config_path=string(__sourcedir__, "user_configs.jld2"))
     if !isfile(config_path)
@@ -38,6 +40,8 @@ end
 """
     _config_edit(key_name::String, key_value::String;
             config_path=string(__sourcedir__, "user_configs.jld2"))
+
+Edits (or adds) `key_name` to `key_value` in the config file
 """
 function _config_edit(key_name::Symbol, key_value,
         config_path=string(__sourcedir__, "user_configs.jld2"))
@@ -58,8 +62,7 @@ end
     _config_rm(key_name::String;
             config_path=string(__sourcedir__, "user_configs.jld2"))
 
-Removes a the key `key_name` from the configuration file,
-then saves the changes.
+Removes a the key `key_name` from the configuration file
 """
 function _config_rm(key_name::Symbol, config_path=string(__sourcedir__, "user_configs.jld2"))
 
@@ -75,8 +78,8 @@ function _config_rm(key_name::Symbol, config_path=string(__sourcedir__, "user_co
 end
 
 """
-    _config_key_value(key_name::Union{String,Symbol}, config_path=string(__sourcedir__, "user_configs.jld2"))
-        config_data = _config_load(config_path)
+    _config_key_value(key_name::Symbol,
+        config_path=string(__sourcedir__, "user_configs.jld2"))
 
 Loads and returns the value for `key_name`
 """
