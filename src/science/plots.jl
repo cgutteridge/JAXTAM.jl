@@ -63,11 +63,13 @@ function plot!(data::BinnedData; lab="", size_in=(1140,400), save_plt=true, titl
         yaxis!(yformatter=yi->yi)
     end
 
+    Plots.plot!(size=size_in)
+
     if(save_plt)
         _savefig_obsdir(data.mission, data.obsid, data.bin_time, NaN, "lc", "$(data.instrument)_lcurve.png")
     end
 
-    return Plots.plot!(size=size_in)
+    return Plots.plot!()
 end
 
 function plot(instrument_data::Dict{Symbol,JAXTAM.BinnedData}; size_in=(1140,400), save_plt=true, title_append="")
@@ -114,7 +116,7 @@ function plot_orbits(instrument_data::Dict{Symbol,JAXTAM.BinnedData}; size_in=(1
             end
 
             instrument_orbit_plots[orbit] = plot(Dict(instrument=>orbit_lc); save_plt=false,
-                    title_append=title_append)
+                    title_append=title_append, size_in=size_in)
 
             if save_plt
                 _savefig_obsdir(obs_row, orbit_lc.mission, orbit_lc.obsid, orbit_lc.bin_time, "lc/orbits/", "$(orbit)_lcurve.png")
