@@ -1,5 +1,5 @@
 @tags html head body title meta div p h1 h2 h3 h4 hr intro table thead tbody tr th td img a
-@tags_noescape script
+@tags_noescape script style
 @tags intro
 
 function _webgen_head(;title_in="")

@@ -1,3 +1,165 @@
+function _webgen_subpage_css()
+    @tags_noescape style
+
+    style("
+        #slider{
+            width:100%;
+            height:1000px;
+            position:relative;
+            overflow:hidden;
+            float:left;
+            padding:0;
+        }
+
+        .slide{
+            position:absolute;
+            width:100%;
+            height:100%;
+        }
+
+        .slide-copy{
+            position:absolute;
+            bottom:0;
+            left:0;
+            padding:10px 20px 20px 20px;
+            background:7f7f7f;
+            background: rgba(0,0,0,0.5);
+            width:100%;
+            max-height:32%;
+        }
+
+        #prev, #next{
+            cursor:pointer;
+            z-index:100;
+            background:#666;
+            height:50px;
+            width:50px;
+            display:inline-block;
+            position:relative;
+            top:197px;
+            margin:0;
+            padding:0;
+            opacity:0.7;
+            filter: alpha(opacity=70);
+        }
+
+        #next{
+            float:right;
+            right:-2px;
+        }
+
+        #prev{
+            float:left;
+            left:0;
+        }
+
+        .arrow-right {
+            width: 0; 
+            height: 0; 
+            border-top: 15px solid transparent;
+            border-bottom: 15px solid transparent;	
+            border-left: 15px solid #fff;
+            position:relative;
+            top:20%;
+            right:-40%;
+        }
+
+        .arrow-left {
+            width: 0;  
+            height: 0; 
+            border-top: 15px solid transparent;
+            border-bottom: 15px solid transparent;	
+            border-right:15px solid #fff; 
+            position:relative;
+            top:20%;
+            left:30%;
+        }
+    "; class="init", :type=>"text/css")
+end
+
+function _webpage_subgen_slider_js()
+    script("
+    \$(document).ready(function() {
+        // options
+        var speed = 100; //transition speed - fade
+        var autoswitch = false; //auto slider options
+        var autoswitch_speed = 5000; //auto slider speed
+
+        // add first initial active class
+        \$(\".slide\")
+          .first()
+          .addClass(\"active\");
+
+        // hide all slides
+        \$(\".slide\").hide;
+
+        // show only active class slide
+        \$(\".active\").show();
+
+        // Next Event Handler
+        \$(\"#next\").on(\"click\", nextSlide); // call function nextSlide
+
+        // Prev Event Handler
+        \$(\"#prev\").on(\"click\", prevSlide); // call function prevSlide
+
+        document.onkeydown = function(evt) {
+            evt = evt || window.event;
+            switch (evt.keyCode) {
+                case 37:
+                    prevSlide();
+                    break;
+                case 39:
+                    nextSlide();
+                    break;
+            }
+        };
+
+        // Auto Slider Handler
+        if (autoswitch == true) {
+          setInterval(nextSlide, autoswitch_speed); // call function and value 4000
+        }
+
+        // Switch to next slide
+        function nextSlide() {
+          \$(\".active\")
+            .removeClass(\"active\")
+            .addClass(\"oldActive\");
+          if (\$(\".oldActive\").is(\":last-child\")) {
+            \$(\".slide\")
+              .first()
+              .addClass(\"active\");
+          } else {
+            \$(\".oldActive\")
+              .next()
+              .addClass(\"active\");
+          }
+          \$(\".oldActive\").removeClass(\"oldActive\");
+          \$(\".slide\").fadeOut(speed);
+          \$(\".active\").fadeIn(speed);
+        }
+
+        // Switch to prev slide
+        function prevSlide() {
+          \$(\".active\")
+            .removeClass(\"active\")
+            .addClass(\"oldActive\");
+          if (\$(\".oldActive\").is(\":first-child\")) {
+            \$(\".slide\")
+              .last()
+              .addClass(\"active\");
+          } else {
+            \$(\".oldActive\")
+              .prev()
+              .addClass(\"active\");
+          }
+          \$(\".oldActive\").removeClass(\"oldActive\");
+          \$(\".slide\").fadeOut(speed);
+          \$(\".active\").fadeIn(speed);
+        }
+      });
+    ")
+end
+
 function _webgen_results_intro(obs_row)
     obsid = obs_row[1, :obsid]
     name  = obs_row[1, :name]
@@ -16,17 +178,8 @@ function _webgen_results_intro(obs_row)
             h4("Observation Details"),
             _webgen_table(obs_row[: ,[:time, :end_time, :exposure, :remarks]]; table_id=""),
             h4("Misc"),
-            _webgen_table(obs_row[[:processing_status, :processing_date, :processing_version, :num_processed, :caldb_version, :remarks]], table_id="")
+            _webgen_table(obs_row[[:processing_status, :processing_date, :processing_version, :num_processed, :caldb_version]], table_id="")
         )
-    )
-end
-
-function _webgen_results_body(obs_row; img_dict=Dict())
-
-    node_body = div(class="container",
-        hr(),
-        h2("Plots"),
-        [(h4(imgpair[1]), img(src=imgpair[2])) for imgpair in img_dict]
     )
 end
 
@@ -150,6 +303,47 @@ function _webgen_subpage_findimg(JAXTAM_path)
                             )
 end
 
+function _webgen_results_body(obs_row; img_dict=Dict())
+    node_body = div(class="container",
+        hr(),
+        h2("Plots"),
+        [(h4(imgpair[1]), img(src=imgpair[2])) for imgpair in img_dict]
+    )
+end
+
+function _webgen_results_body_orbits(obs_row, img_df)
+    orbits = unique(img_df[:img_orbit])
+
+    orbit_container = Array{Hyperscript.Node{Hyperscript.HTMLSVG},1}()
+    
+    for orbit in orbits
+        orbit_images = filter(x->x[:img_orbit]==orbit, img_df)
+        
+        node_orbit = div(class="slide",
+            div(class="container",
+                h4("Orbit - $orbit"),
+                [(img(src=row[:path])) for row in DataFrames.eachrow(orbit_images)]
+            )
+        )
+        
+        push!(orbit_container, node_orbit)
+    end
+
+    slider_node = div(id="container", 
+        div(id="next", ald="Next", title="Next", 
+            div(class="arrow-right")
+        ),
+        div(id="prev", alt="Prev", title="Prev",
+            div(class="arrow-left")
+        ),
+        h2("Per-Orbit Plots"),
+        div(id="slider"),
+        orbit_container
+    )
+    
+    return div(orbit_container)
+end
+
 function _webgen_subpage(mission_name, obs_row)
     obsid = obs_row[1, :obsid] 
 
@@ -163,20 +357,27 @@ function _webgen_subpage(mission_name, obs_row)
     JAXTAM_path_web = joinpath(results_page_dir, "JAXTAM")
 
     img_details = _webgen_subpage_findimg(JAXTAM_path)
-    img_details = sort(img_details, (:img_orbit, :img_kind_ordr))
-    img_tuple   = [img[:img_title]=>img[:path] for img in DataFrames.eachrow(img_details)]
-    img_dict    = OrderedDict(img_tuple)
 
-    # img_dir_lcurve = "./JAXTAM/lc/1/images/lcurve.png"
-    # img_dir_fspec  = "./JAXTAM/lc/0.0009765625/images/fspec.png"
+    img_details_overview = filter(x->x[:img_orbit] == 0, img_details)
+    img_details_overview = sort(img_details_overview, (:img_orbit, :img_kind_ordr))
 
-    # img_dict = Dict("Light Curve"=>img_dir_lcurve, "Power Spectra"=>img_dir_fspec)
+    img_details_orbits   = filter(x->x[:img_orbit] != 0, img_details)
+    img_details_orbits   = sort(img_details_orbits, (:img_orbit, :img_kind_ordr))
+
+    img_tuple_overview   = [img[:img_title]=>img[:path] for img in DataFrames.eachrow(img_details_overview)]
+    img_tuple_orbits     = [img[:img_title]=>img[:path] for img in DataFrames.eachrow(img_details_orbits)]
+
+    img_dict_overview    = OrderedDict(img_tuple_overview)
+    img_dict_orbits      = OrderedDict(img_tuple_orbits)
 
     html_out = html(
         _webgen_head(;title_in="$mission_name - $obsid - Results"),
+        _webgen_subpage_css(),
+        _webpage_subgen_slider_js(),
         body(
             _webgen_results_intro(obs_row),
-            _webgen_results_body(obs_row; img_dict=img_dict)
+            _webgen_results_body(obs_row; img_dict=img_dict_overview),
+            _webgen_results_body_orbits(obs_row, img_details_orbits)
         )
     )
 
@@ -193,7 +394,7 @@ function webgen_subpage(mission_name, obsid)
     return _webgen_subpage(mission_name, obs_row)
 end
 
-function report(mission_name, obsid)
+function report(mission_name, obsid; overwrite=false)
     obs_row = master_query(mission_name, :obsid, obsid)
 
     obsid = obs_row[1, :obsid] 
@@ -209,24 +410,24 @@ function report(mission_name, obsid)
         images = []
     end
 
-    if size(images, 1) < 1
+    if size(images, 1) < 1 || overwrite
         lc = lcurve(mission_name, obs_row, 2.0^0)
-        JAXTAM.plot(lc); JAXTAM.plot_orbits(lc)
+        JAXTAM.plot(lc); JAXTAM.plot_orbits(lc; size_in=(1140,400/2))
         pgf = pgram(lc); JAXTAM.plot(pgf);
         lc = 0; GC.gc()
 
         lcurve(mission_name, obs_row, 2.0^-13); gc()
 
         fs = fspec(mission_name, obs_row, 2.0^-13, 128)
-        JAXTAM.plot(fs); JAXTAM.plot_orbits(fs)
+        JAXTAM.plot(fs); JAXTAM.plot_orbits(fs; size_in=(1140,600/2))
         fs = 0; GC.gc()
 
         fs = fspec(mission_name, obs_row, 2.0^-13, 64)
-        JAXTAM.plot(fs); JAXTAM.plot_orbits(fs)
+        JAXTAM.plot(fs); JAXTAM.plot_orbits(fs; size_in=(1140,600/2))
         fs = 0; GC.gc()
     end
 
-    sp =  _webgen_subpage(mission_name, obs_row)
+    sp = _webgen_subpage(mission_name, obs_row)
 
     webgen_mission(mission_name)
 
