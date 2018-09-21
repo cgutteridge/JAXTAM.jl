@@ -27,7 +27,7 @@ function _sgram(lc::JAXTAM.BinnedData, stft_intervals=round(Int, 1024/(lc.bin_ti
         end
     end
 
-    sgrm = spectrogram(gti_only_counts, stft_intervals; fs=1/lc.bin_time)
+    sgrm = spectrogram(gti_only_counts, stft_intervals, 0; fs=1/lc.bin_time)
 
     sgram_pseudo_time = 1:size(sgrm.power, 2)
     sgram_freqs  = collect(sgrm.freq)
@@ -35,7 +35,7 @@ function _sgram(lc::JAXTAM.BinnedData, stft_intervals=round(Int, 1024/(lc.bin_ti
     sgram_powers[1, :] .= NaN
     sgram_powers[sgram_powers .== -Inf] .= NaN
 
-    heatmap(sgram_freqs, sgram_pseudo_time, sgram_powers', legend=false, size=(1140,400))
+    heatmap(sgram_freqs, sgram_pseudo_time, sgram_powers', legend=true, size=(1140,400))
 end
 
 function _stft(lc::JAXTAM.BinnedData, stft_intervals=round(Int, 1024/(lc.bin_time)))
@@ -62,5 +62,5 @@ function _stft(lc::JAXTAM.BinnedData, stft_intervals=round(Int, 1024/(lc.bin_tim
 
     dsp_stft[1, :] .= NaN # NaN 0 Hz
 
-    return heatmap(dsp_stft_freq, dsp_stft_time, dsp_stft', legend=false, size=(1140,400))
+    return heatmap(dsp_stft_freq, dsp_stft_time, dsp_stft', legend=true, size=(1140,400))
 end

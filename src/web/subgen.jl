@@ -416,7 +416,7 @@ function report(mission_name, obsid; overwrite=false)
         pgf = pgram(lc); JAXTAM.plot(pgf);
         lc = 0; GC.gc()
 
-        lcurve(mission_name, obs_row, 2.0^-13); gc()
+        lcurve(mission_name, obs_row, 2.0^-13); GC.gc()
 
         fs = fspec(mission_name, obs_row, 2.0^-13, 128)
         JAXTAM.plot(fs); JAXTAM.plot_orbits(fs; size_in=(1140,600/2))

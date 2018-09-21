@@ -1,5 +1,5 @@
 # NICER Mission Definition
-# Good energy range: 0.2 - 12 keV
+# Good energy range: 0.3 - 12 keV
 
 """
     _nicer_observation_dir(obs_row::DataFrames.DataFrame)

@@ -19,7 +19,7 @@ function _get_default_missions()
         JAXTAM._nicer_uf_files,
         string(ENV["CALDB"], "/data/nicer/xti/cpf/rmf/nixtiref20170601v001.rmf"),
         "mission_path_web",
-        0.2,
+        0.3,
         12,
         ["XTI"]
     )

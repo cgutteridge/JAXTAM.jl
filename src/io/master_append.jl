@@ -11,7 +11,7 @@ end
 """
     _add_append_publicity!(append_df, master_df)
 
-Returns column of `Union{Bool,Missing}`, true if `public_date <=`now()`
+Appends column of `Union{Bool,Missing}`, true if `public_date <=`now()`
 """
 function _add_append_publicity!(append_df, master_df)
     append_publicity = Array{Union{Bool,Missing},1}(undef, size(append_df, 1))
@@ -23,6 +23,11 @@ function _add_append_publicity!(append_df, master_df)
     return append_df[:publicity] = append_publicity
 end
 
+"""
+    _add_append_obspath!(append_df, master_df, mission_name)
+
+Appends column of `Union{String,Missing}`, with the **local** path to the observation
+"""
 function _add_append_obspath!(append_df, master_df, mission_name)
     obs_path_function = config(mission_name).path_obs
     mission_path = config(mission_name).path
@@ -35,6 +40,11 @@ function _add_append_obspath!(append_df, master_df, mission_name)
     return append_df[:obs_path] = append_obspath
 end
 
+"""
+    _add_append_uf!(append_df, master_df, mission_name)
+
+Appends column of Union{Tuple{String},Missing}, tuple of local paths to the uf files
+"""
 function _add_append_uf!(append_df, master_df, mission_name)
     append_uf = Array{Union{Tuple,Missing},1}(undef, size(append_df, 1))
     root_dir  = config(mission_name).path
@@ -47,6 +57,11 @@ function _add_append_uf!(append_df, master_df, mission_name)
     return append_df[:event_uf] = append_uf
 end
 
+"""
+    _add_append_cl!(append_df, master_df, mission_name)
+
+Appends column of `Union{Tuple{String},Missing}`, tuple of local paths to the cl files
+"""
 function _add_append_cl!(append_df, master_df, mission_name)
     append_cl = Array{Union{Tuple,Missing},1}(undef, size(append_df, 1))
     root_dir  = config(mission_name).path
@@ -59,10 +74,14 @@ function _add_append_cl!(append_df, master_df, mission_name)
     return append_df[:event_cl] = append_cl
 end
 
+"""
+    _add_append_downloaded!(append_df, mission_name)
+
+Appends column of `Union{Bool,Missing}`, true if all cl files exist
+"""
 function _add_append_downloaded!(append_df, mission_name)
     append_downloaded = Array{Union{Bool,Missing},1}(undef, size(append_df, 1))
     root_dir  = config(mission_name).path
-    cl_path_function = config(mission_name).path_cl
 
     for (i, obspath) in enumerate(append_df[:obs_path])
         cl_files = append_df[i, :event_cl]
@@ -72,6 +91,13 @@ function _add_append_downloaded!(append_df, mission_name)
     return append_df[:downloaded] = append_downloaded
 end
 
+"""
+    _add_append_analysed!(append_df, mission_name)
+
+Appends column of `Union{Bool,Missing}`, true if the `JAXTAM` directory exists
+
+TODO: Improve this function, currently an empty `JAXTAM` folder means it has been analysed
+"""
 function _add_append_analysed!(append_df, mission_name)
     append_analysed = Array{Union{Bool,Missing},1}(undef, size(append_df, 1))
 
@@ -82,6 +108,12 @@ function _add_append_analysed!(append_df, mission_name)
     return append_df[:analysed] = append_analysed
 end
 
+"""
+    _add_append_results!(append_df, mission_name)
+
+Appends column of `String`, if the `results.html` file exists for an observation
+the path to the file is returned, otherwise "NA" is returned
+"""
 function _add_append_results!(append_df, mission_name)
     append_resultspath = Array{String,1}(undef, size(append_df, 1))
 
@@ -102,6 +134,11 @@ function _add_append_results!(append_df, mission_name)
     return append_df[:results_path] = append_resultspath
 end
 
+"""
+    _append_gen(mission_name, master_df)
+
+Runs all the `_add_append` functions, returns the full `append_df`
+"""
 function _append_gen(mission_name, master_df)
     append_df = _build_append(master_df)
 
@@ -116,6 +153,19 @@ function _append_gen(mission_name, master_df)
     return append_df
 end
 
+"""
+    _tuple2feather(append_df::DataFrames.DataFrame)
+
+`Feather.jl`, and probably Feather files in general, can't save Tuples, this
+function selects and columns in the `DataFrame` of type `Tuple`, then it splits
+the tuples up into a `DataFrame`, with column names of the original column name
+with `__tuple__\$col\$i` appended to the end
+
+Only works if all the tuples in a column are of the same length
+
+TODO: Make edge cases of tuples with over 9 elements work, test methods to allow
+tuples of different lengths to be split and saved as well
+"""
 function _tuple2feather(append_df::DataFrames.DataFrame)
     columns = names(append_df)
 
@@ -148,6 +198,12 @@ function _tuple2feather(append_df::DataFrames.DataFrame)
     return append_df    
 end
 
+"""
+    _feather2tuple(append_df::DataFrames.DataFrame)
+
+Function that takes in a `DataFrame` which has been run through `_tuple2feather()`
+and joins the split tuples together
+"""
 function _feather2tuple(append_df::DataFrames.DataFrame)
     columns = names(append_df)
     columns_tuple = columns[occursin.("__tuple__", string.(columns))]
@@ -170,6 +226,11 @@ function _feather2tuple(append_df::DataFrames.DataFrame)
     return append_df
 end
 
+"""
+    _append_gen(mission_name)
+
+Generates the append file for a mission
+"""
 function _append_gen(mission_name)
     master_df = master(mission_name)
     append_df = _append_gen(mission_name, master_df)
@@ -177,18 +238,36 @@ function _append_gen(mission_name)
     return append_df
 end
 
+"""
+    _append_save(append_path_feather, append_df)
+
+Runs `_tuple2feather()` on `append_df` then saves to the save path
+"""
 function _append_save(append_path_feather, append_df)
     append_df = _tuple2feather(append_df)
 
     Feather.write(append_path_feather, append_df)
 end
 
+"""
+    _append_load(append_path_feather)
+
+Loads a saved `append_df`, runs `_feather2tuple()` and returns the `DataFrame`
+"""
 function _append_load(append_path_feather)
     append_df = Feather.read(append_path_feather)
     
     return _feather2tuple(append_df)
 end
 
+"""
+    append(mission_name)
+
+If no append file exists, crates one using the `_append_gen()` function, then
+saves the file with `_append_save()`
+
+If the append file exists, loads via `_append_load()`
+"""
 function append(mission_name)
     append_path_feather = abspath(string(_config_key_value(mission_name).path, "append.feather"))
 
@@ -204,6 +283,11 @@ function append(mission_name)
     end
 end
 
+"""
+    append()
+
+Calld `append(mission_name)` with the default mission `config_dict[:default]` if one exists
+"""
 function append()
     config_dict = config()
 
@@ -216,6 +300,11 @@ function append()
     end
 end
 
+"""
+    append_update(mission_name)
+
+Re-generates the append file
+"""
 function append_update(mission_name)
     append_path_feather = abspath(string(_config_key_value(mission_name).path, "append.feather"))
 
@@ -226,7 +315,12 @@ function append_update(mission_name)
     return append_df
 end
 
+"""
+    master_a(mission_name)
 
+Joins the `master_df` (raw, unedited HEASARC master table) and the `append_df`
+`DataFrame`s together on `:obsid`, returns the joined tables
+"""
 function master_a(mission_name)
     master_df = master(mission_name)
     append_df = append(mission_name)
