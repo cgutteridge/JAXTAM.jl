@@ -8,6 +8,19 @@ struct BinnedData <: JAXTAMData
     gtis::DataFrames.DataFrame
 end
 
+"""
+    _lcurve_filter_time(event_times::Arrow.Primitive{Float64}, event_energies::Arrow.Primitive{Float64},
+
+Largely not used, as the GTI filtering is enough to deal with out-of-time-range events, and 
+manually filtering those events out early is computationally intensive
+
+Function takes in event times and energies, then filters any events outside of the `start` and `stop` times
+
+Optionally performs early filtering to remove low count (under 1/sec) GTIs, disabled by default as this is 
+performed later anyway
+
+Returns array of filtered times, enegies, and GTIs
+"""
 function _lcurve_filter_time(event_times::Arrow.Primitive{Float64}, event_energies::Arrow.Primitive{Float64},
     gtis::DataFrames.DataFrame, start_time::Union{Float64,Int64}, stop_time::Union{Float64,Int64}, filter_low_count_gtis=false)
     @info "               -> Filtering times"
@@ -47,6 +60,13 @@ function _lcurve_filter_time(event_times::Arrow.Primitive{Float64}, event_energi
     return Array(event_times), Array(event_energies), gtis
 end
 
+"""
+    _lc_filter_energy(event_times::Array{Float64,1}, event_energies::Array{Float64,1}, good_energy_max::Float64, good_energy_min::Float64)
+
+Optionally filters events by a custom energy range, not just that given in the RMF files for a mission
+
+Returns filtered event times and energies
+"""
 function _lc_filter_energy(event_times::Array{Float64,1}, event_energies::Array{Float64,1}, good_energy_max::Float64, good_energy_min::Float64)
     @info "               -> Filtering energies"
     mask_good_energy = good_energy_min .<= event_energies .<= good_energy_max
@@ -57,6 +77,15 @@ function _lc_filter_energy(event_times::Array{Float64,1}, event_energies::Array{
     return event_times, event_energies
 end
 
+"""
+    _lc_bin(event_times::Array{Float64,1}, bin_time::Union{Float64,Int64}, time_start::Union{Float64,Int64}, time_stop::Union{Float64,Int64})
+
+Bins the event times to bins of `bin_time` [sec] lengths
+
+Performs binning out of memory for speed via `OnlineStats.jl` Hist function
+
+Returns a range of `times`, with associated `counts` per time
+"""
 function _lc_bin(event_times::Array{Float64,1}, bin_time::Union{Float64,Int64}, time_start::Union{Float64,Int64}, time_stop::Union{Float64,Int64})
     @info "               -> Running OoM binning"
 
@@ -73,7 +102,7 @@ function _lc_bin(event_times::Array{Float64,1}, bin_time::Union{Float64,Int64}, 
     end
 
     times = 0:bin_time:(time_stop-time_start)
-    online_hist_fit = Hist(times)
+    online_hist_fit = OnlineStats.Hist(times)
 
     histogram = fit!(online_hist_fit, event_times)
     counts    = value(histogram)[2]
@@ -82,6 +111,16 @@ function _lc_bin(event_times::Array{Float64,1}, bin_time::Union{Float64,Int64}, 
     return times, counts
 end
 
+"""
+    _orbit_select(data::BinnedData)
+
+Only used for `NICER` data
+
+Checks the difference in start time between GTIs, when the difference is over 
+the ISS orbit time, classifies the GTI as being in a different orbit
+
+Returns GTIs with an extra `:orbit` column added in
+"""
 function _orbit_select(data::BinnedData)
     orbit_period = 92*60 # Orbital persiod of ISS, used with NICER, TODO: GENERALISE WITH MISSION CONFIG
     orbit_times  = data.gtis[:, 1][findall(diff(data.gtis[:, 2]) .> orbit_period/2)]
@@ -102,6 +141,15 @@ function _orbit_select(data::BinnedData)
     return data
 end
 
+"""
+    _orbit_return(data::BinnedData)
+
+Uses the `_orbit_select` function to find the orbit each GTI belongs in
+
+Using these orbits, splits sections of light curve up into an orbit, then 
+creates a new `BinnedData` for just the lightcurve of that one orbit, finally 
+returns a `Dict{Int64,JAXTAM.BinnedData}` where each `Int64` is for a different orbit
+"""
 function _orbit_return(data::BinnedData)
     gtis = data.gtis
     gtis = gtis[(gtis[:, :stop]-gtis[:, :start]) .>= 16, :] # Ignore gtis under 16s long
@@ -147,6 +195,17 @@ function _orbit_return(data::BinnedData)
     return data_orbit
 end
 
+"""
+    _lcurve(instrument_data::InstrumentData, bin_time::Union{Float64,Int64})
+
+Takes in the `InstrumentData` and desired `bin_time`
+
+Runs functions to perform extra time (`_lcurve_filter_time`) and energy (`_lc_filter_energy`) filtering
+
+Runs the binning (`_lc_bin`) function, then finally `_orbit_select` to append orbit numbers to each GTI
+
+Returns a `BinnedData` lightcurve
+"""
 function _lcurve(instrument_data::InstrumentData, bin_time::Union{Float64,Int64})
     event_times, event_energies, gtis = _lcurve_filter_time(instrument_data.events[:TIME], instrument_data.events[:E], instrument_data.gtis, instrument_data.start, instrument_data.stop)
 
@@ -166,6 +225,13 @@ function _lcurve(instrument_data::InstrumentData, bin_time::Union{Float64,Int64}
     return lc
 end
 
+"""
+    _lcurve_save(lightcurve_data::BinnedData, lc_dir::String)
+
+Takes in `BinnedData` and splits the information up into three files, `meta`, `gtis`, and `data`
+
+Saves the files in a lightcurve directory (`/JAXTAM/lc/\$bin_time/*`) per-instrument
+"""
 function _lcurve_save(lightcurve_data::BinnedData, lc_dir::String)
     lc_basename = string("$(lightcurve_data.instrument)_lc_$(lightcurve_data.bin_time)")
 
@@ -182,6 +248,11 @@ function _lcurve_save(lightcurve_data::BinnedData, lc_dir::String)
     Feather.write(joinpath(lc_dir, "$(lc_basename)_data.feather"), lc_data)
 end
 
+"""
+    _lc_read(lc_dir::String, instrument::Symbol, bin_time)
+
+Reads the split files saved by `_lcurve_save`, combines them to return a single `BinnedData` type
+"""
 function _lc_read(lc_dir::String, instrument::Symbol, bin_time)
     lc_basename = string("$(instrument)_lc_$(string(bin_time))")
 
@@ -194,6 +265,18 @@ function _lc_read(lc_dir::String, instrument::Symbol, bin_time)
         lc_gtis)
 end
 
+"""
+    lcurve(mission_name::Symbol, obs_row::DataFrame, bin_time::Number; overwrite=false)
+
+Main function, handles all the lightcurve binning
+
+Runs binning functions if no files are found, then saves the generated `BinnedData`
+
+Loads saved files if they exist
+
+Returns `Dict{Symbol,BinnedData}`, with the instrument as a symbol, e.g. `lc[:XTI]` for NICER, 
+`lc[:FPMA]`/`lc[:FPMB]` for NuSTAR
+"""
 function lcurve(mission_name::Symbol, obs_row::DataFrame, bin_time::Number; overwrite=false)
     obsid          = obs_row[:obsid][1]
     JAXTAM_path    = abspath(string(obs_row[:obs_path][1], "/JAXTAM/")); mkpath(JAXTAM_path)
@@ -239,6 +322,13 @@ function lcurve(mission_name::Symbol, obs_row::DataFrame, bin_time::Number; over
     return lightcurves
 end
 
+"""
+    lcurve(mission_name::Symbol, obsid::String, bin_time::Number; overwrite=false)
+
+Runs `master_query` to find the desired `obs_row` for the observation
+
+Calls main `lcurve(mission_name::Symbol, obs_row::DataFrame, bin_time::Number; overwrite=false)` function
+"""
 function lcurve(mission_name::Symbol, obsid::String, bin_time::Number; overwrite=false)
     obs_row = JAXTAM.master_query(mission_name, :obsid, obsid)
 

@@ -9,16 +9,21 @@ struct InstrumentData <: JAXTAMData
     header::DataFrame
 end
 
-function _read_fits_hdu(fits_file, hdu_id; cols="auto")
+"""
+    _read_fits_hdu(fits_file::FITS, hdu_id::String; cols="auto")
+
+Reads the HDU `hdu_id` from the loaded FITS file `fits_file`, returns the HDU data
+
+Cannot read `BitArray` type columns due to `FITSIO` limitations
+"""
+function _read_fits_hdu(fits_file::FITS, hdu_id::String; cols="auto")
+    # Columns read individually, instead of using the FITSIO function to read
+    # all the header, as if header contains non-supported column then that function
+    # just fails. This avoids that problem and throws warning for non-supported columns
     if cols == "auto"
         fits_cols_events = Array{String,1}
 
-        try
-            fits_cols_events = FITSIO.colnames(fits_file[hdu_id])
-        catch UndefVarError
-            @warn "FITSIO colnames function not found, try trunning `Pkg.checkout(\"FITSIO\")`"
-            throw(UndefVarError("colnames not defined"))
-        end
+        fits_cols_events = FITSIO.colnames(fits_file[hdu_id])
     else
         fits_cols_events = cols
     end
@@ -40,7 +45,13 @@ function _read_fits_hdu(fits_file, hdu_id; cols="auto")
     return fits_hdu_data
 end
 
-function _read_fits_event(fits_path)
+"""
+    _read_fits_event(fits_path::String)
+
+Reads the standard columns for timing analysis ("TIME", "PI", "GTI") from a FITS file, 
+returns `InstrumentData` type filled with the relevant data
+"""
+function _read_fits_event(fits_path::String)
     @info "Loading $fits_path"
     fits_file   = FITS(fits_path)
 
@@ -61,9 +72,9 @@ function _read_fits_event(fits_path)
     fits_header_df = DataFrame()
 
     for (i, key) in enumerate(keys(fits_header))
-        key = Symbol(replace(key, '-', '_'))
+        key = Symbol(replace(key, '-', '_')) # Colnames with `-` don't behave well with DataFrames/Feather
         if typeof(fits_header[i]) == Nothing
-            fits_header_df[Symbol(key)] =  "empty" # Have to write something, or Feahter.jl throws a fit saving ""
+            fits_header_df[Symbol(key)] =  "empty" # Have to write something, or Feahter.jl errors saving ""
         else
             fits_header_df[Symbol(key)] = fits_header[i]
         end
@@ -74,9 +85,17 @@ function _read_fits_event(fits_path)
     return InstrumentData(fits_telescope, instrument_name, fits_obsid, fits_events_df, fits_gtis_df, fits_start, fits_stop, fits_header_df)
 end
 
+"""
+    read_cl_fits(mission_name::Symbol, obs_row::DataFrames.DataFrame)
+
+Reads in FITS data for an observation, returns a `Dict{Symbol,InstrumentData}`, with the 
+symbol as the instrument name. So `instrument_data[:XTI]` works for NICER, and either 
+`instrument_data[:FPMA]` or `instrument_data[:FPMB]` work for NuSTAR
+"""
 function read_cl_fits(mission_name::Symbol, obs_row::DataFrames.DataFrame)
+    # Required due to ambiguity over if a joined `master_df` + `append_df` is being used, or just `master_df`
     if :event_cl in names(obs_row)
-        file_path = abspath.([i for i in obs_row[:event_cl][1]]) # Convert tuple to array, abdolute path
+        file_path = abspath.([i for i in obs_row[:event_cl][1]]) # Convert tuple to array, absolute path
     else
         file_path = config(mission_name).path_cl(obs_row, config(mission_name).path)
         file_path = abspath.([i for i in file_path])
@@ -125,12 +144,27 @@ function read_cl_fits(mission_name::Symbol, obs_row::DataFrames.DataFrame)
     end
 end
 
-function _save_cl_feather(feather_dir, instrument_name, fits_events_df, fits_gtis_df, fits_meta_df)
+"""
+    _save_cl_feather(feather_dir::String, instrument_name::Union{String,Symbol},
+        fits_events_df::DataFrame, fits_gtis_df::DataFrame, fits_meta_df::DataFrame)
+
+Due to Feather file restrictions, cannot save all the event and GTI data in one, so 
+they are split up into three files: `events`, `gtis`, and `meta`. The `meta` file contains 
+just the mission name, obsid, and observation start and stop times
+"""
+function _save_cl_feather(feather_dir::String, instrument_name::Union{String,Symbol},
+        fits_events_df::DataFrames.DataFrame, fits_gtis_df::DataFrames.DataFrame, fits_meta_df::DataFrames.DataFrame)
     Feather.write(joinpath(feather_dir, "$(instrument_name)_events.feather"), fits_events_df)
     Feather.write(joinpath(feather_dir, "$(instrument_name)_gtis.feather"), fits_gtis_df)
     Feather.write(joinpath(feather_dir, "$(instrument_name)_meta.feather"), fits_meta_df)
 end
 
+"""
+    read_cl(mission_name::Symbol, obs_row::DataFrames.DataFrame; overwrite=false)
+
+Attempts to read saved (feather) data, if none is found then the `read_cl_fits` function is ran 
+and the data is saved with `_save_cl_feather` for future use
+"""
 function read_cl(mission_name::Symbol, obs_row::DataFrames.DataFrame; overwrite=false)
     obsid       = obs_row[:obsid][1]
     JAXTAM_path = abspath(string(obs_row[:obs_path][1], "/JAXTAM/"))
@@ -149,8 +183,6 @@ function read_cl(mission_name::Symbol, obs_row::DataFrames.DataFrame; overwrite=
 
     if JAXTAM_e_files > 0 && JAXTAM_g_files > 0 && JAXTAM_e_files == JAXTAM_g_files && !overwrite
         mission_data = Dict{Symbol,InstrumentData}()
-
-        #instruments = unique(replace.(JAXTAM_content, r"(_gtis|_events|_meta|_calib|.feather)", ""))
 
         instruments = config(mission_name).instruments
 
@@ -179,19 +211,30 @@ function read_cl(mission_name::Symbol, obs_row::DataFrames.DataFrame; overwrite=
         for key in keys(mission_data)
             @info "Saving $(string(key))"
 
-            _save_cl_feather(JAXTAM_path, mission_data[key].instrument, mission_data[key].events, mission_data[key].gtis, mission_data[key].header)
+            _save_cl_feather(JAXTAM_path, mission_data[key].instrument, mission_data[key].events,
+                mission_data[key].gtis, mission_data[key].header)
         end
     end
 
     return mission_data
 end
 
+"""
+    read_cl(mission_name::Symbol, append_df::DataFrames.DataFrame, obsid::String; overwrite=false)
+
+Calls `master_query()` to get the `obs_row`, then calls read_cl(mission_name::Symbol, obs_row::DataFrames.DataFrame; overwrite=false)
+"""
 function read_cl(mission_name::Symbol, append_df::DataFrames.DataFrame, obsid::String; overwrite=false)
     obs_row = master_query(append_df, :obsid, obsid)
 
     return read_cl(mission_name, obs_row; overwrite=overwrite)
 end
 
+"""
+    read_cl(mission_name::Symbol, obsid::String; overwrite=false)
+
+Calls `master_a()`, then calls `read_cl(mission_name::Symbol, append_df::DataFrames.DataFrame, obsid::String; overwrite=false)`
+"""
 function read_cl(mission_name::Symbol, obsid::String; overwrite=false)
     append_df = master_a(mission_name)
 

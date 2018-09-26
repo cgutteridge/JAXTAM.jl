@@ -1,3 +1,11 @@
+"""
+    _read_rmf(path_rmf::String)
+
+Reads an RMF calibration file (from HEASARC caldb), loads in energy bands and PI channels 
+for use when filtering events out of a good energy range
+
+Returns the PI channels, and the min/max good energy ranges
+"""
 function _read_rmf(path_rmf::String)
     if !isfile(path_rmf)
         throw(SystemError("opening file RMF file `$path_rmf`", 2))
@@ -17,18 +25,24 @@ function _read_rmf(path_rmf::String)
     return pis, e_mins, e_maxs
 end
 
+"""
+    _read_rmf(mission_name::Symbol)
+
+Calls `_read_rmf(path_rmf)` using the `path_rmf` loaded from a mission configuration file
+"""
 function _read_rmf(mission_name::Symbol)
     path_rmf = config(mission_name).path_rmf
 
     return _read_rmf(path_rmf)
 end
 
-function _read_rmf()
-    path_rmf = config(:default).path_rmf
+"""
+    _read_calibration(pis::Union{Array,Arrow.Primitive{Int16}}, path_rmf::String)
 
-    return _read_rmf(path_rmf)
-end
+Loads the RMF calibration data, creates PI channels for energy conversion
 
+Channel bounds are the average of the min and max energy range
+"""
 function _read_calibration(pis::Union{Array,Arrow.Primitive{Int16}}, path_rmf::String)
     calp, calEmin, calEmax = _read_rmf(path_rmf)
 
@@ -43,12 +57,30 @@ function _read_calibration(pis::Union{Array,Arrow.Primitive{Int16}}, path_rmf::S
     return es
 end
 
+"""
+    _read_calibration(pis::Union{Array,Arrow.Primitive{Int16}}, mission_name::Symbol)
+
+Loads the RMF path from the mission configuration file, then calls 
+`_read_calibration(pis::Union{Array,Arrow.Primitive{Int16}}, path_rmf::String)`
+"""
 function _read_calibration(pis::Union{Array,Arrow.Primitive{Int16}}, mission_name::Symbol)
     path_rmf = config(mission_name).path_rmf
 
     return _read_calibration(pis, path_rmf)
 end
 
+"""
+    calibrate(mission_name::Symbol, obs_row::DataFrames.DataFrame)
+
+Loads in the calibrated event data, as well as the mission calibration RMF file, 
+then filters the events by the energy ranges/PI channels in the RMF file
+
+Saves the calibrated files as a `calib.feather` if none exists
+
+Loads `calib.feater` file if it does exist
+
+Returns a calibrated (filtered to contain only good energies) `InstrumentData` type
+"""
 function calibrate(mission_name::Symbol, obs_row::DataFrames.DataFrame)
     obsid       = obs_row[:obsid][1]
     JAXTAM_path = abspath(string(obs_row[:obs_path][1], "/JAXTAM/"))
@@ -108,14 +140,26 @@ function calibrate(mission_name::Symbol, obs_row::DataFrames.DataFrame)
     return calibrated_energy
 end
 
+"""
+    calibrate(mission_name::Symbol, append_df::DataFrames.DataFrame, obsid::String)
+
+Calls `master_query` to load in the relevant `obs_row`
+
+Calls and returns `calibrate(mission_name::Symbol, obs_row::DataFrames.DataFrame)`
+"""
 function calibrate(mission_name::Symbol, append_df::DataFrames.DataFrame, obsid::String)
     obs_row = master_query(append_df, :obsid, obsid)
 
     return calibrate(mission_name, obs_row)
 end
 
+"""
+    calibrate(mission_name::Symbol, obsid::String)
+
+Calls `master_a` to load in the master table
+
+Calls and returns `calibrate(mission_name::Symbol, append_df::DataFrames.DataFrame, obsid::String)`
+"""
 function calibrate(mission_name::Symbol, obsid::String)
     return calibrate(mission_name, master_a(mission_name), obsid)
 end
-
-#JAXTAM.calibrate(:nicer, "1010010192")
