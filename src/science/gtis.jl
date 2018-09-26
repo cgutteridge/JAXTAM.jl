@@ -10,7 +10,15 @@ struct GTIData <: JAXTAMData
     orbit::Int
 end
 
-function _lc_filter_gtis(binned_times, binned_counts, gtis, time_start, time_stop, mission, instrument, obsid; min_gti_sec=32)
+"""
+    _lc_filter_gtis(binned_times::StepRangeLen, binned_counts::Array{Int,1}, gtis::DataFrames.DataFrame, mission::Symbol, instrument::Symbol, obsid::String; min_gti_sec=16)
+
+Splits the lightcurve (count) data into GTIs
+
+First, removes GTIs under `min_gti_sec`, then puts the lightcurve data 
+into a `Dict{Int,GTIData}`, with the key as the `index` of the GTI
+"""
+function _lc_filter_gtis(binned_times::StepRangeLen, binned_counts::Array{Int,1}, gtis::DataFrames.DataFrame, mission::Symbol, instrument::Symbol, obsid::String; min_gti_sec=16)
     gti_data = Dict{Int,GTIData}()
 
     gti_orbits = gtis[:orbit]
@@ -18,7 +26,7 @@ function _lc_filter_gtis(binned_times, binned_counts, gtis, time_start, time_sto
     
     bin_time = binned_times[2] - binned_times[1]
     
-    gti_mask = (gtis[:stop] .- gtis[:start]) .>= min_gti_sec # Exclude GTIs under 32 seconds
+    gti_mask = (gtis[:stop] .- gtis[:start]) .>= min_gti_sec # Exclude GTIs under `min_gti_sec`
     gti_times[gti_mask.==false, :] .= -1 # Set excluded GTIs to -1, GTIs aren't just discarded so that their absolute index can be kept track of
 
     excluded_gti_count = count(gti_mask.==false)
@@ -47,7 +55,7 @@ function _lc_filter_gtis(binned_times, binned_counts, gtis, time_start, time_sto
     end
 
     for (i, gti) in enumerate(gti_times) # For each GTI, store the selected times and count rate within that GTI
-        if gti[1] == -1
+        if gti[1] == -1 # Short GTIs have their start time set to -1, skipped here
             continue
         end
         
@@ -76,12 +84,23 @@ function _lc_filter_gtis(binned_times, binned_counts, gtis, time_start, time_sto
     return gti_data
 end
 
+"""
+    _gtis(lc::BinnedData)
+
+Calls `_lc_filter_gtis` using `BinnedData` input
+"""
 function _gtis(lc::BinnedData)
-    gti_data = _lc_filter_gtis(lc.times, lc.counts, lc.gtis, lc.times[1], lc.times[end], lc.mission, lc.instrument, lc.obsid)
+    gti_data = _lc_filter_gtis(lc.times, lc.counts, lc.gtis, lc.mission, lc.instrument, lc.obsid)
 
     return gti_data
 end
 
+"""
+    _gtis_save(gtis, gti_dir::String)
+
+Splits up the GTI data into a `_meta.feather` file containing non-array variables for each GTI (index, start/stop times, etc...) 
+and multiple `_gti.feather` files for each GTI containing the counts and times
+"""
 function _gtis_save(gtis, gti_dir::String)
     gti_indecies = [k for k in keys(gtis)]
     gti_starts   = [t.gti_start_time for t in values(gtis)]
@@ -100,6 +119,11 @@ function _gtis_save(gtis, gti_dir::String)
     end
 end
 
+"""
+    _gtis_load(gti_dir, instrument, bin_time)
+
+Loads and parses the `_meta` and `_gti` files, puts into a `GTIData` constructor, returns `Dict{Int,GTIData}`
+"""
 function _gtis_load(gti_dir, instrument, bin_time)
     bin_time = float(bin_time)
 
@@ -131,6 +155,12 @@ function _gtis_load(gti_dir, instrument, bin_time)
     return gti_data
 end
 
+"""
+    gtis(mission_name::Symbol, obs_row::DataFrames.DataFrame, bin_time::Number; overwrite=false)
+
+Handles file management, checks to see if GTI files exist already and loads them, if files do not 
+exist then the `_gits` function is ran, then the data is saved
+"""
 function gtis(mission_name::Symbol, obs_row::DataFrames.DataFrame, bin_time::Number; overwrite=false)
     obsid              = obs_row[:obsid][1]
     instruments        = config(mission_name).instruments
@@ -171,6 +201,11 @@ function gtis(mission_name::Symbol, obs_row::DataFrames.DataFrame, bin_time::Num
     return instrument_gtis
 end
 
+"""
+    gtis(mission_name::Symbol, obsid::String, bin_time::Number; overwrite=false)
+
+Runs `master_query` to load the `obs_row` for a given `obsid`, runs main `gits` function
+"""
 function gtis(mission_name::Symbol, obsid::String, bin_time::Number; overwrite=false)
     obs_row = master_query(mission_name, :obsid, obsid)
 
