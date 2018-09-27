@@ -16,7 +16,7 @@ function _savefig_obsdir(mission_name, obsid, bin_time, fig_name)
     _savefig_obsdir(obs_row, mission_name, obsid, bin_time, fig_name)
 end
 
-function _pull_data(instrument_data::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}})
+function _pull_data(instrument_data::Union{Dict{Symbol,Dict{Int64,JAXTAM.FFTData}},Dict{Symbol,Dict{Int64,JAXTAM.PgramData}}})
     inst1 = collect(keys(instrument_data))[1]
     gti1  = collect(keys(instrument_data[inst1]))[1]
     row1  = instrument_data[inst1][gti1]
@@ -90,43 +90,37 @@ function plot(instrument_data::Dict{Symbol,JAXTAM.BinnedData}; size_in=(1140,400
     return Plots.plot!(size=size_in)
 end
 
-function plot_orbits(instrument_data::Dict{Symbol,JAXTAM.BinnedData}; size_in=(1140,400), save_plt=true)
+function plot_groups(instrument_data::Dict{Symbol,JAXTAM.BinnedData}; size_in=(1140,400), save_plt=true)
     instruments = keys(instrument_data)
 
-    orbit_plots = Dict{Symbol,Dict{Int64,Plots.Plot}}()
+    group_plots = Dict{Symbol,Dict{Int64,Plots.Plot}}()
 
     example_gti = _pull_data(instrument_data)
     obs_row     = master_query(example_gti.mission, :obsid, example_gti.obsid)
 
     for instrument in instruments
-        instrument_orbit_data  = _orbit_return(instrument_data[instrument])
-        instrument_orbit_plots = Dict{Int64,Plots.Plot}()
+        instrument_group_data  = _group_return(instrument_data[instrument])
+        instrument_group_plots = Dict{Int64,Plots.Plot}()
 
-        available_orbits = collect(keys(instrument_orbit_data))
+        available_groups = collect(keys(instrument_group_data))
 
-        for orbit in available_orbits
-            orbit_lc = instrument_orbit_data[orbit]
+        for group in available_groups
+            group_lc = instrument_group_data[group]
 
-            if orbit == 0
-                # Signifies orbit is after the last 'full' orbit
-                orbit = maximum(available_orbits) + 1
-                title_append = " - orbit $orbit/$(maximum(available_orbits)) (likely end of lc)"
-            else
-                title_append = " - orbit $orbit/$(maximum(available_orbits))"
-            end
+            title_append = " - group $group/$(maximum(available_groups))"
 
-            instrument_orbit_plots[orbit] = plot(Dict(instrument=>orbit_lc); save_plt=false,
+            instrument_group_plots[group] = plot(Dict(instrument=>group_lc); save_plt=false,
                     title_append=title_append, size_in=size_in)
 
             if save_plt
-                _savefig_obsdir(obs_row, orbit_lc.mission, orbit_lc.obsid, orbit_lc.bin_time, "lc/orbits/", "$(orbit)_lcurve.png")
+                _savefig_obsdir(obs_row, group_lc.mission, group_lc.obsid, group_lc.bin_time, "lc/groups/", "$(group)_lcurve.png")
             end
         end
 
-        orbit_plots[instrument] = instrument_orbit_plots
+        group_plots[instrument] = instrument_group_plots
     end
 
-    return orbit_plots
+    return group_plots
 end
 
 # Power spectra plotting functions
@@ -214,62 +208,55 @@ function plot(instrument_data::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}}; title_ap
     return Plots.plot!(size=size_in)
 end
 
-function plot_orbits(instrument_data::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}};
+function plot_groups(instrument_data::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}};
     size_in=(1140,600), norm=:rms, rebin=(:log10, 0.01), logx=true, logy=true, save_plt=true)
 
     instruments = keys(instrument_data)
 
-    orbit_plots = Dict{Symbol,Dict{Int64,Plots.Plot}}()
+    group_plots = Dict{Symbol,Dict{Int64,Plots.Plot}}()
 
     example_gti = _pull_data(instrument_data)
     obs_row     = master_query(example_gti.mission, :obsid, example_gti.obsid)
 
     for instrument in instruments
-        available_orbits = unique([gti.orbit for gti in values(instrument_data[instrument])])
-        available_orbits = available_orbits[available_orbits .>= 0] # Excluse -1, -2, etc... for scrunched/mean FFTData
+        available_groups = unique([gti.group for gti in values(instrument_data[instrument])])
+        available_groups = available_groups[available_groups .>= 0] # Excluse -1, -2, etc... for scrunched/mean FFTData
 
-        instrument_orbit_plots = Dict{Int64,Plots.Plot}()
+        instrument_group_plots = Dict{Int64,Plots.Plot}()
 
-        for orbit in available_orbits
-            instrument_data_orbit = Dict{Int64,JAXTAM.FFTData}()
-            gtis_in_orbit = [gti.gti_index for gti in values(instrument_data[instrument]) if gti.orbit == orbit]
+        for group in available_groups
+            instrument_data_group = Dict{Int64,JAXTAM.FFTData}()
+            gtis_in_group = [gti.gti_index for gti in values(instrument_data[instrument]) if gti.group == group]
 
-            for gti_no in gtis_in_orbit
-                instrument_data_orbit[gti_no] = instrument_data[instrument][gti_no]
+            for gti_no in gtis_in_group
+                instrument_data_group[gti_no] = instrument_data[instrument][gti_no]
             end
 
-            if orbit == 0
-                # Signifies orbit is after the last 'full' orbit
-                orbit = maximum(available_orbits) + 1
-                title_append = " - orbit $orbit/$(maximum(available_orbits)) (likely end of lc)"
-            else
-                title_append = " - orbit $orbit/$(maximum(available_orbits))"
-            end
+            title_append = " - group $group/$(maximum(available_groups))"
 
-            # Have to run _scrunch_sections on orbit data, since it lacks the -1 indexed average amplitudes
-            instrument_orbit_plots[orbit] = plot(Dict(instrument=>_scrunch_sections(instrument_data_orbit));
+            # Have to run _scrunch_sections on group data, since it lacks the -1 indexed average amplitudes
+            instrument_group_plots[group] = plot(Dict(instrument=>_scrunch_sections(instrument_data_group));
                     size_in=size_in, norm=norm, rebin=rebin, logx=logx, logy=logy, save_plt=false,
                     title_append=title_append)
             
             if save_plt
-                data = instrument_data_orbit[gtis_in_orbit[1]]
+                data = instrument_data_group[gtis_in_group[1]]
                 _savefig_obsdir(obs_row, data.mission, data.obsid, data.bin_time,
-                    "fspec/$(data.bin_size.*data.bin_time)/orbits/", "$(orbit)_fspec.png")
+                    "fspec/$(data.bin_size.*data.bin_time)/groups/", "$(group)_fspec.png")
             end
 
         end
 
-        orbit_plots[instrument] = instrument_orbit_plots
+        group_plots[instrument] = instrument_group_plots
     end
 
-    return orbit_plots
+    return group_plots
 end
 
 # Periodogram plotting functions
 
 function plot!(data::PgramData; title_append="", rebin=(:linear, 10),
-        lab="", logx=true, logy=true, size_in=(1140,600)
-    )
+        lab="", logx=true, logy=true, size_in=(1140,600))
     bin_time_pow2 = Int(log2(data.bin_time))
 
     # Don't plot the 0Hz amplitude
@@ -285,16 +272,25 @@ function plot!(data::PgramData; title_append="", rebin=(:linear, 10),
     Plots.plot!(freqs, powers, color=:black, ylab=ylab, lab="$lab - $(data.pg_type)")
 
     Plots.plot!(xlab="Freq (Hz)", alpha=1,
-        title="Periodogram - $(data.obsid) - 2^$(bin_time_pow2) bt - $rebin rebin")
-
-    logy ? yaxis!(:log10) : ""
+    title="Periodogram - $(data.obsid) - 2^$(bin_time_pow2) bt - $rebin rebin$title_append")
+    
+    if logy
+        yaxis!(:log10)
+        
+        amp_min = minimum(powers[2:end])
+        amp_max = maximum(powers[2:end])
+        # If amp_min < 1, can't use prevpow10 for ylims, hacky little fix is 1/prevpow(10, 1/amp_min)
+        # removed that anyway, set ylim to 1 if amp_min < 1
+        amp_min > 1 ? ylim = (prevpow(10, amp_min), nextpow(10, amp_max)) : ylim = (1, nextpow(10, amp_max))
+        yaxis!(yscale=:log10, yformatter=yi->yi, ylims=ylim)
+    end
 
     return Plots.plot!(size=size_in)
 end
 
 function plot(instrument_data::Dict{Symbol,JAXTAM.PgramData};
         rebin=(:linear, 1), logx=false, logy=true, save_plt=true,
-        size_in=(1140,400), title_append="")
+        size_in=(1140,600), title_append="")
 
     instruments = keys(instrument_data)
 
@@ -302,7 +298,7 @@ function plot(instrument_data::Dict{Symbol,JAXTAM.PgramData};
 
     for instrument in instruments
         plt = plot!(instrument_data[instrument], lab=string(instrument),
-            rebin=rebin, size_in=size_in, logx=logx, logy=logy)
+            rebin=rebin, size_in=size_in, logx=logx, logy=logy, title_append=title_append)
     end
 
     if save_plt
@@ -311,4 +307,39 @@ function plot(instrument_data::Dict{Symbol,JAXTAM.PgramData};
         _savefig_obsdir(obs_row, example_pgram.mission, example_pgram.obsid, example_pgram.bin_time,
             "pgram", "$(example_pgram.pg_type)_pgram.png")
     end
+
+    return Plots.plot!(size=size_in)
+end
+
+function plot_groups(instrument_data::Dict{Symbol,Dict{Int64,JAXTAM.PgramData}};
+    rebin=(:linear, 1), logx=false, logy=true, save_plt=true,
+    size_in=(1140,600), title_append="")
+
+    instruments = keys(instrument_data)
+
+    example_pgram = _pull_data(instrument_data)
+    obs_row       = master_query(example_pgram.mission, :obsid, example_pgram.obsid)
+
+    group_plots = Dict{Symbol,Dict{Int64,Plots.Plot}}()
+    for instrument in instruments
+        instrument_group_plots = Dict{Int64,Plots.Plot}()
+        available_groups = unique([gti.group for gti in values(instrument_data[instrument])])
+        available_groups = available_groups[available_groups .>= 0] # Excluse -1, -2, etc... for scrunched/mean FFTData
+
+        for group in available_groups
+            title_append = " - group $group/$(maximum(available_groups))"
+
+            instrument_group_plots[group] = plot(Dict(instrument=>instrument_data[instrument][group]);
+                title_append=title_append, size_in=size_in, save_plt=false)
+
+            if save_plt
+                _savefig_obsdir(obs_row, example_pgram.mission, example_pgram.obsid, example_pgram.bin_time,
+                "pgram/groups/", "$(group)_pgram.png")
+            end
+        end
+
+        group_plots[instrument] = instrument_group_plots
+    end
+
+    return group_plots
 end

@@ -6,6 +6,7 @@ struct PgramData
     pg_type    :: Symbol
     powers     :: Array
     freqs      :: Array
+    group      :: Int
 end
 
 function _pgram(counts, bin_time, pg_type=:mt)
@@ -22,60 +23,60 @@ function _pgram(counts, bin_time, pg_type=:mt)
     return freqs, powers
 end
 
-function _pgram(lc::BinnedData, pg_type)
+function _pgram(lc::BinnedData, pg_type, group)
     freqs, powers = _pgram(lc.counts, lc.bin_time, pg_type)
 
     return PgramData(lc.mission, lc.instrument, lc.obsid, lc.bin_time,
-        pg_type, powers, freqs)
+        pg_type, powers, freqs, group)
 end
 
-function _pgram_lc_orbit_pad(orbit_lc::Dict{Int64,JAXTAM.BinnedData})
-    orbits = keys(orbit_lc)
-    longest_orbit = maximum([length(x.counts) for x in values(orbit_lc)])
+function _pgram_lc_group_pad(group_lc::Dict{Int64,JAXTAM.BinnedData})
+    groups = keys(group_lc)
+    longest_group = maximum([length(x.counts) for x in values(group_lc)])
 
-    padded_orbits = Dict{Int64,JAXTAM.BinnedData}()
+    padded_groups = Dict{Int64,JAXTAM.BinnedData}()
 
-    for orbit in orbits
-        mission    = orbit_lc[orbit].mission
-        instrument = orbit_lc[orbit].instrument
-        obsid      = orbit_lc[orbit].obsid
-        bin_time   = orbit_lc[orbit].bin_time
-        counts     = orbit_lc[orbit].counts
-        times      = orbit_lc[orbit].times
-        gtis       = orbit_lc[orbit].gtis
+    for group in groups
+        mission    = group_lc[group].mission
+        instrument = group_lc[group].instrument
+        obsid      = group_lc[group].obsid
+        bin_time   = group_lc[group].bin_time
+        counts     = group_lc[group].counts
+        times      = group_lc[group].times
+        gtis       = group_lc[group].gtis
 
-        if length(counts) < longest_orbit
-            counts = [counts; zeros(longest_orbit-length(counts))]
+        if length(counts) < longest_group
+            counts = [counts; zeros(longest_group-length(counts))]
         end
 
-        padded_orbits[orbit] = BinnedData(mission, instrument, obsid, bin_time, counts, times, gtis)
+        padded_groups[group] = BinnedData(mission, instrument, obsid, bin_time, counts, times, gtis)
     end
 
-    return padded_orbits
+    return padded_groups
 end
 
-function pgram(instrument_lc::Dict{Symbol,BinnedData}; pg_type=:pgram, per_orbit=false)
+function pgram(instrument_lc::Dict{Symbol,BinnedData}; pg_type=:pgram, per_group=false)
     instruments = keys(instrument_lc)
 
-    instrument_pgram = per_orbit ? Dict{Symbol,Dict{Int,PgramData}}() : Dict{Symbol,PgramData}()
+    instrument_pgram = per_group ? Dict{Symbol,Dict{Int,PgramData}}() : Dict{Symbol,PgramData}()
     for instrument in instruments
-        if per_orbit
-            orbit_pgram = Dict{Int,PgramData}()
+        if per_group
+            group_pgram = Dict{Int,PgramData}()
 
-            lc_orbits = _orbit_return(instrument_lc[instrument])
-            lc_orbits = _pgram_lc_orbit_pad(lc_orbits)
-            orbits = keys(lc_orbits)
+            lc_groups = _group_return(instrument_lc[instrument])
+            #lc_groups = _pgram_lc_group_pad(lc_groups)
+            groups = keys(lc_groups)
 
-            for orbit in orbits
-                orbit_pgram[orbit] = _pgram(lc_orbits[orbit], pg_type)
+            for group in groups
+                group_pgram[group] = _pgram(lc_groups[group], pg_type, group)
             end
 
-            orbit_pgram[-1] = PgramData(orbit_pgram[1].mission, orbit_pgram[1].instrument, orbit_pgram[1].obsid,
-                orbit_pgram[1].bin_time, pg_type, mean([pgram.powers for pgram in values(orbit_pgram)]), orbit_pgram[1].freqs)
+            #group_pgram[-1] = PgramData(group_pgram[1].mission, group_pgram[1].instrument, group_pgram[1].obsid,
+            #    group_pgram[1].bin_time, pg_type, mean([pgram.powers for pgram in values(group_pgram)]), group_pgram[1].freqs, -1)
 
-            instrument_pgram[instrument] = orbit_pgram
+            instrument_pgram[instrument] = group_pgram
         else
-            instrument_pgram[instrument] = _pgram(instrument_lc[instrument], pg_type)
+            instrument_pgram[instrument] = _pgram(instrument_lc[instrument], pg_type, 0)
         end
     end
     
