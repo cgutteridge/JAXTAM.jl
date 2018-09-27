@@ -343,3 +343,35 @@ function plot_groups(instrument_data::Dict{Symbol,Dict{Int64,JAXTAM.PgramData}};
 
     return group_plots
 end
+# Spectrogram plotting functions
+
+function plot_sgram(fs::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}}; 
+        rebin=(:log10, 0.01), size_in=(1140,600), save_plt=true)
+    instruments = keys(fs)
+
+    sgram_instrument_plots = Dict{Symbol,Plots.Plot}()
+    for instrument in instruments
+        example_data = fs[instrument][-1]
+        bin_time_pow2 = Int(log2(example_data.bin_time))
+
+        sgram_freq, sgram_power = fspec_rebin_sgram(fs[instrument], rebin=rebin)
+        sgram_power = sgram_power'
+
+        heatmap(sgram_freq, 1:size(sgram_power, 1), sgram_power, 
+            size=size_in, fill=true, legend=false,
+            xlab="Freq (Hz - log10)", ylab="fspec count",
+            title="Spectrogram - $(example_data.obsid) - 2^$(bin_time_pow2) bt - $(example_data.bin_size*example_data.bin_time) bs - $rebin rebin")
+
+        xaxis!(xscale=:log10, xformatter=xi->xi)
+
+        return Plots.plot!()
+        sgram_instrument_plots[instrument] = Plots.plot!()
+
+        if(save_plt)
+            obs_row = master_query(example_data.mission, :obsid, example_data.obsid)
+            _savefig_obsdir(obs_row, example_data.mission, example_data.obsid, example_data.bin_time, "fspec/$(example_data.bin_size*example_data.bin_time)", "sgram.png")
+        end
+    end
+
+    return sgram_instrument_plots
+end

@@ -328,3 +328,17 @@ function fspec_rebin(fs::JAXTAM.FFTData; rebin=(:log10, 0.01))
 
     return rebinned_data
 end
+
+function fspec_rebin_sgram(fs::Dict{Int64,JAXTAM.FFTData}; rebin=(:log10, 0.01))
+    fs = sort(fs) # Ensure power spectra is in GTI order
+    rebinned_data = [fspec_rebin(f[2]; rebin=rebin) for f in fs if f[1] > 0] # >0 to exclude index < 0 reserved for special values
+
+    rebinned_data_freq  = rebinned_data[1][1]
+
+    rebinned_data_fspec = [r[2] for r in rebinned_data]
+    rebinned_data_fspec = hcat(rebinned_data_fspec...)
+    rebinned_data_fspec = (rebinned_data_fspec .- 2) .* rebinned_data_freq
+    rebinned_data_fspec[rebinned_data_fspec .<=0] .= 0
+
+    return rebinned_data_freq, rebinned_data_fspec
+end
