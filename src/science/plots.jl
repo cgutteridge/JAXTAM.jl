@@ -69,6 +69,7 @@ function plot!(data::BinnedData; lab="", size_in=(1140,400), save_plt=true, titl
         _savefig_obsdir(data.mission, data.obsid, data.bin_time, NaN, "lc", "$(data.instrument)_lcurve.png")
     end
 
+    Plots.plot!(title_location=:left, titlefontsize=12, margin=2mm, xguidefontsize=10, yguidefontsize=10)
     return Plots.plot!()
 end
 
@@ -157,7 +158,7 @@ function plot!(data::FFTData; title_append="", norm=:rms, rebin=(:log10, 0.01),
 
     if show_errors
         Plots.plot!(freqs, avg_amp, color=:black,
-            yerr=errors, #yerr=errors, marker=stroke(0.01, :black, :none),
+            yerr=errors,
             ylab=ylab, lab=lab)
     else
         Plots.plot!(freqs, avg_amp, color=:black,
@@ -182,6 +183,7 @@ function plot!(data::FFTData; title_append="", norm=:rms, rebin=(:log10, 0.01),
         _savefig_obsdir(data.mission, data.obsid, data.bin_time, "fspec.png")
     end
 
+    Plots.plot!(title_location=:left, titlefontsize=12, margin=2mm, xguidefontsize=10, yguidefontsize=10)
     return Plots.plot!(size=size_in)
 end
 
@@ -195,8 +197,6 @@ function plot(instrument_data::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}}; title_ap
         plt = JAXTAM.plot!(instrument_data[Symbol(instrument)][-1]; title_append=title_append,
             norm=norm, rebin=rebin, logx=logx, logy=logy, lab=String(instrument), save_plt=false)
     end
-
-    Plots.plot!(title_location=:left, titlefontsize=12, margin=2mm, xguidefontsize=10, yguidefontsize=10)
 
     if(save_plt)
         example_gti = _pull_data(instrument_data)
@@ -284,6 +284,7 @@ function plot!(data::PgramData; title_append="", rebin=(:linear, 10),
         yaxis!(yscale=:log10, yformatter=yi->yi, ylims=ylim)
     end
 
+    Plots.plot!(title_location=:left, titlefontsize=12, margin=2mm, xguidefontsize=10, yguidefontsize=10)
     return Plots.plot!(size=size_in)
 end
 
@@ -359,17 +360,18 @@ function plot_sgram(fs::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}};
 
         heatmap(sgram_freq, 1:size(sgram_power, 1), sgram_power, 
             size=size_in, fill=true, legend=false,
-            xlab="Freq (Hz - log10)", ylab="fspec count",
+            xlab="Freq (Hz - log10 - log scale support faulty, ticks excluded)", ylab="fspec count",
             title="Spectrogram - $(example_data.obsid) - 2^$(bin_time_pow2) bt - $(example_data.bin_size*example_data.bin_time) bs - $rebin rebin")
 
-        xaxis!(xscale=:log10, xformatter=xi->xi)
+        xticks!([0])
 
-        return Plots.plot!()
+        Plots.plot!(title_location=:left, titlefontsize=12, margin=2mm, xguidefontsize=10, yguidefontsize=10)
+
         sgram_instrument_plots[instrument] = Plots.plot!()
 
         if(save_plt)
             obs_row = master_query(example_data.mission, :obsid, example_data.obsid)
-            _savefig_obsdir(obs_row, example_data.mission, example_data.obsid, example_data.bin_time, "fspec/$(example_data.bin_size*example_data.bin_time)", "sgram.png")
+            _savefig_obsdir(obs_row, example_data.mission, example_data.obsid, example_data.bin_time, "sgram/$(example_data.bin_size*example_data.bin_time)", "sgram.png")
         end
     end
 
@@ -395,6 +397,7 @@ function plot_fspec_cov(fs::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}}; size_in=(11
         yaxis!(yscale=:log10, yformatter=xi->xi, ylab="Cov (diag - log10")
         hline!([4000])
         
+        Plots.plot!(title_location=:left, titlefontsize=12, margin=2mm, xguidefontsize=10, yguidefontsize=10)
         return Plots.plot!()
     end
 end

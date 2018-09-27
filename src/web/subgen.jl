@@ -242,7 +242,7 @@ function _webgen_subpage_findimg(JAXTAM_path)
 
         # 5  - folder named after on of the plot kinds: fspec, lc, or pgram
         img_kind = img_dir_splt[5]
-        @assert img_kind in ["fspec", "lc", "pgram"]
+        @assert img_kind in ["fspec", "lc", "pgram", "sgram"]
         append!(img_kinds, [img_kind])
 
         # 6  - Diverges based on kind
@@ -250,12 +250,12 @@ function _webgen_subpage_findimg(JAXTAM_path)
             # 6a - fspec bin_size
             img_bin_size = img_dir_splt[6]
             if length(img_dir_splt) > 6 && img_dir_splt[7] == "groups"
-                # 7a1 - fspec groups folder
+                # 6a1 - fspec groups folder
                 img_kind_ordr = 20
                 img_group = parse(Int, replace(img_name, "_fspec.png"=>""))
                 img_title = "Power Spectra - group $img_group - $img_bin_time bt - $img_bin_size bs"
             else
-                # 7a2 - not a group plot
+                # 6a2 - not a group plot
                 img_kind_ordr = 3
                 img_title = "Power Spectra - $img_bin_time bt - $img_bin_size bs"
                 img_group = 0
@@ -278,16 +278,22 @@ function _webgen_subpage_findimg(JAXTAM_path)
             # 6c - pgram has no bin size
             img_bin_size = missing
             if length(img_dir_splt) > 5 && img_dir_splt[6] == "groups"
-                # 6b1 - lc groups folder
+                # 6c1 - lc groups folder
                 img_kind_ordr = 30
                 img_group = parse(Int, replace(img_name, "_pgram.png"=>""))
                 img_title = "Periodogram - group $img_group - $img_bin_time bt"
             else
-                # 6b2 - not a group plot
+                # 6c2 - not a group plot
                 img_kind_ordr = 2
                 img_title = "Periodogram - $img_bin_time bt"
                 img_group = 0
             end
+        elseif img_kind == "sgram"
+            img_bin_size = img_dir_splt[6]
+            # 6d2 - lc groups folder
+            img_kind_ordr = 3
+            img_group = 0
+            img_title = "Spectrogram - $img_bin_time bt - $img_bin_size bs"
         end
 
         append!(img_bin_sizes, [img_bin_size])
@@ -429,10 +435,12 @@ function report(mission_name, obsid; overwrite=false, nuke=false)
 
         fs = fspec(mission_name, obs_row, 2.0^-13, 128)
         JAXTAM.plot(fs); JAXTAM.plot_groups(fs; size_in=(1140,600/2))
+        JAXTAM.plot_sgram(fs; size_in=(1140,600/2))
         fs = 0; GC.gc()
 
         fs = fspec(mission_name, obs_row, 2.0^-13, 64)
         JAXTAM.plot(fs); JAXTAM.plot_groups(fs; size_in=(1140,600/2))
+        JAXTAM.plot_sgram(fs; size_in=(1140,600/2))
         fs = 0; GC.gc()
     end
 
