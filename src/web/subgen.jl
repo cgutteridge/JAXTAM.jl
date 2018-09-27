@@ -417,8 +417,9 @@ function report(mission_name, obsid; overwrite=false, nuke=false)
     if size(images, 1) < 1 || overwrite
         lc = lcurve(mission_name, obs_row, 2.0^0)
         JAXTAM.plot(lc); JAXTAM.plot_groups(lc; size_in=(1140,400/2))
-        pgf = pgram(lc); JAXTAM.plot(pgf);
-        lc = 0; GC.gc()
+        pg = pgram(lc); JAXTAM.plot(pg; size_in=(1140,600/2));
+        pg = pgram(lc; per_group=true); JAXTAM.plot_groups(pg);
+        lc = 0; pg=0; GC.gc()
 
         lcurve(mission_name, obs_row, 2.0^-13); GC.gc()
 
