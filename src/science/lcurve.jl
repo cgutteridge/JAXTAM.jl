@@ -112,63 +112,67 @@ function _lc_bin(event_times::Array{Float64,1}, bin_time::Union{Float64,Int64}, 
 end
 
 """
-    _orbit_select(data::BinnedData)
+    _group_select(data::BinnedData)
 
-Only used for `NICER` data
+Checks the differennce in time between GTIs, if the difference is under 
+a `group_period` (128 [sec] by default) then the GTIs are in the same `group`
 
-Checks the difference in start time between GTIs, when the difference is over 
-the ISS orbit time, classifies the GTI as being in a different orbit
+Done as data frequently has small breaks between GTIs, even though there is no 
+significant gap in the lightcurve. Groups are used during plotting, periodograms, 
+and when grouping/averaging together power spectra
 
-Returns GTIs with an extra `:orbit` column added in
+Returns GTIs with an extra `:group` column added in
 """
-function _orbit_select(data::BinnedData)
-    orbit_period = 92*60 # Orbital persiod of ISS, used with NICER, TODO: GENERALISE WITH MISSION CONFIG
-    orbit_times  = data.gtis[:, 1][findall(diff(data.gtis[:, 2]) .> orbit_period/2)]
-    orbit_times  = [orbit_times.-orbit_period/2 orbit_times]
-    
-    orbit_indecies = [findfirst(x .<= data.times) for x in orbit_times]
+function _group_select(data::BinnedData)
+    group_period = 128
 
-    gti_orbit_index = zeros(Int, size(data.gtis, 1))
+    gti_gap_time = data.gtis[:start][2:end] .- data.gtis[:stop][1:end-1]
+    gti_gap_time = [0; gti_gap_time]
 
-    for i = 1:size(orbit_indecies, 1)
-        gtis_in_orbit = data.gtis[(orbit_times[i, 1] .<= data.gtis[:, 2] .<= orbit_times[i, 2])[:], :]
+    gti_group_index = zeros(Int, size(data.gtis, 1))
 
-        gti_orbit_index[orbit_times[i, 1] .<= data.gtis[:, 2] .<= orbit_times[i, 2]] .= i
+    group = 1
+    for (i, gap) in enumerate(gti_gap_time)
+        if gap > group_period
+            group = group + 1
+        end
+
+        gti_group_index[i] = group
     end
 
-    data.gtis[:orbit] = gti_orbit_index
+    data.gtis[:group] = gti_group_index
 
     return data
 end
 
 """
-    _orbit_return(data::BinnedData)
+    _group_return(data::BinnedData)
 
-Uses the `_orbit_select` function to find the orbit each GTI belongs in
+Uses the `_group_select` function to find the group each GTI belongs in
 
-Using these orbits, splits sections of light curve up into an orbit, then 
-creates a new `BinnedData` for just the lightcurve of that one orbit, finally 
-returns a `Dict{Int64,JAXTAM.BinnedData}` where each `Int64` is for a different orbit
+Using these groups, splits sections of light curve up into an group, then 
+creates a new `BinnedData` for just the lightcurve of that one group, finally 
+returns a `Dict{Int64,JAXTAM.BinnedData}` where each `Int64` is for a different group
 """
-function _orbit_return(data::BinnedData)
+function _group_return(data::BinnedData)
     gtis = data.gtis
     gtis = gtis[(gtis[:, :stop]-gtis[:, :start]) .>= 16, :] # Ignore gtis under 16s long
-    available_orbits = unique(gtis[:orbit])
+    available_groups = unique(gtis[:group])
 
-    data_orbit = Dict{Int64,JAXTAM.BinnedData}()
-    for orbit in available_orbits
-        if orbit == 0
-            end_gti_idx = findfirst(data.gtis[:orbit] .== maximum(available_orbits))
+    data_group = Dict{Int64,JAXTAM.BinnedData}()
+    for group in available_groups
+        if group == 0
+            end_gti_idx = findfirst(data.gtis[:group] .== maximum(available_groups))
 
-            first_gti_idx = findfirst(data.gtis[:orbit][end_gti_idx:end] .== orbit) + end_gti_idx
-            last_gti_idx  = findlast(data.gtis[:orbit][end_gti_idx:end] .== orbit) + end_gti_idx
+            first_gti_idx = findfirst(data.gtis[:group][end_gti_idx:end] .== group) + end_gti_idx
+            last_gti_idx  = findlast(data.gtis[:group][end_gti_idx:end] .== group) + end_gti_idx
 
             if last_gti_idx > size(data.gtis, 1)
                 last_gti_idx = size(data.gtis, 1)
             end
         else
-            first_gti_idx = findfirst(data.gtis[:orbit] .== orbit)
-            last_gti_idx  = findlast(data.gtis[:orbit] .== orbit)
+            first_gti_idx = findfirst(data.gtis[:group] .== group)
+            last_gti_idx  = findlast(data.gtis[:group] .== group)
         end
 
         first_gti = data.gtis[first_gti_idx, :]
@@ -181,7 +185,7 @@ function _orbit_return(data::BinnedData)
             last_idx = length(data.times)
         end
         
-        data_orbit[orbit] = BinnedData(
+        data_group[group] = BinnedData(
             data.mission,
             data.instrument,
             data.obsid,
@@ -192,7 +196,7 @@ function _orbit_return(data::BinnedData)
         )
     end
 
-    return data_orbit
+    return data_group
 end
 
 """
@@ -202,7 +206,7 @@ Takes in the `InstrumentData` and desired `bin_time`
 
 Runs functions to perform extra time (`_lcurve_filter_time`) and energy (`_lc_filter_energy`) filtering
 
-Runs the binning (`_lc_bin`) function, then finally `_orbit_select` to append orbit numbers to each GTI
+Runs the binning (`_lc_bin`) function, then finally `_group_select` to append group numbers to each GTI
 
 Returns a `BinnedData` lightcurve
 """
@@ -220,7 +224,7 @@ function _lcurve(instrument_data::InstrumentData, bin_time::Union{Float64,Int64}
 
     lc = BinnedData(instrument_data.mission, instrument_data.instrument, instrument_data.obsid, bin_time, binned_counts, binned_times, gtis)
 
-    lc = _orbit_select(lc)
+    lc = _group_select(lc)
 
     return lc
 end

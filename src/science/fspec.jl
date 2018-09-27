@@ -7,7 +7,7 @@ struct FFTData <: JAXTAMData
     bin_count::Int
     gti_index::Int
     gti_start_time::Real
-    orbit::Int
+    group::Int
     amps::Array
     avg_amp::Array
     freqs::Array
@@ -16,7 +16,7 @@ end
 function _FFTData(gti, freqs, amps, fspec_bin_size, bin_count)
 
     return FFTData(gti.mission, gti.instrument, gti.obsid, gti.bin_time, fspec_bin_size, bin_count,
-        gti.gti_index, gti.gti_start_time, gti.orbit, amps, mean(amps, dims=2)[:], freqs)
+        gti.gti_index, gti.gti_start_time, gti.group, amps, mean(amps, dims=2)[:], freqs)
 end
 
 function _fft(counts::Array, times::StepRangeLen, bin_time::Real, fspec_bin_size; leahy=true)
@@ -70,13 +70,13 @@ function _fspec_save(fspec_data::Dict{Int64,JAXTAM.FFTData}, fspec_dir::String)
     fspec_indecies = collect(keys(fspec_data))
     fspec_starts   = [t.gti_start_time for t in values(fspec_data)]
     fspec_b_counts = [t.bin_count for t in values(fspec_data)]
-    fspec_orbits   = [o.orbit for o in values(fspec_data)]
+    fspec_groups   = [o.group for o in values(fspec_data)]
     fspec_example  = fspec_data[fspec_indecies[1]]
 
     fspec_basename = string("$(fspec_example.instrument)_lc_$(fspec_example.bin_time)_fspec")
     fspec_meta     = DataFrame(mission=String(fspec_example.mission),
     instrument=String(fspec_example.instrument), obsid=fspec_example.obsid,
-    bin_time=fspec_example.bin_time, bin_size=fspec_example.bin_size, orbits=fspec_orbits,
+    bin_time=fspec_example.bin_time, bin_size=fspec_example.bin_size, groups=fspec_groups,
     indecies=fspec_indecies, starts=fspec_starts, b_counts=fspec_b_counts)
     
     Feather.write(joinpath(fspec_dir, "$(fspec_basename)_meta.feather"), fspec_meta)
@@ -112,7 +112,7 @@ function _fspec_load(fspec_dir, instrument, bin_time, fspec_bin)
         fspec_idx     = current_row[:indecies][1]
         fspec_starts  = current_row[:starts][1]
         fspec_b_count = current_row[:b_counts][1]
-        fspec_orbit   = current_row[:orbits][1]
+        fspec_group   = current_row[:groups][1]
         fspec_file    = Feather.read(joinpath(fspec_dir, "$(fspec_basename)_$(fspec_idx).feather"))
         fspec_freqs   = Array(fspec_file[:freqs]); delete!(fspec_file, :freqs)
         fspec_ampavg  = Array(fspec_file[:avg_amp]); delete!(fspec_file, :avg_amp)
@@ -123,7 +123,7 @@ function _fspec_load(fspec_dir, instrument, bin_time, fspec_bin)
         end
 
         fspec_data[fspec_idx] = FFTData(fspec_mission, fspec_inst, fspec_obsid, fspec_bin_t,
-            fspec_bin_sze, fspec_b_count, fspec_idx, fspec_starts, fspec_orbit, fspec_amps, fspec_ampavg,
+            fspec_bin_sze, fspec_b_count, fspec_idx, fspec_starts, fspec_group, fspec_amps, fspec_ampavg,
             fspec_freqs)
     end
 
@@ -208,7 +208,7 @@ function fspec(mission_name::Symbol, gtis::Dict{Symbol,Dict{Int64,JAXTAM.GTIData
 end
 
 function fspec(mission_name::Symbol, obs_row::DataFrames.DataFrame, bin_time::Real, fspec_bin::Real;
-        overwrite_fs=true, overwrite_gtis=true, save_fspec=false, pow2=true, fspec_bin_type=:time, scrunched=true)
+        overwrite_fs=true, overwrite_gtis=false, save_fspec=false, pow2=true, fspec_bin_type=:time, scrunched=true)
     obsid       = obs_row[:obsid][1]
     instruments = Symbol.(config(mission_name).instruments)
 
@@ -327,27 +327,4 @@ function fspec_rebin(fs::JAXTAM.FFTData; rebin=(:log10, 0.01))
     rebinned_data = _fspec_rebin(fs.avg_amp, fs.freqs, fs.bin_count, rebin)
 
     return rebinned_data
-end
-
-function _orbit_select(data::FFTData)
-    orbit_period = 92*60 # Orbital persiod of ISS, used with NICER, TODO: GENERALISE WITH MISSION CONFIG
-    orbit_times  = data.gtis[:, 1][findall(diff(data.gtis[:, 2]) .> orbit_period/2)]
-    orbit_times  = [orbit_times.-orbit_period/2 orbit_times]
-    
-    orbit_indecies = [findfirst(x .<= data.times) for x in orbit_times]
-
-    lc_indecies = Array{Int,2}(undef, size(orbit_indecies,2), 2)
-    orbit_data = Dict{Int64, BinnedOrbitData}()
-    for i = 1:size(orbit_indecies, 1)
-        gtis_in_orbit = data.gtis[(orbit_times[i, 1] .<= data.gtis[:, 2] .<= orbit_times[i, 2])[:], :]
-
-        adjusted_indecies = [findfirst(data.times .>= gtis_in_orbit[1, 1]), findfirst(data.times .>= gtis_in_orbit[end, 2])]
-
-        orbit_data[i] = BinnedOrbitData(data.mission, data.instrument, data.obsid, data.bin_time,
-            view(data.counts, adjusted_indecies[1]:adjusted_indecies[2]), view(data.times, adjusted_indecies[1]:adjusted_indecies[2]),
-            gtis_in_orbit, i)
-    end
-
-    return BinnedData(data.mission, data.instrument, data.obsid,
-        data.bin_time, data.counts, data.times, data.gtis, orbit_data)
 end

@@ -196,7 +196,7 @@ function _webgen_subpage_findimg(JAXTAM_path)
     img_bin_times  = []
     img_kinds      = []
     img_bin_sizes  = []
-    img_orbits     = []
+    img_groups     = []
     img_titles     = []
     img_kind_ordrs = Array{Int64,1}()
     for path in paths
@@ -245,49 +245,49 @@ function _webgen_subpage_findimg(JAXTAM_path)
         if img_kind == "fspec"
             # 6a - fspec bin_size
             img_bin_size = img_dir_splt[6]
-            if length(img_dir_splt) > 6 && img_dir_splt[7] == "orbits"
-                # 7a1 - fspec orbits folder
+            if length(img_dir_splt) > 6 && img_dir_splt[7] == "groups"
+                # 7a1 - fspec groups folder
                 img_kind_ordr = 30
-                img_orbit = parse(Int, replace(img_name, "_fspec.png"=>""))
-                img_title = "Power Spectra - Orbit $img_orbit - $img_bin_time bt - $img_bin_size bs"
+                img_group = parse(Int, replace(img_name, "_fspec.png"=>""))
+                img_title = "Power Spectra - group $img_group - $img_bin_time bt - $img_bin_size bs"
             else
-                # 7a2 - not an orbit plot
+                # 7a2 - not a group plot
                 img_kind_ordr = 3
                 img_title = "Power Spectra - $img_bin_time bt - $img_bin_size bs"
-                img_orbit = 0
+                img_group = 0
             end
         elseif img_kind == "lc"
             # 6b - lc has no bin size
             img_bin_size = missing
-            if length(img_dir_splt) > 5 && img_dir_splt[6] == "orbits"
-                # 6b1 - lc orbits folder
+            if length(img_dir_splt) > 5 && img_dir_splt[6] == "groups"
+                # 6b1 - lc groups folder
                 img_kind_ordr = 10
-                img_orbit = parse(Int, replace(img_name, "_lcurve.png"=>""))
-                img_title = "Light Curve - Orbit $img_orbit - $img_bin_time bt"
+                img_group = parse(Int, replace(img_name, "_lcurve.png"=>""))
+                img_title = "Light Curve - group $img_group - $img_bin_time bt"
             else
-                # 6b2 - not an orbit plot
+                # 6b2 - not a group plot
                 img_kind_ordr = 1
                 img_title = "Light Curve - $img_bin_time bt"
-                img_orbit = 0
+                img_group = 0
             end
         elseif img_kind == "pgram"
             # 6c - pgram has no bin size
             img_bin_size = missing
-            if length(img_dir_splt) > 5 && img_dir_splt[6] == "orbits"
-                # 6b1 - lc orbits folder
+            if length(img_dir_splt) > 5 && img_dir_splt[6] == "groups"
+                # 6b1 - lc groups folder
                 img_kind_ordr = 20
-                img_orbit = parse(Int, replace(img_name, "_pgram.png"=>""))
-                img_title = "Periodogram - Orbit $img_orbit - $img_bin_time bt"
+                img_group = parse(Int, replace(img_name, "_pgram.png"=>""))
+                img_title = "Periodogram - group $img_group - $img_bin_time bt"
             else
-                # 6b2 - not an orbit plot
+                # 6b2 - not a group plot
                 img_kind_ordr = 2
                 img_title = "Periodogram - $img_bin_time bt"
-                img_orbit = 0
+                img_group = 0
             end
         end
 
         append!(img_bin_sizes, [img_bin_size])
-        append!(img_orbits, [img_orbit])
+        append!(img_groups, [img_group])
         append!(img_titles, [img_title])
         append!(img_kind_ordrs, img_kind_ordr)
     end
@@ -297,7 +297,7 @@ function _webgen_subpage_findimg(JAXTAM_path)
                                 bin_times=img_bin_times,
                                 kinds=img_kinds,
                                 bin_size=img_bin_sizes,
-                                img_orbit=img_orbits,
+                                img_group=img_groups,
                                 img_title=img_titles,
                                 img_kind_ordr=img_kind_ordrs
                             )
@@ -311,22 +311,22 @@ function _webgen_results_body(obs_row; img_dict=Dict())
     )
 end
 
-function _webgen_results_body_orbits(obs_row, img_df)
-    orbits = unique(img_df[:img_orbit])
+function _webgen_results_body_groups(obs_row, img_df)
+    groups = unique(img_df[:img_group])
 
-    orbit_container = Array{Hyperscript.Node{Hyperscript.HTMLSVG},1}()
+    group_container = Array{Hyperscript.Node{Hyperscript.HTMLSVG},1}()
     
-    for orbit in orbits
-        orbit_images = filter(x->x[:img_orbit]==orbit, img_df)
+    for group in groups
+        group_images = filter(x->x[:img_group]==group, img_df)
         
-        node_orbit = div(class="slide",
+        node_group = div(class="slide",
             div(class="container",
-                h4("Orbit - $orbit"),
-                [(img(src=row[:path])) for row in DataFrames.eachrow(orbit_images)]
+                h4("group - $group"),
+                [(img(src=row[:path])) for row in DataFrames.eachrow(group_images)]
             )
         )
         
-        push!(orbit_container, node_orbit)
+        push!(group_container, node_group)
     end
 
     slider_node = div(id="container", 
@@ -336,12 +336,12 @@ function _webgen_results_body_orbits(obs_row, img_df)
         div(id="prev", alt="Prev", title="Prev",
             div(class="arrow-left")
         ),
-        h2("Per-Orbit Plots"),
+        h2("Per-Group Plots"),
         div(id="slider"),
-        orbit_container
+        group_container
     )
     
-    return div(orbit_container)
+    return div(group_container)
 end
 
 function _webgen_subpage(mission_name, obs_row)
@@ -358,17 +358,17 @@ function _webgen_subpage(mission_name, obs_row)
 
     img_details = _webgen_subpage_findimg(JAXTAM_path)
 
-    img_details_overview = filter(x->x[:img_orbit] == 0, img_details)
-    img_details_overview = sort(img_details_overview, (:img_orbit, :img_kind_ordr))
+    img_details_overview = filter(x->x[:img_group] == 0, img_details)
+    img_details_overview = sort(img_details_overview, (:img_group, :img_kind_ordr))
 
-    img_details_orbits   = filter(x->x[:img_orbit] != 0, img_details)
-    img_details_orbits   = sort(img_details_orbits, (:img_orbit, :img_kind_ordr))
+    img_details_groups   = filter(x->x[:img_group] != 0, img_details)
+    img_details_groups   = sort(img_details_groups, (:img_group, :img_kind_ordr))
 
     img_tuple_overview   = [img[:img_title]=>img[:path] for img in DataFrames.eachrow(img_details_overview)]
-    img_tuple_orbits     = [img[:img_title]=>img[:path] for img in DataFrames.eachrow(img_details_orbits)]
+    img_tuple_groups     = [img[:img_title]=>img[:path] for img in DataFrames.eachrow(img_details_groups)]
 
     img_dict_overview    = OrderedDict(img_tuple_overview)
-    img_dict_orbits      = OrderedDict(img_tuple_orbits)
+    img_dict_groups      = OrderedDict(img_tuple_groups)
 
     html_out = html(
         _webgen_head(;title_in="$mission_name - $obsid - Results"),
@@ -377,7 +377,7 @@ function _webgen_subpage(mission_name, obs_row)
         body(
             _webgen_results_intro(obs_row),
             _webgen_results_body(obs_row; img_dict=img_dict_overview),
-            _webgen_results_body_orbits(obs_row, img_details_orbits)
+            _webgen_results_body_groups(obs_row, img_details_groups)
         )
     )
 
@@ -394,7 +394,7 @@ function webgen_subpage(mission_name, obsid)
     return _webgen_subpage(mission_name, obs_row)
 end
 
-function report(mission_name, obsid; overwrite=false)
+function report(mission_name, obsid; overwrite=false, nuke=false)
     obs_row = master_query(mission_name, :obsid, obsid)
 
     obsid = obs_row[1, :obsid] 
@@ -404,6 +404,10 @@ function report(mission_name, obsid; overwrite=false)
     obs_path = replace(obs_path, "//"=>"/")
     JAXTAM_path = joinpath(obs_path, "JAXTAM")
 
+    if nuke
+        rm(JAXTAM_path, recursive=true)
+    end
+
     if isdir(JAXTAM_path)
         images = _webgen_subpage_findimg(JAXTAM_path)
     else
@@ -412,18 +416,18 @@ function report(mission_name, obsid; overwrite=false)
 
     if size(images, 1) < 1 || overwrite
         lc = lcurve(mission_name, obs_row, 2.0^0)
-        JAXTAM.plot(lc); JAXTAM.plot_orbits(lc; size_in=(1140,400/2))
+        JAXTAM.plot(lc); JAXTAM.plot_groups(lc; size_in=(1140,400/2))
         pgf = pgram(lc); JAXTAM.plot(pgf);
         lc = 0; GC.gc()
 
         lcurve(mission_name, obs_row, 2.0^-13); GC.gc()
 
         fs = fspec(mission_name, obs_row, 2.0^-13, 128)
-        JAXTAM.plot(fs); JAXTAM.plot_orbits(fs; size_in=(1140,600/2))
+        JAXTAM.plot(fs); JAXTAM.plot_groups(fs; size_in=(1140,600/2))
         fs = 0; GC.gc()
 
         fs = fspec(mission_name, obs_row, 2.0^-13, 64)
-        JAXTAM.plot(fs); JAXTAM.plot_orbits(fs; size_in=(1140,600/2))
+        JAXTAM.plot(fs); JAXTAM.plot_groups(fs; size_in=(1140,600/2))
         fs = 0; GC.gc()
     end
 
