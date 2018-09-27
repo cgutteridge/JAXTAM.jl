@@ -143,7 +143,6 @@ function plot!(data::FFTData; title_append="", norm=:rms, rebin=(:log10, 0.01),
     ylab = ""
     
     if norm == :rms
-        freqs, avg_amp, errors = fspec_rebin(data, rebin=rebin)
         errors = errors.*freqs
         avg_amp = (avg_amp.-2).*freqs
         amp_max = maximum(avg_amp[2:end]); amp_min = minimum(abs.(avg_amp[2:end]))
@@ -151,7 +150,7 @@ function plot!(data::FFTData; title_append="", norm=:rms, rebin=(:log10, 0.01),
         ylab = "Amplitude (Leahy - 2)*freq"
     elseif norm == :leahy
         amp_max = maximum(avg_amp[2:end]); amp_min = minimum(avg_amp[2:end])
-        ylab="Amplitude (Leahy)"
+        ylab = "Amplitude (Leahy)"
     else
         @error "Plot norm type '$norm' not found" 
     end
@@ -343,6 +342,7 @@ function plot_groups(instrument_data::Dict{Symbol,Dict{Int64,JAXTAM.PgramData}};
 
     return group_plots
 end
+
 # Spectrogram plotting functions
 
 function plot_sgram(fs::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}}; 
@@ -374,4 +374,27 @@ function plot_sgram(fs::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}};
     end
 
     return sgram_instrument_plots
+end
+
+# Covariance plotting
+
+function plot_fspec_cov(fs::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}}; size_in=(1140,600))
+    instruments = keys(fs)
+
+    for instrument in instruments
+        fspec_freq, fspec_power = JAXTAM.fspec_rebin_sgram(fs[instrument])
+
+        fspec_diag = diag(cov(fspec_power, dims=2))
+
+        fspec_diag[fspec_diag .<= 10] .= NaN
+
+        Plots.plot(fspec_freq, fspec_diag,
+            size=size_in)
+
+        xaxis!(xscale=:log10, xformatter=xi->xi, xlab="Freq (Hz - log10)")
+        yaxis!(yscale=:log10, yformatter=xi->xi, ylab="Cov (diag - log10")
+        hline!([4000])
+        
+        return Plots.plot!()
+    end
 end

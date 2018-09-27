@@ -178,7 +178,11 @@ function _webgen_results_intro(obs_row)
             h4("Observation Details"),
             _webgen_table(obs_row[: ,[:time, :end_time, :exposure, :remarks]]; table_id=""),
             h4("Misc"),
-            _webgen_table(obs_row[[:processing_status, :processing_date, :processing_version, :num_processed, :caldb_version]], table_id="")
+            _webgen_table(obs_row[[:processing_status, :processing_date, :processing_version, :num_processed, :caldb_version]], table_id=""),
+            hr(),
+            h4("Notes"),
+            p("\"Groups\" are GTIs seperated by less than 128 seconds, which have been grouped together. They are used to select smaller chunks of the lightcurve, which are then passed through periodogram and power spectra functions. Left and right arrow keys can be used to move between groups below."),
+            p("Note that when looking at the spectrogram the gaps in the lightcurve are not displayed, so trends shown in the spectrogram may not represent reality.")
         )
     )
 end

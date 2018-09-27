@@ -18,6 +18,7 @@ using Statistics
 using StatsBase
 using OnlineStats
 using DSP
+using LinearAlgebra
 
 using Hyperscript
 
