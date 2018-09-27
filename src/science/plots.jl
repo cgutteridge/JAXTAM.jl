@@ -281,7 +281,7 @@ function plot!(data::PgramData; title_append="", rebin=(:linear, 10),
         # If amp_min < 1, can't use prevpow10 for ylims, hacky little fix is 1/prevpow(10, 1/amp_min)
         # removed that anyway, set ylim to 1 if amp_min < 1
         amp_min > 1 ? ylim = (prevpow(10, amp_min), nextpow(10, amp_max)) : ylim = (1, nextpow(10, amp_max))
-        yaxis!(yscale=:log10, yformatter=yi->yi, ylims=ylim)
+        yaxis!(yscale=:log10, yformatter=yi->round(yi), ylims=ylim)
     end
 
     Plots.plot!(title_location=:left, titlefontsize=12, margin=2mm, xguidefontsize=10, yguidefontsize=10)
