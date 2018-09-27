@@ -247,7 +247,7 @@ function _webgen_subpage_findimg(JAXTAM_path)
             img_bin_size = img_dir_splt[6]
             if length(img_dir_splt) > 6 && img_dir_splt[7] == "groups"
                 # 7a1 - fspec groups folder
-                img_kind_ordr = 30
+                img_kind_ordr = 20
                 img_group = parse(Int, replace(img_name, "_fspec.png"=>""))
                 img_title = "Power Spectra - group $img_group - $img_bin_time bt - $img_bin_size bs"
             else
@@ -275,7 +275,7 @@ function _webgen_subpage_findimg(JAXTAM_path)
             img_bin_size = missing
             if length(img_dir_splt) > 5 && img_dir_splt[6] == "groups"
                 # 6b1 - lc groups folder
-                img_kind_ordr = 20
+                img_kind_ordr = 30
                 img_group = parse(Int, replace(img_name, "_pgram.png"=>""))
                 img_title = "Periodogram - group $img_group - $img_bin_time bt"
             else
