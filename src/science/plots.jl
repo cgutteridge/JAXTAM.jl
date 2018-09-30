@@ -358,7 +358,7 @@ function plot_sgram(fs::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}};
         sgram_freq, sgram_power = fspec_rebin_sgram(fs[instrument], rebin=rebin)
         sgram_power = sgram_power'
 
-        heatmap(sgram_freq, 1:size(sgram_power, 1), sgram_power, 
+        heatmap(sgram_power, 
             size=size_in, fill=true, legend=false,
             xlab="Freq (Hz - log10 - log scale support faulty, ticks excluded)", ylab="fspec count",
             title="Spectrogram - $(example_data.obsid) - 2^$(bin_time_pow2) bt - $(example_data.bin_size*example_data.bin_time) bs - $rebin rebin")
