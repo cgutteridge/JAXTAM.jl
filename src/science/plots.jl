@@ -380,24 +380,121 @@ end
 
 # Covariance plotting
 
-function plot_fspec_cov(fs::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}}; size_in=(1140,600))
+function plot_fspec_cov1d(fs::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}}; size_in=(1140,600), rebin=(:log10, 0.01))
     instruments = keys(fs)
 
+    example_data = _pull_data(fs)
+    obsid = example_data.obsid
+    bin_time = example_data.bin_time
+    bin_time_pow2 = Int(log2(example_data.bin_time))
+    bin_size = example_data.bin_size
+
+    cov1d_plots = Dict{Symbol,Plots.Plot}()
     for instrument in instruments
-        fspec_freq, fspec_power = JAXTAM.fspec_rebin_sgram(fs[instrument])
+        fspec_freq, fspec_power = JAXTAM.fspec_rebin_sgram(fs[instrument]; rebin=rebin)
 
         fspec_diag = diag(cov(fspec_power, dims=2))
+        yaxis_max  = nextpow(10, maximum(fspec_diag))
+
+        bin_count = size(fspec_power, 2)
 
         fspec_diag[fspec_diag .<= 10] .= NaN
 
-        Plots.plot(fspec_freq, fspec_diag,
+        Plots.plot(fspec_freq, fspec_diag, lab=instrument,
+            color=:black, size=size_in,
+            title="FFT 1D Covariance - $(obsid) - 2^$(bin_time_pow2) bt - $(bin_size*bin_time) bs - $rebin rebin - $(bin_count) sections averaged")
+
+        xaxis!(xscale=:log10, xformatter=xi->xi, xlab="Freq (Hz - log10)", xlims=(0.01, nextpow(2, maximum(fspec_freq))))
+        yaxis!(yscale=:log10, yformatter=xi->xi, ylab="Cov (diag - log10)", ylims=(10, yaxis_max))
+        hline!([4000], lab="4000 - Threshold")
+        
+        cov1d_plots[instrument] = Plots.plot!(title_location=:left, titlefontsize=12, margin=2mm, xguidefontsize=10, yguidefontsize=10)
+    end
+
+    return cov1d_plots
+end
+
+function _plot_cov2d(fs::Dict{Int64,JAXTAM.FFTData}, rebin::Tuple, zoom_log10=false)
+    fspec_freq, fspec_power = JAXTAM.fspec_rebin_sgram(fs; rebin=rebin) 
+
+    if rebin[1] == :linear
+        fspec_cov_2d = cov(reverse(reverse(fspec_power, dims=2), dims=1), dims=2)
+    elseif rebin[1] == :log10
+        fspec_cov_2d = cov(fspec_power, dims=2)
+    else
+        error("Invalid rebin type: $(rebin[1])")
+    end
+
+    fspec_cov_2d[isnan.(fspec_cov_2d)] .= 0
+    
+    max_ind_2d = findmax(fspec_cov_2d)[2]
+    max_freq_x = fspec_freq[max_ind_2d[1]]
+    max_freq_y = fspec_freq[max_ind_2d[2]]
+
+    if zoom_log10!=false && rebin[1]==:log10
+        zoom_ind_start = findfirst(fspec_freq .>= max_freq_x - max_freq_x*zoom_log10)
+        zoom_ind_stop  = findfirst(fspec_freq .>= max_freq_x + max_freq_x*zoom_log10)
+        println(zoom_log10)
+        println(zoom_ind_start)
+        println(zoom_ind_stop)
+        fspec_cov_2d = fspec_cov_2d[zoom_ind_start:zoom_ind_stop, zoom_ind_start:zoom_ind_stop]
+
+        max_ind_2d = findmax(fspec_cov_2d)[2]
+        max_freq_x = fspec_freq[max_ind_2d[1]]
+        max_freq_y = fspec_freq[max_ind_2d[2]]
+
+        rebin = (rebin[1], rebin[2], "$(zoom_log10) zoom")
+    end
+
+    heatmap(fspec_cov_2d, legend=false, aspect_ratio=:equal, xlab="$rebin cov")
+
+    vline!([max_ind_2d[1]], color=:cyan, alpha=0.25, line=:dot)
+    hline!([max_ind_2d[2]], color=:cyan, alpha=0.25, line=:dot)
+    xticks!([max_ind_2d[1]]); yticks!([0])
+    xaxis!(xformatter=xi->"$(round(max_freq_x, sigdigits=3)) Hz")
+    yaxis!(yformatter=xi->"$(round(max_freq_y, sigdigits=3)) Hz")
+end
+
+function plot_fspec_cov2d(fs::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}}; size_in=(1140,600*2))
+    instruments = keys(fs)
+
+    example_data = _pull_data(fs)
+    obsid = example_data.obsid
+    bin_time = example_data.bin_time
+    bin_time_pow2 = Int(log2(example_data.bin_time))
+    bin_size = example_data.bin_size
+    fs_length = length(example_data.avg_amp)
+
+    rebin_lin = (:linear, maximum([floor(Int, fs_length/1024), 1]))
+    rebin_log = (:log10, 0.01)
+
+    for instrument in instruments
+        fspec_freq, fspec_power = JAXTAM.fspec_rebin_sgram(fs[instrument]; rebin=rebin_lin)
+
+        cov2d_linear_plot = _plot_cov2d(fs[instrument], rebin_lin)
+
+        cov2d_log_plot = _plot_cov2d(fs[instrument], rebin_log, false)
+
+        cov2d_log_plot_x1 = _plot_cov2d(fs[instrument], rebin_log, 1)
+        cov2d_log_plot_x2 = _plot_cov2d(fs[instrument], rebin_log, 0.5)
+
+        bin_count = size(fspec_power, 2)
+
+        l = @layout [b c; d e] # [a{.001h}; [b c; d e]]
+        dual_cov_plot = Plots.plot(
+            # Plots.plot(title="FFT 2D Covariances - $(obsid) - 2^$(bin_time_pow2) bt - $(bin_size*bin_time) bs - $(bin_count) sections averaged",
+            #     #annotation=(0.25, 0.5, 
+            #     #"FFT 2D Covariances - $(obsid) - 2^$(bin_time_pow2) bt - $(bin_size*bin_time) bs - $(bin_count) sections averaged", 12),
+            #     framestyle = :none), 
+            cov2d_linear_plot,
+            cov2d_log_plot,
+            cov2d_log_plot_x1,
+            cov2d_log_plot_x2,
+            layout=l,
             size=size_in)
 
-        xaxis!(xscale=:log10, xformatter=xi->xi, xlab="Freq (Hz - log10)")
-        yaxis!(yscale=:log10, yformatter=xi->xi, ylab="Cov (diag - log10")
-        hline!([4000])
-        
         Plots.plot!(title_location=:left, titlefontsize=12, margin=2mm, xguidefontsize=10, yguidefontsize=10)
-        return Plots.plot!()
+
+        return dual_cov_plot
     end
 end
