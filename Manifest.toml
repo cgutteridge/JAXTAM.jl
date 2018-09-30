@@ -6,7 +6,7 @@ version = "0.3.2"
 
 [[Arrow]]
 deps = ["CategoricalArrays", "Compat"]
-git-tree-sha1 = "ecfe11bd0874ab41b78be0ca8d0f680ba37978dc"
+git-tree-sha1 = "c66fc3e71747c99a3e3940ade685c0d8ea66c0ae"
 repo-rev = "master"
 repo-url = "https://github.com/ExpandingMan/Arrow.jl.git"
 uuid = "69666777-d1a9-59fb-9406-91d4454c9d45"
@@ -51,11 +51,14 @@ git-tree-sha1 = "2b43d451639984e3571951cc687b8509b0a86c6d"
 uuid = "d5fb7624-851a-54ee-a528-d3f3bac0b4a0"
 version = "0.2.2"
 
+[[CRC32c]]
+uuid = "8bf52ea8-c179-5cab-976a-9e18b702a9bc"
+
 [[CategoricalArrays]]
 deps = ["Compat", "Future", "JSON", "Missings", "Printf", "Reexport"]
-git-tree-sha1 = "35f527e3c955b486f2d7de3ec61c6c7cb99e3274"
+git-tree-sha1 = "6362c49130b5888f5628bc197ee5f17aec7d2a88"
 uuid = "324d7699-5711-5eae-9e2f-1d82baa6b597"
-version = "0.3.14"
+version = "0.4.0"
 
 [[CodecZlib]]
 deps = ["BinaryProvider", "Libdl", "Pkg", "Test", "TranscodingStreams"]
@@ -95,15 +98,15 @@ version = "0.5.1"
 
 [[DSP]]
 deps = ["AbstractFFTs", "Compat", "FFTW", "LinearAlgebra", "Polynomials", "Random", "Reexport", "SpecialFunctions"]
-git-tree-sha1 = "7a5a3208e1b3bbee7ab6eea328c0ede0aee56fbc"
+git-tree-sha1 = "7db5069531ba664f831c82aca0f27efaa531596a"
 repo-rev = "master"
 repo-url = "https://github.com/JuliaDSP/DSP.jl.git"
 uuid = "717857b8-e6f2-59f4-9121-6e50c889abd2"
 version = "0.5.1+"
 
 [[DataFrames]]
-deps = ["CategoricalArrays", "CodecZlib", "Compat", "DataStreams", "Dates", "InteractiveUtils", "LinearAlgebra", "Missings", "Printf", "Random", "Reexport", "SortingAlgorithms", "Statistics", "StatsBase", "Test", "TranscodingStreams", "Unicode", "WeakRefStrings"]
-git-tree-sha1 = "e051de7e3d4c6d21c1e6cf4909957a3ea54c842d"
+deps = ["CategoricalArrays", "CodecZlib", "Compat", "DataStreams", "Dates", "InteractiveUtils", "IteratorInterfaceExtensions", "LinearAlgebra", "Missings", "Printf", "Random", "Reexport", "SortingAlgorithms", "Statistics", "StatsBase", "TableTraits", "Tables", "Test", "TranscodingStreams", "Unicode", "WeakRefStrings"]
+git-tree-sha1 = "ba70f7f0f6151855ed8bfbdcb6a79fc04d8baa4d"
 repo-rev = "master"
 repo-url = "https://github.com/JuliaData/DataFrames.jl.git"
 uuid = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
@@ -150,8 +153,8 @@ uuid = "525bcba6-941b-5504-bd06-fd0dc1a4d2eb"
 version = "0.12.0+"
 
 [[Feather]]
-deps = ["Arrow", "CategoricalArrays", "Compat", "DataFrames", "DataStreams", "Dates", "FlatBuffers"]
-git-tree-sha1 = "41ffda8d631176b6a3cd659425c35a72177a53fd"
+deps = ["Arrow", "CategoricalArrays", "DataFrames", "Dates", "FlatBuffers", "Mmap", "Random", "Tables", "Test"]
+git-tree-sha1 = "8de5ea1d8c47f549444d999d0d0b0d6f7ecdbf02"
 repo-rev = "master"
 repo-url = "https://github.com/JuliaData/Feather.jl.git"
 uuid = "becb17da-46f6-5d3c-ad1b-1c5fe96bc73c"
@@ -181,13 +184,15 @@ uuid = "9fa8497b-333b-5362-9e8d-4d0656e87820"
 
 [[GR]]
 deps = ["Base64", "DelimitedFiles", "Pkg", "Random", "Serialization", "Sockets", "Test"]
-git-tree-sha1 = "0437921cbf8ee555ab7a2a3115c1d0907289e816"
+git-tree-sha1 = "9611200742df173c9976cfa8afb2674873217df1"
+repo-rev = "master"
+repo-url = "https://github.com/jheinen/GR.jl.git"
 uuid = "28b8d3ca-fb5f-59d9-8090-bfdbd6d07a71"
-version = "0.34.1"
+version = "0.34.1+"
 
 [[HDF5]]
-deps = ["BinDeps", "Blosc", "Distributed", "Homebrew", "Libdl", "LinearAlgebra", "Pkg", "Test", "WinRPM"]
-git-tree-sha1 = "2407ec97bdb872ed0d569ff8e592c7a5d60675bc"
+deps = ["BinDeps", "Blosc", "CRC32c", "Distributed", "Homebrew", "Libdl", "LinearAlgebra", "Mmap", "Pkg", "Test", "WinRPM"]
+git-tree-sha1 = "3b66a91dc61dba75a5a061d9ef859fdefcdafcb2"
 repo-rev = "master"
 repo-url = "https://github.com/JuliaIO/HDF5.jl.git"
 uuid = "f67ccb44-e63f-5c2f-98bd-6dc0ccc4ba2f"
@@ -217,9 +222,15 @@ version = "0.0.3"
 deps = ["LinearAlgebra", "Markdown"]
 uuid = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
 
+[[IteratorInterfaceExtensions]]
+deps = ["Test"]
+git-tree-sha1 = "5484e5ede2a4137b9643f4d646e8e7b87b794415"
+uuid = "82899510-4779-5014-852e-03e436cf321d"
+version = "0.1.1"
+
 [[JLD2]]
 deps = ["CodecZlib", "DataStructures", "FileIO", "LinearAlgebra", "Mmap", "Printf", "Random", "Test"]
-git-tree-sha1 = "8f0b471c05fd5c256932bd08bb71729cbb7b966f"
+git-tree-sha1 = "3ba90ff93e1d5b9b2103588051c2d349fae54dac"
 repo-rev = "master"
 repo-url = "https://github.com/simonster/JLD2.jl.git"
 uuid = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
@@ -448,6 +459,18 @@ deps = ["LinearAlgebra", "Test"]
 git-tree-sha1 = "2039aaa96f7b21634a1b3246cb2699dd1d26d473"
 uuid = "7522ee7d-7047-56d0-94d9-4bc626e7058d"
 version = "0.2.0"
+
+[[TableTraits]]
+deps = ["IteratorInterfaceExtensions", "Test"]
+git-tree-sha1 = "afee1fb3bc99c28eb4533ff0f22e33f6effcec18"
+uuid = "3783bdb8-4a98-5b6b-af9a-565f29a5fe9c"
+version = "0.3.1"
+
+[[Tables]]
+deps = ["Pkg", "Requires", "Test"]
+git-tree-sha1 = "277464179bc7cfb1b4d5a4f3ccde0fc75792157f"
+uuid = "bd369af6-aec1-5ad0-b16a-f7cc5008161c"
+version = "0.1.8"
 
 [[Test]]
 deps = ["Distributed", "InteractiveUtils", "Logging", "Random"]
