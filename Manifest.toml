@@ -184,7 +184,7 @@ uuid = "9fa8497b-333b-5362-9e8d-4d0656e87820"
 
 [[GR]]
 deps = ["Base64", "DelimitedFiles", "Pkg", "Random", "Serialization", "Sockets", "Test"]
-git-tree-sha1 = "9611200742df173c9976cfa8afb2674873217df1"
+git-tree-sha1 = "c364f8a4e504b4a8193ffd81b15cbe1eb8cc2764"
 repo-rev = "master"
 repo-url = "https://github.com/jheinen/GR.jl.git"
 uuid = "28b8d3ca-fb5f-59d9-8090-bfdbd6d07a71"
