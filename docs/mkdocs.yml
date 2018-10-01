@@ -1,7 +1,10 @@
+# See the mkdocs user guide for more information on these settings.
+#   http://www.mkdocs.org/user-guide/configuration/
+
 site_name:        JAXTAM.jl
-repo_url:         https://github.com/RobertRosca/JAXTAM.jl
-site_description: Just Another X-ray Timing Analysis Module
-site_author:      RobertRosca
+#repo_url:         https://github.com/USER_NAME/PACKAGE_NAME.jl
+#site_description: Description...
+#site_author:      USER_NAME
 
 theme: readthedocs
 
@@ -16,6 +19,7 @@ markdown_extensions:
   - extra
   - tables
   - fenced_code
+  - mdx_math
 
 docs_dir: 'build'
 

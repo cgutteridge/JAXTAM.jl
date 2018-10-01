@@ -1,8 +1,17 @@
-using Documenter, JAXTAM
+using Pkg
+Pkg.activate("/home/robert/Projects/JAXTAM")
 
-makedocs()
+using Documenter
+using JAXTAM
 
-deploydocs(
-    repo = "github.com/RobertRosca/JAXTAM.jl.git",
-    julia = "0.6"
+makedocs(
+    sitename="JAXTAM Documentation",
+    modules = [JAXTAM]
 )
+
+# Documenter can also automatically deploy documentation to gh-pages.
+# See "Hosting Documentation" and deploydocs() in the Documenter manual
+# for more information.
+#=deploydocs(
+    repo = "<repository url>"
+)=#
