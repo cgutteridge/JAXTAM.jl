@@ -1,3 +1,5 @@
+using Pkg
+Pkg.activate(abspath(pwd(), ".."))
 using Documenter, JAXTAM
 
 makedocs(
