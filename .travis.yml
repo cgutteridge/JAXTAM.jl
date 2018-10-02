@@ -11,8 +11,8 @@ julia:
 notifications:
   email: false
 
-# after_success:
-#   - julia --project=coverage/ -e 'using Pkg; Pkg.instantiate()'
+ after_success:
+   - julia --project=coverage/ -e 'println(pwd()); println(readdir()); using Pkg; Pkg.instantiate()'
 #   - julia --project=coverage/ coverage/coverage.jl
 
 jobs:
