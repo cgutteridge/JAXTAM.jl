@@ -1,6 +1,6 @@
-using Pkg, Documenter
-Pkg.activate(abspath(pwd(), ".."))
-using JAXTAM
+using Pkg, Documenter, JAXTAM
+
+@info "Current dir: $(pwd())"
 
 makedocs(
     sitename="JAXTAM Documentation",

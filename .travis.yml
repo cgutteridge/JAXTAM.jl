@@ -21,7 +21,7 @@ jobs:
       julia: 0.7
       os: linux
       script:
-        - julia --project=docs/ -e 'using Pkg; Pkg.instantiate()'
-        - julia --project       -e 'using Pkg; Pkg.instantiate()'
-        - julia --project=docs/ docs/make.jl
+        - julia --color=yes --project=docs/ -e 'using Pkg; Pkg.instantiate()'
+        - julia --color=yes --project       -e 'using Pkg; Pkg.instantiate()'
+        - julia --color=yes --project       docs/make.jl
 after_success: skip
