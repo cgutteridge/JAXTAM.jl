@@ -1,6 +1,6 @@
-using Pkg
+using Pkg, Documenter
 Pkg.activate(abspath(pwd(), ".."))
-using Documenter, JAXTAM
+using JAXTAM
 
 makedocs(
     sitename="JAXTAM Documentation",
