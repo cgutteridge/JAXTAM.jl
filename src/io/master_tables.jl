@@ -290,7 +290,7 @@ Loads mission master table, then calls
 `master_query_public(master_df::DataFrame, key_type::Symbol, key_value::Any)`
 """
 function master_query_public(mission_name::Symbol, key_type::Symbol, key_value::Any)
-    master_df = master(mission_name)
+    master_df = master_a(mission_name)
 
     return master_query_public(master_df, key_type, key_value)
 end

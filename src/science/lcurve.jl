@@ -67,7 +67,7 @@ Optionally filters events by a custom energy range, not just that given in the R
 
 Returns filtered event times and energies
 """
-function _lc_filter_energy(event_times::Array{Float64,1}, event_energies::Array{Float64,1}, good_energy_max::Float64, good_energy_min::Float64)
+function _lc_filter_energy(event_times::Array{Float64,1}, event_energies::Array{Float64,1}, good_energy_min::Float64, good_energy_max::Float64)
     @info "               -> Filtering energies"
     mask_good_energy = good_energy_min .<= event_energies .<= good_energy_max
     
