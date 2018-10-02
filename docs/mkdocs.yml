@@ -2,7 +2,7 @@
 #   http://www.mkdocs.org/user-guide/configuration/
 
 site_name:        JAXTAM.jl
-#repo_url:         https://github.com/USER_NAME/PACKAGE_NAME.jl
+repo_url:         https://github.com/RobertRosca/JAXTAM.j
 #site_description: Description...
 #site_author:      USER_NAME
 

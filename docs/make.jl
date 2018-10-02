@@ -1,8 +1,4 @@
-using Pkg
-Pkg.activate("/home/robert/Projects/JAXTAM")
-
-using Documenter
-using JAXTAM
+using Documenter, JAXTAM
 
 makedocs(
     sitename="JAXTAM Documentation",
