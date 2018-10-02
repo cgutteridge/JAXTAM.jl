@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>JAXTAM.jl · JAXTAM Documentation</title><link href="https://cdnjs.cloudflare.com/ajax/libs/normalize/4.2.0/normalize.min.css" rel="stylesheet" type="text/css"/><link href="https://fonts.googleapis.com/css?family=Lato|Roboto+Mono" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.6.3/css/font-awesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/default.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.2.0/require.min.js" data-main="assets/documenter.js"></script><script src="siteinfo.js"></script><script src="../versions.js"></script><link href="assets/documenter.css" rel="stylesheet" type="text/css"/></head><body><nav class="toc"><h1>JAXTAM Documentation</h1><select id="version-selector" onChange="window.location.href=this.value" style="visibility: hidden"></select><form class="search" id="search-form" action="search/"><input id="search-query" name="q" type="text" placeholder="Search docs"/></form><ul><li class="current"><a class="toctext" href>JAXTAM.jl</a><ul class="internal"><li><a class="toctext" href="#Contents-1">Contents</a></li><li><a class="toctext" href="#Introduction-1">Introduction</a></li><li class="toplevel"><a class="toctext" href="#Basic-Usage-Guide-1">Basic Usage Guide</a></li><li><a class="toctext" href="#Config-Setup-1">Config Setup</a></li><li><a class="toctext" href="#Master-Table-Setup-1">Master Table Setup</a></li><li><a class="toctext" href="#Filtering-Downloading-Observations-1">Filtering Downloading Observations</a></li><li><a class="toctext" href="#Downloading-Observations-1">Downloading Observations</a></li></ul></li><li><a class="toctext" href="man/io/">IO Operations</a></li><li><a class="toctext" href="man/missions/">Missions</a></li><li><a class="toctext" href="man/science/">Science</a></li></ul></nav><article id="docs"><header><nav><ul><li><a href>JAXTAM.jl</a></li></ul><a class="edit-page" href="https://github.com/RobertRosca/JAXTAM.jl/blob/master/docs/src/index.md"><span class="fa"></span> Edit on GitHub</a></nav><hr/><div id="topbar"><span>JAXTAM.jl</span><a class="fa fa-bars" href="#"></a></div></header><h1><a class="nav-anchor" id="JAXTAM.jl-1" href="#JAXTAM.jl-1">JAXTAM.jl</a></h1><p>JAXTAM is Just Another X-ray Timing Analysis Module. The main aim of the project was to create an easy to use, friendly interface for basic at-a-glance timing analysis, to be used on data from missions adhering to the FITS file standard.</p><h2><a class="nav-anchor" id="Contents-1" href="#Contents-1">Contents</a></h2><ul><li><a href="#JAXTAM.jl-1">JAXTAM.jl</a></li><ul><li><a href="#Contents-1">Contents</a></li><li><a href="#Introduction-1">Introduction</a></li></ul><li><a href="#Basic-Usage-Guide-1">Basic Usage Guide</a></li><ul><li><a href="#Config-Setup-1">Config Setup</a></li><li><a href="#Master-Table-Setup-1">Master Table Setup</a></li><li><a href="#Filtering-Downloading-Observations-1">Filtering Downloading Observations</a></li><li><a href="#Downloading-Observations-1">Downloading Observations</a></li></ul><li><a href="man/io/#IO-Operations-1">IO Operations</a></li><li><a href="man/missions/#Missions-1">Missions</a></li><li><a href="man/science/#Science-1">Science</a></li></ul><h2><a class="nav-anchor" id="Introduction-1" href="#Introduction-1">Introduction</a></h2><p>Basic analysis can be performed from the Julia REPL, however the final product of JAXTAM is an automatically generated results page, containing some basic plots used in X-ray timing analysis, the default setup generates the following plots: lightcurves, Leahy normalised power spectra, periodograms, and spectrograms.</p><div class="admonition note"><div class="admonition-title">Note</div><div class="admonition-text"><p>Currently, JAXTAM is set up to work with HEASARC missions, which have a mastertable available on the HEASARC servers. NICER is supported natively, and full NuSTAR support is coming (REPL plotting works, however functionality for saving/generating reports when two instruments are present hasn&#39;t been implemented yet).</p></div></div><h1><a class="nav-anchor" id="Basic-Usage-Guide-1" href="#Basic-Usage-Guide-1">Basic Usage Guide</a></h1><h2><a class="nav-anchor" id="Config-Setup-1" href="#Config-Setup-1">Config Setup</a></h2><p>JAXTAM handles everything from downloading the observation data from HEASARC servers, to performing timing analysis, plotting, generating a searchable summary page, and finally generating individual report pages for each observation.</p><p>The first step is setting up a configuration file, which tells JAXTAM how to handle each mission individually. NICER and NuSTAR mission definitions are included by default, however setting up a custom mission is relatively easy. <a href="@ref"><code>_get_default_missions</code></a></p><p>To set up the configuration for one of the included default missions (NICER or NuSTAR) you must provide only the path to the directory used to store the mission data:</p><pre><code class="language-julia">julia&gt; JAXTAM.config(:nicer, &quot;/example/path/to/nicer/&quot;)
+┌ Info: nicer found in defaults
+└ Using /example/path/to/nicer/ as path
+[ Info: Creating config file at: /home/user/Projects/JAXTAM/user_configs.jld2
+Dict{Any,Any} with 2 entries:
+  :nicer           =&gt; MissionDefinition(&quot;nicer&quot;, &quot;https://heasarc.gsfc.nasa.gov/FTP/heasarc/dbase/tdat_files/heasarc_nicermastr.tdat…
+  :_config_version =&gt; v&quot;0.2.0&quot;</code></pre><p>This will automatically fill in all the information required for a complete <code>MissionDefinition</code> type. For the above example, this saves:</p><pre><code class="language-julia">julia&gt; JAXTAM.config(:nicer)
+JAXTAM.MissionDefinition(
+        &quot;nicer&quot;,
+        &quot;https://heasarc.gsfc.nasa.gov/FTP/heasarc/dbase/tdat_files/heasarc_nicermastr.tdat.gz&quot;,
+        &quot;/example/path/to/nicer/&quot;,
+        JAXTAM._nicer_observation_dir,
+        JAXTAM._nicer_cl_files,
+        JAXTAM._nicer_uf_files,
+        &quot;/home/user/Software/caldb/data/nicer/xti/cpf/rmf/nixtiref20170601v001.rmf&quot;,
+        &quot;/example/path/to/nicer/web/&quot;,
+        0.3,
+        12,
+        [&quot;XTI&quot;]
+    )</code></pre><p>More can be read about <code>MissionDefinition</code> at: <a href="@ref"><code>MissionDefinition</code></a>.</p><h2><a class="nav-anchor" id="Master-Table-Setup-1" href="#Master-Table-Setup-1">Master Table Setup</a></h2><p>Once the configuration has been set up for a mission, the next step is running the setup for the master DataFrame, which contains information on each observation for the mission and is pulled from a HEASARC master table url (the second field in the <code>MissionDefinition</code>).</p><p>To do this simply run <code>JAXTAM.master(:mission_name)</code>:</p><pre><code class="language-julia">julia&gt; JAXTAM.master(:nicer)
+┌ Warning: No master file found, looked for: 
+│       /example/path/to/nicer/master.tdat 
+│       /example/path/to/nicer/master.feather
+└ @ JAXTAM ~/Projects/JAXTAM/src/io/master_tables.jl:171
+[ Info: Download master files from `https://heasarc.gsfc.nasa.gov/FTP/heasarc/dbase/tdat_files/heasarc_nicermastr.tdat.gz`? (y/n)
+y
+[ Info: Downloading latest master catalog
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100  450k  100  450k    0     0   121k      0  0:00:03  0:00:03 --:--:--  121k
+
+7-Zip [64] 9.20  Copyright (c) 1999-2010 Igor Pavlov  2010-11-18
+p7zip Version 9.20 (locale=en_GB.UTF-8,Utf16=on,HugeFiles=on,8 CPUs)
+
+Processing archive: /example/path/to/nicer/aster.tdat
+
+Extracting  master
+
+Everything is Ok
+
+Size:       3427684
+Compressed: 461261
+[ Info: Loading /example/path/to/nicer/aster.tdat
+[ Info: Saving /example/path/to/nicer/aster.feather</code></pre><p>This will download, unzip, and parse the <code>.tdat</code> master file. To update, simply run <code>JAXTAM.master_update(:mission_name)</code>. Some warnings are to be expected, but have been removed from the above example.</p><p>A secondary table is also required, which can be generated with:</p><pre><code class="language-julia">julia&gt; JAXTAM.append(:nicer)
+[ Info: Loading /example/path/to/nicer/master.feather
+[ Info: Saving /example/path/to/nicer/append.feather</code></pre><h2><a class="nav-anchor" id="Filtering-Downloading-Observations-1" href="#Filtering-Downloading-Observations-1">Filtering Downloading Observations</a></h2><p>A basic filtering function has been included to help select observations, called <a href="@ref"><code>master_query</code></a>, which takes in a mission name, column name, and then a value to filter by:</p><pre><code class="language-julia">julia&gt; JAXTAM.master_query(:nicer, :name, &quot;MAXI_J1535-571&quot;)
+[ Info: Loading /example/path/to/nicer/master.feather
+[ Info: Loading /example/path/to/nicer/append.feather
+184×35 DataFrames.DataFrame. Omitted printing of 27 columns
+│ Row │ name           │ ra      │ dec      │ lii     │ bii      │ time                │ end_time            │ obsid      │
+│     │ String         │ Float64 │ Float64  │ Float64 │ Float64  │ Arrow…              │ Arrow…              │ String     │
+├─────┼────────────────┼─────────┼──────────┼─────────┼──────────┼─────────────────────┼─────────────────────┼────────────┤
+│ 1   │ MAXI_J1535-571 │ 233.84  │ -57.2389 │ 323.722 │ -1.13864 │ 2018-08-21T04:33:20 │ 2018-08-21T04:41:26 │ 1130360245 │
+│ 2   │ MAXI_J1535-571 │ 233.834 │ -57.2372 │ 323.72  │ -1.13527 │ 2018-06-05T05:03:40 │ 2018-06-05T05:26:02 │ 1130360189 │
+│ 3   │ MAXI_J1535-571 │ 233.839 │ -57.2359 │ 323.724 │ -1.13597 │ 2018-08-22T09:53:40 │ 2018-08-22T10:02:35 │ 1130360246 │
+⋮
+│ 181 │ MAXI_J1535-571 │ 233.83  │ -57.2267 │ 323.725 │ -1.12573 │ 2018-07-07T14:56:02 │ 2018-07-07T15:12:51 │ 1130360213 │
+│ 182 │ MAXI_J1535-571 │ 233.835 │ -57.2261 │ 323.727 │ -1.12659 │ 2018-07-08T14:05:42 │ 2018-07-08T20:22:19 │ 1130360214 │
+│ 183 │ MAXI_J1535-571 │ 233.83  │ -57.2246 │ 323.726 │ -1.12404 │ 2018-03-29T10:54:20 │ 2018-03-29T20:01:20 │ 1130360151 │
+│ 184 │ MAXI_J1535-571 │ 233.83  │ -57.2235 │ 323.727 │ -1.12316 │ 2018-05-18T22:41:50 │ 2018-05-18T22:52:00 │ 1130360180 │</code></pre><p>As typically we are interested only in public observations, a <code>JAXTAM.master_query_public</code> function also exists, which behaves the same but only returns observations which have been made public:</p><pre><code class="language-julia">julia&gt; JAXTAM.master_query_public(:nicer, :name, &quot;MAXI_J1535-571&quot;)
+[ Info: Loading /media/robert/8C08EB2F08EB16CC/Users/Robert/heasarc/nicer/master.feather
+178×35 DataFrames.DataFrame. Omitted printing of 20 columns
+│ Row │ name           │ ra      │ dec      │ lii     │ bii      │ time                │ end_time            │ obsid      │
+│     │ String         │ Float64 │ Float64  │ Float64 │ Float64  │ Arrow…              │ Arrow…              │ String     │
+├─────┼────────────────┼─────────┼──────────┼─────────┼──────────┼─────────────────────┼─────────────────────┼────────────┤
+│ 1   │ MAXI_J1535-571 │ 233.84  │ -57.2389 │ 323.722 │ -1.13864 │ 2018-08-21T04:33:20 │ 2018-08-21T04:41:26 │ 1130360245 │
+│ 2   │ MAXI_J1535-571 │ 233.834 │ -57.2372 │ 323.72  │ -1.13527 │ 2018-06-05T05:03:40 │ 2018-06-05T05:26:02 │ 1130360189 │
+│ 3   │ MAXI_J1535-571 │ 233.839 │ -57.2359 │ 323.724 │ -1.13597 │ 2018-08-22T09:53:40 │ 2018-08-22T10:02:35 │ 1130360246 │
+⋮
+│ 175 │ MAXI_J1535-571 │ 233.83  │ -57.2267 │ 323.725 │ -1.12573 │ 2018-07-07T14:56:02 │ 2018-07-07T15:12:51 │ 1130360213 │
+│ 176 │ MAXI_J1535-571 │ 233.835 │ -57.2261 │ 323.727 │ -1.12659 │ 2018-07-08T14:05:42 │ 2018-07-08T20:22:19 │ 1130360214 │
+│ 177 │ MAXI_J1535-571 │ 233.83  │ -57.2246 │ 323.726 │ -1.12404 │ 2018-03-29T10:54:20 │ 2018-03-29T20:01:20 │ 1130360151 │
+│ 178 │ MAXI_J1535-571 │ 233.83  │ -57.2235 │ 323.727 │ -1.12316 │ 2018-05-18T22:41:50 │ 2018-05-18T22:52:00 │ 1130360180 │</code></pre><p>Note how this time only 178 rows (observations) have been returned, whereas before 184 were returned, meaning 6 observations are not currently public.</p><p>Additionally, running the function with just the mission and no arguments for filtering (e.g. <code>JAXTAM.master_query_public(:mission_name)</code>) will return all the currently public observations.</p><h2><a class="nav-anchor" id="Downloading-Observations-1" href="#Downloading-Observations-1">Downloading Observations</a></h2><footer><hr/><a class="next" href="man/io/"><span class="direction">Next</span><span class="title">IO Operations</span></a></footer></article></body></html>
