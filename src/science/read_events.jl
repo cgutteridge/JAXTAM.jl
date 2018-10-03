@@ -51,14 +51,15 @@ end
 Reads the standard columns for timing analysis ("TIME", "PI", "GTI") from a FITS file, 
 returns `InstrumentData` type filled with the relevant data
 """
-function _read_fits_event(fits_path::String)
+function _read_fits_event(fits_path::String, mission_name)
     @info "Loading $fits_path"
     fits_file   = FITS(fits_path)
 
     fits_header = read_header(fits_file["EVENTS"])
 
     instrument_name = fits_header["INSTRUME"]
-    fits_telescope  = fits_header["TELESCOP"]
+    #fits_telescope  = fits_header["TELESCOP"]
+    fits_telescope  = string(mission_name)
     fits_telescope  = Symbol(lowercase(fits_telescope))
     
     fits_events_df = _read_fits_hdu(fits_file, "EVENTS"; cols=String["TIME", "PI"])
@@ -131,12 +132,12 @@ function read_cl_fits(mission_name::Symbol, obs_row::DataFrames.DataFrame)
     @info "Found $file_no file(s) for $(obsid[1])"
     
     if file_no == 1
-        instrument_data = _read_fits_event(files[1])
+        instrument_data = _read_fits_event(files[1], mission_name)
         return Dict(instrument_data.instrument => instrument_data)
     elseif file_no > 1
         per_instrument = Dict{Symbol,InstrumentData}()
         for file in files
-            instrument_data = _read_fits_event(file)
+            instrument_data = _read_fits_event(file, mission_name)
             per_instrument[instrument_data.instrument] = instrument_data
         end
         

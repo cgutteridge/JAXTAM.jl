@@ -81,6 +81,10 @@ end
 function plot(instrument_data::Dict{Symbol,JAXTAM.BinnedData}; size_in=(1140,400), save_plt=true, title_append="")
     instruments = keys(instrument_data)
 
+    example_lc = _pull_data(instrument_data)
+    (e_min, e_max) = (config(example_lc.mission).good_energy_min, config(example_lc.mission).good_energy_max)
+    title_append = string(" - $e_min to $e_max keV", title_append)
+
     plt = Plots.plot()
     
     for instrument in instruments
@@ -88,7 +92,6 @@ function plot(instrument_data::Dict{Symbol,JAXTAM.BinnedData}; size_in=(1140,400
     end
 
     if(save_plt)
-        example_lc = _pull_data(instrument_data)
         obs_row    = master_query(example_lc.mission, :obsid, example_lc.obsid)
         _savefig_obsdir(obs_row, example_lc.mission, example_lc.obsid, example_lc.bin_time, "lc", "lcurve.png")
     end
@@ -102,6 +105,7 @@ function plot_groups(instrument_data::Dict{Symbol,JAXTAM.BinnedData}; size_in=(1
     group_plots = Dict{Symbol,Dict{Int64,Plots.Plot}}()
 
     example_gti = _pull_data(instrument_data)
+    (e_min, e_max) = (config(example_gti.mission).good_energy_min, config(example_gti.mission).good_energy_max)
     obs_row     = master_query(example_gti.mission, :obsid, example_gti.obsid)
 
     for instrument in instruments
@@ -113,7 +117,7 @@ function plot_groups(instrument_data::Dict{Symbol,JAXTAM.BinnedData}; size_in=(1
         for group in available_groups
             group_lc = instrument_group_data[group]
 
-            title_append = " - group $group/$(maximum(available_groups))"
+            title_append = " - $e_min to $e_max keV - group $group/$(maximum(available_groups))"
 
             instrument_group_plots[group] = plot(Dict(instrument=>group_lc); save_plt=false,
                     title_append=title_append, size_in=size_in)
@@ -180,9 +184,11 @@ function plot!(data::FFTData; title_append="", norm=:rms, rebin=(:log10, 0.01),
         amp_min > 1 ? ylim = (prevpow(10, amp_min), nextpow(10, amp_max)) : ylim = (1, nextpow(10, amp_max))
         yaxis!(yscale=:log10, yformatter=yi->yi, ylims=ylim)
     end
+
+    (e_min, e_max) = (config(data.mission).good_energy_min, config(data.mission).good_energy_max)
     
     Plots.plot!(xlab="Freq (Hz)", alpha=1,
-        title="FFT - $(data.obsid) - 2^$(bin_time_pow2) bt - $(data.bin_size*data.bin_time) bs - $rebin rebin - $(data.bin_count) sections averaged $title_append")
+        title="FFT - $(data.obsid) - $e_min to $e_max keV - 2^$(bin_time_pow2) bt - $(data.bin_size*data.bin_time) bs - $rebin rebin - $(data.bin_count) - sections averaged $title_append")
 
     if(save_plt)
         _savefig_obsdir(data.mission, data.obsid, data.bin_time, "fspec.png")
@@ -271,12 +277,12 @@ function plot!(data::PgramData; title_append="", rebin=(:linear, 10),
 
     freqs, powers, errors = _fspec_rebin(powers, freqs, 1, rebin)
 
-    ylab = "Amplitude"
+    Plots.plot!(freqs, powers, color=:black, ylab="Amplitude", lab="$lab - $(data.pg_type)")
 
-    Plots.plot!(freqs, powers, color=:black, ylab=ylab, lab="$lab - $(data.pg_type)")
+    (e_min, e_max) = (config(data.mission).good_energy_min, config(data.mission).good_energy_max)
 
     Plots.plot!(xlab="Freq (Hz)", alpha=1,
-    title="Periodogram - $(data.obsid) - 2^$(bin_time_pow2) bt - $rebin rebin$title_append")
+    title="Periodogram - $(data.obsid) - $e_min to $e_max keV - 2^$(bin_time_pow2) bt - $rebin rebin$title_append")
     
     if logy      
         amp_min = minimum(powers[2:end])
@@ -364,10 +370,12 @@ function plot_sgram(fs::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}};
         sgram_power[sgram_power .<= 0] .= 0
         sgram_power = sgram_power'
 
+        (e_min, e_max) = (config(example_data.mission).good_energy_min, config(example_data.mission).good_energy_max)
+
         heatmap(sgram_power, 
             size=size_in, fill=true, #legend=false,
             xlab="Freq (Hz - log10 - log scale support faulty, ticks excluded)", ylab="Group",
-            title="Spectrogram - $(example_data.obsid) - 2^$(bin_time_pow2) bt - $(example_data.bin_size*example_data.bin_time) bs - $rebin rebin")
+            title="Spectrogram - $(example_data.obsid) - $e_min to $e_max keV- 2^$(bin_time_pow2) bt - $(example_data.bin_size*example_data.bin_time) bs - $rebin rebin")
 
         xticks!([0])
 

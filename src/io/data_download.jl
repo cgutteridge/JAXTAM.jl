@@ -98,3 +98,37 @@ function download(mission_name::Symbol, obsids::Array; overwrite=false)
 
     download(mission_name, master_df, obsids; overwrite=overwrite)
 end
+
+function symlink_data(mission_primary::Symbol, mission_secondary::Symbol)
+    primary_path   = config(mission_primary).path
+    secondary_path = config(mission_secondary).path
+
+    println(primary_path)
+    println(secondary_path)
+
+    primary_paths = []
+    for (root, dirs, files) in walkdir(primary_path)
+        for file in files
+            if !occursin("JAXTAM", root) && !occursin("web", root) && file != "master.feather" && file != "append.feather" && file != "master.tdat"
+                append!(primary_paths, [joinpath(root, file)])
+            end
+        end
+    end
+
+    secondary_paths = replace.(primary_paths, primary_path=>secondary_path)
+
+    for (target, link) in zip(primary_paths, secondary_paths)
+        dir = splitdir(link)[1]
+
+        if !isdir(dir)
+            mkpath(dir)
+        end
+
+        if islink(link)
+            continue
+        else
+            println("$target => $link")
+            symlink(target, link)
+        end
+    end
+end

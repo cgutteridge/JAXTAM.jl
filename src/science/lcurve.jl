@@ -70,6 +70,8 @@ Returns filtered event times and energies
 function _lc_filter_energy(event_times::Array{Float64,1}, event_energies::Array{Float64,1}, good_energy_min::Float64, good_energy_max::Float64)
     @info "               -> Filtering energies"
     mask_good_energy = good_energy_min .<= event_energies .<= good_energy_max
+
+    @info "               -> excluded $(count(mask_good_energy.==false)) energies out of $good_energy_min -> $good_energy_max range"
     
     event_times = event_times[mask_good_energy]
     event_energies = event_energies[mask_good_energy]

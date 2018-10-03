@@ -128,7 +128,7 @@ function calibrate(mission_name::Symbol, obs_row::DataFrames.DataFrame)
             events_calib = events
             events_calib[:E] = calib[:E]
 
-            meta_missn = Symbol(lowercase(meta[:TELESCOP][1]))
+            meta_missn = mission_name #Symbol(lowercase(meta[:TELESCOP][1]))
             meta_obsid = meta[:OBS_ID][1]
             meta_start = meta[:TSTART][1]
             meta_stop  = meta[:TSTOP][1]
