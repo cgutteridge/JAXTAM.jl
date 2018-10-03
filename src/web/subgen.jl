@@ -310,7 +310,8 @@ function _webgen_results_body(obs_row; img_dict=Dict())
     node_body = div(
         hr(),
         h2("Plots"),
-        [(h4(imgpair[1]), img(src=imgpair[2])) for imgpair in img_dict]
+        [img(src=imgpair[2]) for imgpair in img_dict]
+        # [(h4(imgpair[1]), img(src=imgpair[2])) for imgpair in img_dict]
     )
 end
 
