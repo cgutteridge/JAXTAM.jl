@@ -31,6 +31,11 @@ function _pull_data(instrument_data::Union{Dict{Symbol,JAXTAM.BinnedData},Dict{S
     return row1
 end
 
+function _plot_formatter!()
+    # Plots.plot!(title_location=:left, titlefontsize=12, margin=2mm, xguidefontsize=10, yguidefontsize=10)
+    return Plots.plot!(title_location=:left, margin=2mm, xguidefontsize=12, yguidefontsize=12)
+end
+
 # Lightcurve plotting functions
 
 function plot!(data::BinnedData; lab="", size_in=(1140,400), save_plt=true, title_append="")
@@ -69,7 +74,7 @@ function plot!(data::BinnedData; lab="", size_in=(1140,400), save_plt=true, titl
         _savefig_obsdir(data.mission, data.obsid, data.bin_time, NaN, "lc", "$(data.instrument)_lcurve.png")
     end
 
-    Plots.plot!(title_location=:left, titlefontsize=12, margin=2mm, xguidefontsize=10, yguidefontsize=10)
+    _plot_formatter!()
     return Plots.plot!()
 end
 
@@ -183,7 +188,7 @@ function plot!(data::FFTData; title_append="", norm=:rms, rebin=(:log10, 0.01),
         _savefig_obsdir(data.mission, data.obsid, data.bin_time, "fspec.png")
     end
 
-    Plots.plot!(title_location=:left, titlefontsize=12, margin=2mm, xguidefontsize=10, yguidefontsize=10)
+    _plot_formatter!()
     return Plots.plot!(size=size_in)
 end
 
@@ -284,7 +289,7 @@ function plot!(data::PgramData; title_append="", rebin=(:linear, 10),
         yaxis!(yscale=:log10, yformatter=yi->round(yi), ylims=ylim)
     end
 
-    Plots.plot!(title_location=:left, titlefontsize=12, margin=2mm, xguidefontsize=10, yguidefontsize=10)
+    _plot_formatter!()
     return Plots.plot!(size=size_in)
 end
 
@@ -365,7 +370,7 @@ function plot_sgram(fs::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}};
 
         xticks!([0])
 
-        Plots.plot!(title_location=:left, titlefontsize=12, margin=2mm, xguidefontsize=10, yguidefontsize=10)
+        _plot_formatter!()
 
         sgram_instrument_plots[instrument] = Plots.plot!()
 
@@ -408,7 +413,7 @@ function plot_fspec_cov1d(fs::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}}; size_in=(
         yaxis!(yscale=:log10, yformatter=xi->xi, ylab="Cov (diag - log10)", ylims=(10, yaxis_max))
         hline!([4000], lab="4000 - Threshold")
         
-        cov1d_plots[instrument] = Plots.plot!(title_location=:left, titlefontsize=12, margin=2mm, xguidefontsize=10, yguidefontsize=10)
+        cov1d_plots[instrument] = _plot_formatter!()
     end
 
     return cov1d_plots
@@ -493,7 +498,7 @@ function plot_fspec_cov2d(fs::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}}; size_in=(
             layout=l,
             size=size_in)
 
-        Plots.plot!(title_location=:left, titlefontsize=12, margin=2mm, xguidefontsize=10, yguidefontsize=10)
+        _plot_formatter!()
 
         return dual_cov_plot
     end
