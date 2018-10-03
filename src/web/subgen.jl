@@ -36,7 +36,7 @@ function _webgen_subpage_css()
             width:50px;
             display:inline-block;
             position:relative;
-            top:197px;
+            top:210px;
             margin:0;
             padding:0;
             opacity:0.7;
