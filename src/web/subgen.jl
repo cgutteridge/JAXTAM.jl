@@ -164,27 +164,24 @@ function _webgen_results_intro(obs_row)
     obsid = obs_row[1, :obsid]
     name  = obs_row[1, :name]
     abstract_text = obs_row[1, :abstract]
-    node_intro = intro(
-        div(class="se-pre-con"),
-        div(class="container",
-            h1("Observation $obsid - $name"),
-            h2("Abstract"),
-            p(abstract_text),
-            hr(),
-            h4("Status"),
-            _webgen_table(obs_row[:, [:public_date, :publicity, :time]]; table_id=""),
-            h4("Source Details"),
-            _webgen_table(obs_row[:, [:name, :ra, :dec, :lii, :bii, :obs_type]]; table_id=""),
-            h4("Observation Details"),
-            _webgen_table(obs_row[: ,[:time, :end_time, :exposure, :remarks]]; table_id=""),
-            h4("Misc"),
-            _webgen_table(obs_row[[:processing_status, :processing_date, :processing_version, :num_processed, :caldb_version]], table_id=""),
-            hr(),
-            h4("Notes"),
-            p("\"Groups\" are GTIs seperated by less than 128 seconds, which have been grouped together. They are used to select smaller chunks of the lightcurve, which are then passed through periodogram and power spectra functions. Left and right arrow keys can be used to move between groups below."),
-            p("Note that when looking at the spectrogram the gaps in the lightcurve are not displayed, so trends shown in the spectrogram may not represent reality. Currently plotting function limitations mean that the x-axis ticks are not accurate for the spectorgram, so they have been disabled.
-            The spectrogram should only be used as an indication of QPOs moving over time, further analysis should be performed using external software.")
-        )
+    node_intro = div(
+        h1("Observation $obsid - $name"),
+        h2("Abstract"),
+        p(abstract_text),
+        hr(),
+        h4("Status"),
+        _webgen_table(obs_row[:, [:public_date, :publicity, :time]]; table_id=""),
+        h4("Source Details"),
+        _webgen_table(obs_row[:, [:name, :ra, :dec, :lii, :bii, :obs_type]]; table_id=""),
+        h4("Observation Details"),
+        _webgen_table(obs_row[: ,[:time, :end_time, :exposure, :remarks]]; table_id=""),
+        h4("Misc"),
+        _webgen_table(obs_row[[:processing_status, :processing_date, :processing_version, :num_processed, :caldb_version]], table_id=""),
+        hr(),
+        h4("Notes"),
+        p("\"Groups\" are GTIs seperated by less than 128 seconds, which have been grouped together. They are used to select smaller chunks of the lightcurve, which are then passed through periodogram and power spectra functions. Left and right arrow keys can be used to move between groups below."),
+        p("Note that when looking at the spectrogram the gaps in the lightcurve are not displayed, so trends shown in the spectrogram may not represent reality. Currently plotting function limitations mean that the x-axis ticks are not accurate for the spectorgram, so they have been disabled.
+        The spectrogram should only be used as an indication of QPOs moving over time, further analysis should be performed using external software.")
     )
 end
 
@@ -315,7 +312,7 @@ function _webgen_subpage_findimg(JAXTAM_path)
 end
 
 function _webgen_results_body(obs_row; img_dict=Dict())
-    node_body = div(class="container",
+    node_body = div(
         hr(),
         h2("Plots"),
         [(h4(imgpair[1]), img(src=imgpair[2])) for imgpair in img_dict]
@@ -326,12 +323,11 @@ function _webgen_results_body_groups(obs_row, img_df)
     groups = unique(img_df[:img_group])
 
     group_container = Array{Hyperscript.Node{Hyperscript.HTMLSVG},1}()
-    
     for group in groups
         group_images = filter(x->x[:img_group]==group, img_df)
         
         node_group = div(class="slide",
-            div(class="container",
+            div(
                 h4("group - $group"),
                 [(img(src=row[:path])) for row in DataFrames.eachrow(group_images)]
             )
@@ -340,19 +336,21 @@ function _webgen_results_body_groups(obs_row, img_df)
         push!(group_container, node_group)
     end
 
-    slider_node = div(id="container", 
-        div(id="next", ald="Next", title="Next", 
-            div(class="arrow-right")
-        ),
-        div(id="prev", alt="Prev", title="Prev",
-            div(class="arrow-left")
-        ),
+    slider_node = div(
         h2("Per-Group Plots"),
-        div(id="slider"),
-        group_container
+        p("Use the left and right arrow keys to move between groups."),
+        div(id="slider",
+            div(id="next", ald="Next", title="Next", 
+                div(class="arrow-right")
+            ),
+            div(id="prev", alt="Prev", title="Prev",
+                div(class="arrow-left")
+            ),
+            group_container
+        )
     )
     
-    return div(group_container)
+    return slider_node
 end
 
 function _webgen_subpage(mission_name, obs_row)
@@ -386,9 +384,12 @@ function _webgen_subpage(mission_name, obs_row)
         _webgen_subpage_css(),
         _webpage_subgen_slider_js(),
         body(
-            _webgen_results_intro(obs_row),
-            _webgen_results_body(obs_row; img_dict=img_dict_overview),
-            _webgen_results_body_groups(obs_row, img_details_groups)
+            div(class="se-pre-con"),
+            div(class="container",
+                _webgen_results_intro(obs_row),
+                _webgen_results_body(obs_row; img_dict=img_dict_overview),
+                _webgen_results_body_groups(obs_row, img_details_groups)
+            )
         )
     )
 
