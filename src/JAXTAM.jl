@@ -10,7 +10,6 @@ using JLD2
 using FITSIO
 using Arrow
 using Feather
-using NamedTuples
 using DataStructures
 
 using FFTW
