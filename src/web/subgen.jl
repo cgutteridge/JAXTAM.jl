@@ -363,6 +363,7 @@ function _webgen_subpage_footer()
             p("Spectrograms are made by plotting each individual power spectra as a row on the heatmap. Normalisation is the same as for the power spectra."),
             p("Note that when looking at the spectrogram the gaps in the lightcurve are not displayed, so trends shown in the spectrogram may not represent reality. Currently plotting function limitations mean that the x-axis ticks are not accurate for the spectorgram, so they have been disabled. 
             The spectrogram should only be used as an indication of QPOs moving over time, further analysis should be performed using external software."),
+            p("The orange horizontal lines denote the boundry between different groups. The zone under a line belongs to the group on the line's y-axis tick."),
         h5("Groups"),
             p("\"Groups\" are GTIs seperated by less than 128 seconds, which have been grouped together. They are used to select smaller chunks of the lightcurve, which are then passed through periodogram and power spectra functions. Left and right arrow keys can be used to move between groups."),
     )

@@ -278,15 +278,14 @@ function plot!(data::PgramData; title_append="", rebin=(:linear, 10),
     Plots.plot!(xlab="Freq (Hz)", alpha=1,
     title="Periodogram - $(data.obsid) - 2^$(bin_time_pow2) bt - $rebin rebin$title_append")
     
-    if logy
-        yaxis!(:log10)
-        
+    if logy      
         amp_min = minimum(powers[2:end])
         amp_max = maximum(powers[2:end])
         # If amp_min < 1, can't use prevpow10 for ylims, hacky little fix is 1/prevpow(10, 1/amp_min)
         # removed that anyway, set ylim to 1 if amp_min < 1
-        amp_min > 1 ? ylim = (prevpow(10, amp_min), nextpow(10, amp_max)) : ylim = (1, nextpow(10, amp_max))
-        yaxis!(yscale=:log10, yformatter=yi->round(yi), ylims=ylim)
+        # TODO: Look at/fix the manual ylim settings, since it seems to... make things worse usually
+        # amp_min > 1 ? ylim = (prevpow(10, amp_min), nextpow(10, amp_max)) : ylim = (1, nextpow(10, amp_max))
+        yaxis!(yscale=:log10, yformatter=yi->round(yi, sigdigits=3))
     end
 
     _plot_formatter!()
@@ -360,15 +359,23 @@ function plot_sgram(fs::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}};
         example_data = fs[instrument][-1]
         bin_time_pow2 = Int(log2(example_data.bin_time))
 
-        sgram_freq, sgram_power = fspec_rebin_sgram(fs[instrument], rebin=rebin)
+        sgram_freq, sgram_power, sgram_bounds, sgram_groups = fspec_rebin_sgram(fs[instrument], rebin=rebin)
+        sgram_power = (sgram_power .- 2) .* sgram_freq
+        sgram_power[sgram_power .<= 0] .= 0
         sgram_power = sgram_power'
 
         heatmap(sgram_power, 
-            size=size_in, fill=true, legend=false,
-            xlab="Freq (Hz - log10 - log scale support faulty, ticks excluded)", ylab="fspec count",
+            size=size_in, fill=true, #legend=false,
+            xlab="Freq (Hz - log10 - log scale support faulty, ticks excluded)", ylab="Group",
             title="Spectrogram - $(example_data.obsid) - 2^$(bin_time_pow2) bt - $(example_data.bin_size*example_data.bin_time) bs - $rebin rebin")
 
         xticks!([0])
+
+        if length(sgram_bounds) < 25
+            hline!(sgram_bounds.+0.5, alpha=0.75, line=:dot, lab="")
+            yaxis_bounds_to_group = Dict(diag([(bound,group) for bound in sgram_bounds, group in sgram_groups]))
+            yaxis!(yticks=sgram_bounds, yformatter=yi->yaxis_bounds_to_group[Int(yi)])
+        end
 
         _plot_formatter!()
 

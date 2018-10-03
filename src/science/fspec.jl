@@ -330,7 +330,10 @@ function fspec_rebin(fs::JAXTAM.FFTData; rebin=(:log10, 0.01))
 end
 
 function fspec_rebin_sgram(fs::Dict{Int64,JAXTAM.FFTData}; rebin=(:log10, 0.01))
-    fs = sort(fs) # Ensure power spectra is in GTI order
+    fs = sort(fs) # Ensure po=wer spectra is in GTI order
+    fs_groups       = unique([f[2].group for f in fs if f[1]>0])
+    fs_group_bounds = cumsum([sum([f[2].bin_count for f in fs if f[2].group==g]) for g in fs_groups])
+    #fs_group_bounds = cumsum([f[2].bin_count for f in fs if f[1]>0])
 
     fs_freqs = fs[-1].freqs
     fs_amps  = hcat([f[2].amps for f in fs if f[1] > 0]...) # Skip special < 0 keys
@@ -338,8 +341,5 @@ function fspec_rebin_sgram(fs::Dict{Int64,JAXTAM.FFTData}; rebin=(:log10, 0.01))
     fs_rebinned_amps  = hcat([_fspec_rebin(fs_amps[:, i], fs_freqs, 1, rebin)[2] for i in 1:size(fs_amps, 2)]...)
     fs_rebinned_freqs = fspec_rebin(fs[-1], rebin=rebin)[1]
 
-    fs_rebinned_amps = (fs_rebinned_amps .- 2) .* fs_rebinned_freqs
-    fs_rebinned_amps[fs_rebinned_amps .<= 0] .= 0
-
-    return fs_rebinned_freqs, fs_rebinned_amps
+    return fs_rebinned_freqs, fs_rebinned_amps, fs_group_bounds, fs_groups
 end
