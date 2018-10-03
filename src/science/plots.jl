@@ -63,9 +63,9 @@ function plot!(data::BinnedData; lab="", size_in=(1140,400), save_plt=true, titl
     yaxis!(yscale=:log10, yticks=yticks, ylims=ylim)
 
     try
-        yaxis!(yformatter=yi->round(Int, yi))
+        yaxis!(yformatter=yi->round(yi, sigdigits=3))
     catch
-        yaxis!(yformatter=yi->yi)
+        yaxis!(yformatter=yi->round(Int, yi))
     end
 
     Plots.plot!(size=size_in)
@@ -182,7 +182,7 @@ function plot!(data::FFTData; title_append="", norm=:rms, rebin=(:log10, 0.01),
         # If amp_min < 1, can't use prevpow10 for ylims, hacky little fix is 1/prevpow(10, 1/amp_min)
         # removed that anyway, set ylim to 1 if amp_min < 1
         amp_min > 1 ? ylim = (prevpow(10, amp_min), nextpow(10, amp_max)) : ylim = (1, nextpow(10, amp_max))
-        yaxis!(yscale=:log10, yformatter=yi->yi, ylims=ylim)
+        yaxis!(yscale=:log10, yformatter=yi->round(yi, sigdigits=3), ylims=ylim)
     end
 
     (e_min, e_max) = (config(data.mission).good_energy_min, config(data.mission).good_energy_max)
