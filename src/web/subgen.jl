@@ -4,7 +4,7 @@ function _webgen_subpage_css()
     style("
         #slider{
             width:100%;
-            height:1000px;
+            height:1150px;
             position:relative;
             overflow:hidden;
             float:left;
@@ -176,12 +176,7 @@ function _webgen_results_intro(obs_row)
         h4("Observation Details"),
         _webgen_table(obs_row[: ,[:time, :end_time, :exposure, :remarks]]; table_id=""),
         h4("Misc"),
-        _webgen_table(obs_row[[:processing_status, :processing_date, :processing_version, :num_processed, :caldb_version]], table_id=""),
-        hr(),
-        h4("Notes"),
-        p("\"Groups\" are GTIs seperated by less than 128 seconds, which have been grouped together. They are used to select smaller chunks of the lightcurve, which are then passed through periodogram and power spectra functions. Left and right arrow keys can be used to move between groups below."),
-        p("Note that when looking at the spectrogram the gaps in the lightcurve are not displayed, so trends shown in the spectrogram may not represent reality. Currently plotting function limitations mean that the x-axis ticks are not accurate for the spectorgram, so they have been disabled.
-        The spectrogram should only be used as an indication of QPOs moving over time, further analysis should be performed using external software.")
+        _webgen_table(obs_row[[:processing_status, :processing_date, :processing_version, :num_processed, :caldb_version]], table_id="")
     )
 end
 
@@ -353,6 +348,25 @@ function _webgen_results_body_groups(obs_row, img_df)
     return slider_node
 end
 
+function _webgen_subpage_footer()
+    div(
+        hr(),
+        h4("Notes"),
+        h5("Lightcurve"),
+            p("Plot of events binned to 1-second intervals. Red/green vertical lines show the start/stop times of the GTIs."),
+        h5("Periodogram"),
+            p("Periodograms created with the DSP.jl `periodogram` function. No extra normalisation applied"),
+        h5("Power Spectra"),
+            p("Leahy-normalised power spectra, amplitudes -2, then multipled by the frequency. Both x and y axis are log10 scale."),
+        h5("Spectrogram"),
+            p("Spectrograms are made by plotting each individual power spectra as a row on the heatmap. Normalisation is the same as for the power spectra."),
+            p("Note that when looking at the spectrogram the gaps in the lightcurve are not displayed, so trends shown in the spectrogram may not represent reality. Currently plotting function limitations mean that the x-axis ticks are not accurate for the spectorgram, so they have been disabled. 
+            The spectrogram should only be used as an indication of QPOs moving over time, further analysis should be performed using external software."),
+        h5("Groups"),
+            p("\"Groups\" are GTIs seperated by less than 128 seconds, which have been grouped together. They are used to select smaller chunks of the lightcurve, which are then passed through periodogram and power spectra functions. Left and right arrow keys can be used to move between groups."),
+    )
+end
+
 function _webgen_subpage(mission_name, obs_row)
     obsid = obs_row[1, :obsid] 
 
@@ -388,7 +402,8 @@ function _webgen_subpage(mission_name, obs_row)
             div(class="container",
                 _webgen_results_intro(obs_row),
                 _webgen_results_body(obs_row; img_dict=img_dict_overview),
-                _webgen_results_body_groups(obs_row, img_details_groups)
+                _webgen_results_body_groups(obs_row, img_details_groups),
+                _webgen_subpage_footer()
             )
         )
     )

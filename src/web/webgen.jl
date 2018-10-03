@@ -1,4 +1,4 @@
-@tags html head body title meta div p h1 h2 h3 h4 hr intro table thead tbody tr th td img a
+@tags html head body title meta div p h1 h2 h3 h4 h5 hr intro table thead tbody tr th td img a
 @tags_noescape script style
 @tags intro
 
