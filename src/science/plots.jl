@@ -265,7 +265,7 @@ end
 
 # Periodogram plotting functions
 
-function plot!(data::PgramData; title_append="", rebin=(:linear, 10),
+function plot!(data::PgramData; title_append="", rebin=(:linear, 1),
         lab="", logx=true, logy=true, size_in=(1140,600))
     bin_time_pow2 = Int(log2(data.bin_time))
 
@@ -277,23 +277,26 @@ function plot!(data::PgramData; title_append="", rebin=(:linear, 10),
 
     freqs, powers, errors = _fspec_rebin(powers, freqs, 1, rebin)
 
-    Plots.plot!(freqs, powers, color=:black, ylab="Amplitude", lab="$lab - $(data.pg_type)")
-
-    (e_min, e_max) = (config(data.mission).good_energy_min, config(data.mission).good_energy_max)
-
-    Plots.plot!(xlab="Freq (Hz)", alpha=1,
-    title="Periodogram - $(data.obsid) - $e_min to $e_max keV - 2^$(bin_time_pow2) bt - $rebin rebin$title_append")
+    Plots.plot!(xlab="Freq (Hz)", alpha=1)
     
+    (e_min, e_max) = (config(data.mission).good_energy_min, config(data.mission).good_energy_max)
     if logy      
         amp_min = minimum(powers[2:end])
         amp_max = maximum(powers[2:end])
+        
+        powers = powers[:]
+        powers[powers .<= 0] .= NaN
+        
         # If amp_min < 1, can't use prevpow10 for ylims, hacky little fix is 1/prevpow(10, 1/amp_min)
         # removed that anyway, set ylim to 1 if amp_min < 1
         # TODO: Look at/fix the manual ylim settings, since it seems to... make things worse usually
         # amp_min > 1 ? ylim = (prevpow(10, amp_min), nextpow(10, amp_max)) : ylim = (1, nextpow(10, amp_max))
         yaxis!(yscale=:log10, yformatter=yi->round(yi, sigdigits=3))
     end
-
+    
+    Plots.plot!(freqs, powers, color=:black, ylab="Amplitude", lab="$lab - $(data.pg_type)",
+        title="Periodogram - $(data.obsid) - $e_min to $e_max keV - 2^$(bin_time_pow2) bt - $rebin rebin$title_append")
+        
     _plot_formatter!()
     return Plots.plot!(size=size_in)
 end

@@ -16,6 +16,7 @@ using FFTW
 using Statistics
 using StatsBase
 using OnlineStats
+using LombScargle
 using DSP
 using LinearAlgebra
 

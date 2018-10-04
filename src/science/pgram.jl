@@ -9,16 +9,13 @@ struct PgramData
     group      :: Int
 end
 
-function _pgram(counts, bin_time, pg_type=:mt)
-    if pg_type == :mt
-        pg_result = mt_pgram(counts, fs=1/bin_time)
-    elseif pg_type == :pgram
-        pg_result = periodogram(counts, fs=1/bin_time)
-    elseif pg_type == :welch
-        pg_result = welch_pgram(counts, fs=1/bin_time)
-    end
+function _pgram(counts, bin_time, pg_type=:Scargle)
+    pg_plan = LombScargle.plan(1:length(counts), float(counts), 
+        normalization=pg_type, maximum_frequency=0.5/bin_time)
 
-    freqs, powers = pg_result.freq, pg_result.power
+    pg = lombscargle(pg_plan)
+
+    freqs, powers = freqpower(pg)
 
     return freqs, powers
 end
@@ -55,7 +52,7 @@ function _pgram_lc_group_pad(group_lc::Dict{Int64,JAXTAM.BinnedData})
     return padded_groups
 end
 
-function pgram(instrument_lc::Dict{Symbol,BinnedData}; pg_type=:pgram, per_group=false)
+function pgram(instrument_lc::Dict{Symbol,BinnedData}; pg_type=:Scargle, per_group=false)
     instruments = keys(instrument_lc)
 
     instrument_pgram = per_group ? Dict{Symbol,Dict{Int,PgramData}}() : Dict{Symbol,PgramData}()
