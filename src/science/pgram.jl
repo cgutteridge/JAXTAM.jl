@@ -9,7 +9,7 @@ struct PgramData
     group      :: Int
 end
 
-function _pgram(counts, bin_time, pg_type=:Scargle)
+function _pgram(counts, bin_time, pg_type=:standard)
     pg_plan = LombScargle.plan(1:length(counts), float(counts), 
         normalization=pg_type, maximum_frequency=0.5/bin_time)
 
@@ -52,7 +52,7 @@ function _pgram_lc_group_pad(group_lc::Dict{Int64,JAXTAM.BinnedData})
     return padded_groups
 end
 
-function pgram(instrument_lc::Dict{Symbol,BinnedData}; pg_type=:Scargle, per_group=false)
+function pgram(instrument_lc::Dict{Symbol,BinnedData}; pg_type=:standard, per_group=false)
     instruments = keys(instrument_lc)
 
     instrument_pgram = per_group ? Dict{Symbol,Dict{Int,PgramData}}() : Dict{Symbol,PgramData}()
