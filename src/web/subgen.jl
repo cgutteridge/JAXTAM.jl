@@ -356,7 +356,7 @@ function _webgen_subpage_footer()
         h5("Lightcurve"),
             p("Plot of events binned to 1-second intervals. Red/green vertical lines show the start/stop times of the GTIs."),
         h5("Periodogram"),
-            p("Periodograms created with the DSP.jl `periodogram` function. No extra normalisation applied"),
+            p("Periodograms created with the LombScargle.jl `periodogram` function, using the `:standard` normalisation, which is based on Zechmeister, M., Kürster, M. 2009, A&A, 496, 577."),
         h5("Power Spectra"),
             p("Leahy-normalised power spectra, amplitudes -2, then multipled by the frequency. Both x and y axis are log10 scale."),
         h5("Spectrogram"),
