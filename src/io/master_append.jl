@@ -370,8 +370,6 @@ function append_countrate(mission_name)
 
     append_df = _add_append_countrate!(append_df, mission_name)
 
-    println(names(append_df))
-
     @info "Saving $append_path_feather"
     _append_save(append_path_feather, append_df)
 
