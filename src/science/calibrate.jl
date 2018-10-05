@@ -85,9 +85,15 @@ function calibrate(mission_name::Symbol, obs_row::DataFrames.DataFrame)
     obsid       = obs_row[:obsid][1]
     JAXTAM_path = abspath(string(obs_row[:obs_path][1], "/JAXTAM/"))
 
-    JAXTAM_content = readdir(JAXTAM_path)
-    JAXTAM_e_files = count(contains.(JAXTAM_content, "events"))
-    JAXTAM_c_files = count(contains.(JAXTAM_content, "calib"))
+    if isdir(JAXTAM_path)
+        JAXTAM_content = readdir(JAXTAM_path)
+        JAXTAM_e_files = count(contains.(JAXTAM_content, "events"))
+        JAXTAM_c_files = count(contains.(JAXTAM_content, "calib"))
+    else
+        JAXTAM_e_files = 0
+        JAXTAM_c_files = 0
+    end
+
 
     calibrated_energy = Dict{Symbol,InstrumentData}()
 
