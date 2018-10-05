@@ -365,7 +365,7 @@ function _add_append_countrate!(append_df, mission_name)
             end
             countrate = countrate/length(instruments) # Average count rate over instruments
 
-            print(" - Countrate $countrate")
+            print(" - Countrate $countrate\n")
 
             obs_row[:countrate] = countrate
         end
