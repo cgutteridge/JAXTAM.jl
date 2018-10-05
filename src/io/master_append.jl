@@ -84,8 +84,13 @@ function _add_append_downloaded!(append_df, mission_name)
     root_dir  = config(mission_name).path
 
     for (i, obspath) in enumerate(append_df[:obs_path])
-        cl_files = append_df[i, :event_cl]
-        append_downloaded[i] = all(isfile.(cl_files))
+        cl_files    = append_df[i, :event_cl]
+        cl_files_gz = string.(append_df[i, :event_cl], ".gz")
+        if all(isfile.(cl_files)) || all(isfile.(cl_files_gz))
+            append_downloaded[i] = true
+        else
+            append_downloaded[i] = false
+        end
     end
 
     return append_df[:downloaded] = append_downloaded
@@ -132,6 +137,10 @@ function _add_append_results!(append_df, mission_name)
     end
 
     return append_df[:results_path] = append_resultspath
+end
+
+function _add_append_countrate!(append_ft, mission_name)
+
 end
 
 """
