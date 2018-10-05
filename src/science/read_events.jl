@@ -209,11 +209,22 @@ function read_cl(mission_name::Symbol, obs_row::DataFrames.DataFrame; overwrite=
     else
         mission_data = read_cl_fits(mission_name, obs_row)
 
-        for key in keys(mission_data)
-            @info "Saving $(string(key))"
+        instruments = keys(mission_data)
+        for instrument in instruments
+            @info "Saving $(string(instrument))"
 
-            _save_cl_feather(JAXTAM_path, mission_data[key].instrument, mission_data[key].events,
-                mission_data[key].gtis, mission_data[key].header)
+            if size(mission_data[instrument].events, 1) == 0
+                bad_events = DataFrame(TIME=[0], PI=[0])
+                bad_gtis   = DataFrame(START=[0], STOP=[0])
+                _save_cl_feather(JAXTAM_path, mission_data[instrument].instrument, bad_events,
+                    bad_gtis, mission_data[instrument].header)
+
+                mission_data[instrument] = InstrumentData(mission_data[instrument].mission, mission_data[instrument].instrument, mission_data[instrument].obsid,
+                    bad_events, bad_gtis, mission_data[instrument].start, mission_data[instrument].stop, mission_data[instrument].header)
+            else    
+                _save_cl_feather(JAXTAM_path, mission_data[instrument].instrument, mission_data[instrument].events,
+                    mission_data[instrument].gtis, mission_data[instrument].header)
+            end
         end
     end
 
