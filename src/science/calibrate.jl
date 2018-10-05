@@ -43,7 +43,7 @@ Loads the RMF calibration data, creates PI channels for energy conversion
 
 Channel bounds are the average of the min and max energy range
 """
-function _read_calibration(pis::Union{Array,Arrow.Primitive{Int}}, path_rmf::String)
+function _read_calibration(pis::Union{Array,Arrow.Primitive{Int16},Arrow.Primitive{Int64}}, path_rmf::String)
     calp, calEmin, calEmax = _read_rmf(path_rmf)
 
     es = zeros(length(pis))
@@ -63,7 +63,7 @@ end
 Loads the RMF path from the mission configuration file, then calls 
 `_read_calibration(pis::Union{Array,Arrow.Primitive{Int16}}, path_rmf::String)`
 """
-function _read_calibration(pis::Union{Array,Arrow.Primitive{Int}}, mission_name::Symbol)
+function _read_calibration(pis::Union{Array,Arrow.Primitive{Int16},Arrow.Primitive{Int64}}, mission_name::Symbol)
     path_rmf = config(mission_name).path_rmf
 
     return _read_calibration(pis, path_rmf)
