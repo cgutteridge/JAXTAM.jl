@@ -343,7 +343,16 @@ function _add_append_countrate!(append_df, mission_name)
         end
 
         if obs_row[1, :countrate] == 0.0
-            data = JAXTAM.calibrate(mission_name, obs_row[:]) # Require `obs_row[:]` to pass DataFrame not SubDataFrame
+            try
+                data = JAXTAM.calibrate(mission_name, obs_row[:]) # Require `obs_row[:]` to pass DataFrame not SubDataFrame
+            catch e
+                if occursin("error uncompressing image", e.msg)
+                    @warn "FITS could not be uncompressed"
+                    continue
+                else
+                    throw(e)
+                end
+            end
             instruments = keys(data)
 
             countrate = 0.0
