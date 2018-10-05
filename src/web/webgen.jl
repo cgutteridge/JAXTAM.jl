@@ -48,7 +48,7 @@ function _add_obsid_url(obsid, results_path)
 end
 
 function _webgen_table(df::DataFrames.DataFrame; table_id="example")
-    if :obsid in names(df)
+    if haskey(df, :obsid)
         obsid_url = _add_obsid_url(df[:obsid], df[:results_path])
         delete!(df, [:obsid, :results_path])
         df[:obsid] = obsid_url
@@ -79,11 +79,31 @@ function webgen_mission(mission_name::Symbol)
     
     web_home_dir  = joinpath(web_dir, "index.html")
 
+    master_a_df = master_a(mission_name)
+    
+    included_cols = [
+        :name,
+        :obsid,
+        :subject_category,
+        :obs_type,
+        :publicity,
+        :downloaded,
+        :analysed,
+        :time,
+        :results_path
+    ]
+
+    if haskey(master_a_df, :countrate)
+        append!(included_cols, [:countrate])
+
+        master_a_df[:countrate] = floor.(Int, master_a_df[:countrate])
+    end
+
     html_out = html(
         _webgen_head(;title_in="JAXTAM $mission_name homepage"),
         body(
             _webgen_home_intro(mission_name),
-            _webgen_table(master_a(mission_name)[:, [:name, :obsid, :subject_category, :obs_type, :publicity, :downloaded, :analysed, :time, :results_path]])
+            _webgen_table(master_a_df[:, included_cols])
         )
     )
 

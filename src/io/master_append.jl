@@ -139,10 +139,6 @@ function _add_append_results!(append_df, mission_name)
     return append_df[:results_path] = append_resultspath
 end
 
-function _add_append_countrate!(append_ft, mission_name)
-
-end
-
 """
     _append_gen(mission_name, master_df)
 
@@ -317,10 +313,68 @@ Re-generates the append file
 function append_update(mission_name)
     append_path_feather = abspath(string(_config_key_value(mission_name).path, "append.feather"))
 
-    master_df = master(mission_name)
-    append_df = _append_gen(mission_name, master_df)
+    master_df  = master(mission_name)
+    old_append = append(mission_name)
+    
+    append_df  = _append_gen(mission_name, master_df)
+    if haskey(old_append, :countrate)
+        @warn "append_update does not update countrates, run append_countrate if required"
+        old_countrate = old_append[:countrate]
+        append_df[:countrate] = old_countrate
+    end
+
     @info "Saving $append_path_feather"
     _append_save(append_path_feather, append_df)
+    return append_df
+end
+
+function _add_append_countrate!(append_df, mission_name)
+    if !haskey(append_df, :countrate) # If countrate col exists, don't make a new one with 0's
+        append_countrate = zeros(size(append_df, 1))
+        append_df[:countrate] = append_countrate
+    end
+
+    downloaded = filter(x->x[:downloaded], append_df)
+
+    for i in 1:size(append_df,1)
+        obs_row = view(append_df, i, :) # Use view to mutate dataframe in-place
+        if !obs_row[1, :downloaded] # Skip not-downloaded data
+            continue
+        end
+
+        if obs_row[1, :countrate] == 0.0
+            data = JAXTAM.calibrate(mission_name, obs_row[:]) # Require `obs_row[:]` to pass DataFrame not SubDataFrame
+            instruments = keys(data)
+
+            countrate = 0.0
+            for instrument in instruments
+                gtis = data[instrument].gtis
+
+                total_gti_time    = sum(gtis[:STOP] .- gtis[:START])
+                total_event_count = size(data[instrument].events, 1)
+                countrate        += total_event_count/total_gti_time
+            end
+            countrate = countrate/length(instruments) # Average count rate over instruments
+
+            obs_row[:countrate] = countrate
+        end
+    end
+
+    return append_df
+end
+
+function append_countrate(mission_name)
+    append_path_feather = abspath(string(_config_key_value(mission_name).path, "append.feather"))
+
+    append_df = append_update(mission_name)
+
+    append_df = _add_append_countrate!(append_df, mission_name)
+
+    println(names(append_df))
+
+    @info "Saving $append_path_feather"
+    _append_save(append_path_feather, append_df)
+
     return append_df
 end
 
