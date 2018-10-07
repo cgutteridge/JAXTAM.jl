@@ -158,7 +158,7 @@ returns a `Dict{Int64,JAXTAM.BinnedData}` where each `Int64` is for a different 
 """
 function _group_return(data::BinnedData)
     gtis = data.gtis
-    gtis = gtis[(gtis[:, :stop]-gtis[:, :start]) .>= 16, :] # Ignore gtis under 16s long
+    # gtis = gtis[(gtis[:, :stop]-gtis[:, :start]) .>= 16, :] # Ignore gtis under 16s long
     available_groups = unique(gtis[:group])
 
     data_group = Dict{Int64,JAXTAM.BinnedData}()
