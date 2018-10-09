@@ -99,6 +99,14 @@ function download(mission_name::Symbol, obsids::Array; overwrite=false)
     download(mission_name, master_df, obsids; overwrite=overwrite)
 end
 
+function download(mission_name::Symbol, obs_rows::DataFrames.DataFrame; overwrite=false)
+    master_df = master(mission_name)
+
+    obsids = obs_rows[:obsid]
+
+    download(mission_name, obsids; overwrite=overwrite)
+end
+
 function symlink_data(mission_primary::Symbol, mission_secondary::Symbol)
     primary_path   = config(mission_primary).path
     secondary_path = config(mission_secondary).path
