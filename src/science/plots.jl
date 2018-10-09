@@ -1,6 +1,6 @@
 # Helper functions
 
-function _savefig_obsdir(obs_row, mission_name, obsid, bin_time, subfolder, fig_name)
+function _savefig_obsdir(obs_row, mission_name, bin_time, subfolder, fig_name)
     plot_dir = joinpath(obs_row[1, :obs_path], "JAXTAM/lc/$bin_time/images/", subfolder)
 
     plot_path = joinpath(plot_dir, fig_name)
@@ -13,7 +13,7 @@ end
 
 function _savefig_obsdir(mission_name, obsid, bin_time, fig_name)
     obs_row = master_query(mission_name, :obsid, obsid)
-    _savefig_obsdir(obs_row, mission_name, obsid, bin_time, fig_name)
+    _savefig_obsdir(obs_row, mission_name, bin_time, fig_name)
 end
 
 function _pull_data(instrument_data::Union{Dict{Symbol,Dict{Int64,JAXTAM.FFTData}},Dict{Symbol,Dict{Int64,JAXTAM.PgramData}}})
@@ -93,7 +93,7 @@ function plot(instrument_data::Dict{Symbol,JAXTAM.BinnedData}; size_in=(1140,400
 
     if(save_plt)
         obs_row    = master_query(example_lc.mission, :obsid, example_lc.obsid)
-        _savefig_obsdir(obs_row, example_lc.mission, example_lc.obsid, example_lc.bin_time, "lc", "lcurve.png")
+        _savefig_obsdir(obs_row, example_lc.mission, example_lc.bin_time, "lc", "lcurve.png")
     end
 
     return Plots.plot!(size=size_in)
@@ -123,7 +123,7 @@ function plot_groups(instrument_data::Dict{Symbol,JAXTAM.BinnedData}; size_in=(1
                     title_append=title_append, size_in=size_in)
 
             if save_plt
-                _savefig_obsdir(obs_row, group_lc.mission, group_lc.obsid, group_lc.bin_time, "lc/groups/", "$(group)_lcurve.png")
+                _savefig_obsdir(obs_row, group_lc.mission, group_lc.bin_time, "lc/groups/", "$(group)_lcurve.png")
             end
         end
 
@@ -135,21 +135,37 @@ end
 
 # Power spectra plotting functions
 
-function plot!(data::FFTData; title_append="", norm=:rms, rebin=(:log10, 0.01),
+function plot!(data::FFTData; title_append="", norm=:rms, rebin=(:log10, 0.01), freq_lims=(:end, :end),
         lab="", logx=true, logy=true, show_errors=true,
-        size_in=(1140,600), save_plt=false
+        size_in=(1140,900), save_plt=false
     )
     bin_time_pow2 = Int(log2(data.bin_time))
 
-    # Don't plot the 0Hz amplitude
     avg_amp = data.avg_amp
     freqs   = data.freqs
-    avg_amp[1] = NaN
-    #freqs[2] > 1 ? freq_min = prevpow(10, freqs[2]) : freq_min =  1/prevpow(10, 1/freqs[2]) # Skip zero freq
-    freq_min = 0.01 # Manually set minimum fequency, assume anything lower isn't useful in power spectra
-    freqs[1]   = NaN
 
-    freqs, avg_amp, errors = fspec_rebin(data, rebin=rebin)
+    if freq_lims[1] == :end
+        # Don't plot the 0Hz amplitude
+        idx_min  = 2
+        freq_min = freqs[idx_min]
+    else
+        idx_min  = findfirst(freqs .>= freq_lims[1])
+        idx_min <= 0 ? idx_min=1 : idx_min=idx_min
+        freq_min = freqs[idx_min]
+    end
+
+    if freq_lims[2] == :end
+        idx_max  = length(freqs)
+        freq_max = freqs[end]
+    else
+        idx_max  = findfirst(freqs .> freq_lims[2]) - 1 # Find first > max freq, take the freq before that
+        freq_max = freqs[idx_max]
+    end
+
+    avg_amp = avg_amp[idx_min:idx_max]
+    freqs   = freqs[idx_min:idx_max]
+
+    freqs, avg_amp, errors = _fspec_rebin(avg_amp, freqs, data.bin_count, rebin)
     ylab = ""
     
     if norm == :rms
@@ -160,6 +176,7 @@ function plot!(data::FFTData; title_append="", norm=:rms, rebin=(:log10, 0.01),
         ylab = "Amplitude (Leahy - 2)*freq"
     elseif norm == :leahy
         amp_max = maximum(avg_amp[2:end]); amp_min = minimum(avg_amp[2:end])
+        hline!([2], line=:dash)
         ylab = "Amplitude (Leahy)"
     else
         @error "Plot norm type '$norm' not found" 
@@ -167,52 +184,53 @@ function plot!(data::FFTData; title_append="", norm=:rms, rebin=(:log10, 0.01),
 
     if show_errors
         Plots.plot!(freqs, avg_amp, color=:black,
-            yerr=errors,
-            ylab=ylab, lab=lab)
+            yerr=errors, lab=lab)
     else
-        Plots.plot!(freqs, avg_amp, color=:black,
-            ylab=ylab, lab=lab)
+        Plots.plot!(freqs, avg_amp, color=:black, lab=lab)
     end
 
     if logx
-        xaxis!(xscale=:log10, xformatter=xi->xi, xlim=(freq_min, freqs[end]))
+        xaxis!(xscale=:log10, xformatter=xi->xi, xlim=(freq_min, freqs[end]), xlab="Freq (Hz) - log10")
+    else
+        xaxis!(xlab="Freq (Hz)")
     end
 
     if logy
         # If amp_min < 1, can't use prevpow10 for ylims, hacky little fix is 1/prevpow(10, 1/amp_min)
-        # removed that anyway, set ylim to 1 if amp_min < 1
-        amp_min > 1 ? ylim = (prevpow(10, amp_min), nextpow(10, amp_max)) : ylim = (1, nextpow(10, amp_max))
-        yaxis!(yscale=:log10, yformatter=yi->round(yi, sigdigits=3), ylims=ylim)
+        amp_min > 1 ? ylim = (prevpow(10, amp_min), nextpow(10, amp_max)) : ylim = (1/prevpow(10, 1/amp_min), nextpow(10, amp_max))
+        yaxis!(yscale=:log10, yformatter=yi->round(yi, sigdigits=3), ylims=ylim, ylab="$ylab - log10")
+    else
+        yaxis!(ylab=ylab)
     end
 
     (e_min, e_max) = (config(data.mission).good_energy_min, config(data.mission).good_energy_max)
     
-    Plots.plot!(xlab="Freq (Hz)", alpha=1,
-        title="FFT - $(data.obsid) - $e_min to $e_max keV - 2^$(bin_time_pow2) bt - $(data.bin_size*data.bin_time) bs - $rebin rebin - $(data.bin_count) - sections averaged $title_append")
+    Plots.plot!(alpha=1,
+        title="FFT - $(data.obsid) - $e_min to $e_max keV - 2^$(bin_time_pow2) bt - $(data.bin_size*data.bin_time) bs - $rebin rebin - $(data.bin_count) - sections averaged$title_append")
 
     if(save_plt)
-        _savefig_obsdir(data.mission, data.obsid, data.bin_time, "fspec.png")
+        _savefig_obsdir(data.mission, data.bin_time, "fspec.png")
     end
 
     _plot_formatter!()
     return Plots.plot!(size=size_in)
 end
 
-function plot(instrument_data::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}}; title_append="",
-        size_in=(1140,600), norm=:rms, rebin=(:log10, 0.01), logx=true, logy=true, save_plt=true)
+function plot(instrument_data::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}}; title_append="", freq_lims=(:end, :end),
+        size_in=(1140,900), norm=:rms, rebin=(:log10, 0.01), logx=true, logy=true, save_plt=true)
     instruments = keys(instrument_data)
 
     plt = Plots.plot()
     
     for instrument in instruments
-        plt = JAXTAM.plot!(instrument_data[Symbol(instrument)][-1]; title_append=title_append,
+        plt = JAXTAM.plot!(instrument_data[Symbol(instrument)][-1]; title_append=title_append, freq_lims=freq_lims,
             norm=norm, rebin=rebin, logx=logx, logy=logy, lab=String(instrument), save_plt=false)
     end
 
     if(save_plt)
         example_gti = _pull_data(instrument_data)
         obs_row    = master_query(example_gti.mission, :obsid, example_gti.obsid)
-        _savefig_obsdir(obs_row, example_gti.mission, example_gti.obsid, example_gti.bin_time, "fspec/$(example_gti.bin_size*example_gti.bin_time)", "fspec.png")
+        _savefig_obsdir(obs_row, example_gti.mission, example_gti.bin_time, "fspec/$(example_gti.bin_size*example_gti.bin_time)", "fspec.png")
     end
 
     return Plots.plot!(size=size_in)
@@ -251,7 +269,7 @@ function plot_groups(instrument_data::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}};
             
             if save_plt
                 data = instrument_data_group[gtis_in_group[1]]
-                _savefig_obsdir(obs_row, data.mission, data.obsid, data.bin_time,
+                _savefig_obsdir(obs_row, data.mission, data.bin_time,
                     "fspec/$(data.bin_size.*data.bin_time)/groups/", "$(group)_fspec.png")
             end
 
@@ -317,7 +335,7 @@ function plot(instrument_data::Dict{Symbol,JAXTAM.PgramData};
     if save_plt
         example_pgram = _pull_data(instrument_data)
         obs_row       = master_query(example_pgram.mission, :obsid, example_pgram.obsid)
-        _savefig_obsdir(obs_row, example_pgram.mission, example_pgram.obsid, example_pgram.bin_time,
+        _savefig_obsdir(obs_row, example_pgram.mission, example_pgram.bin_time,
             "pgram", "$(example_pgram.pg_type)_pgram.png")
     end
 
@@ -346,7 +364,7 @@ function plot_groups(instrument_data::Dict{Symbol,Dict{Int64,JAXTAM.PgramData}};
                 title_append=title_append, size_in=size_in, save_plt=false)
 
             if save_plt
-                _savefig_obsdir(obs_row, example_pgram.mission, example_pgram.obsid, example_pgram.bin_time,
+                _savefig_obsdir(obs_row, example_pgram.mission, example_pgram.bin_time,
                 "pgram/groups/", "$(group)_pgram.png")
             end
         end
@@ -394,7 +412,7 @@ function plot_sgram(fs::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}};
 
         if(save_plt)
             obs_row = master_query(example_data.mission, :obsid, example_data.obsid)
-            _savefig_obsdir(obs_row, example_data.mission, example_data.obsid, example_data.bin_time, "sgram/$(example_data.bin_size*example_data.bin_time)", "sgram.png")
+            _savefig_obsdir(obs_row, example_data.mission, example_data.bin_time, "sgram/$(example_data.bin_size*example_data.bin_time)", "sgram.png")
         end
     end
 

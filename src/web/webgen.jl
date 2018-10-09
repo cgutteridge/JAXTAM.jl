@@ -96,7 +96,9 @@ function webgen_mission(mission_name::Symbol)
     if haskey(master_a_df, :countrate)
         append!(included_cols, [:countrate])
 
-        master_a_df[:countrate] = floor.(Int, master_a_df[:countrate])
+        countrate = master_a_df[:countrate]
+        countrate[countrate .== Inf] = 0
+        countrate = floor.(Int, countrate)
     end
 
     html_out = html(

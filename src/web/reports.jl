@@ -1,6 +1,18 @@
-function _plot_fspec_grid(fs::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}})
-    plt_1 = plot(fs; save_plt=false)
-    plt_2 = plot(fs; norm=:leahy)
+function _plot_fspec_grid(fs::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}},
+        obs_row, mission_name, bin_time, subfolder, fig_name)
+    plt_1 = plot(fs; norm=:rms,   save_plt=false)
+    plt_2 = plot(fs; norm=:leahy, save_plt=false)
+
+    plt_3 = plot(fs, norm=:leahy, save_plt=false, freq_lims=(0, 1),      rebin=(:linear, 1),
+        logx=false, logy=false, title_append=" - 0 to 1 Hz")
+    plt_4 = plot(fs, norm=:leahy, save_plt=false, freq_lims=(1, :end),  rebin=(:linear, 1),
+        logx=false, logy=false, title_append=" - 1 to :end Hz")
+    plt_4 = plot(fs, norm=:leahy, save_plt=false, freq_lims=(50, :end), rebin=(:linear, 1),
+        logx=false, logy=false, title_append=" - 50 to :end Hz")
+
+    Plots.plot(plt_1, plt_2, plt_3, plt_4, layout=grid(4,1), size=(1140,600*4))
+
+    _savefig_obsdir(obs_row, mission_name, bin_time, subfolder, fig_name)
 end
 
 function report(mission_name, obsid; overwrite=false, nuke=false)
@@ -33,12 +45,14 @@ function report(mission_name, obsid; overwrite=false, nuke=false)
         lcurve(mission_name, obs_row, 2.0^-13); GC.gc()
 
         fs = fspec(mission_name, obs_row, 2.0^-13, 128)
-        JAXTAM.plot(fs); JAXTAM.plot_groups(fs; size_in=(1140,600/2))
+        JAXTAM._plot_fspec_grid(fs, obs_row, mission_name, 2.0^-13, "fspec/128", "fspec.png")
+        JAXTAM.plot_groups(fs; size_in=(1140,600/2))
         JAXTAM.plot_sgram(fs; size_in=(1140,600/2))
         fs = 0; GC.gc()
 
         fs = fspec(mission_name, obs_row, 2.0^-13, 64)
-        JAXTAM.plot(fs); JAXTAM.plot_groups(fs; size_in=(1140,600/2))
+        JAXTAM._plot_fspec_grid(fs, obs_row, mission_name, 2.0^-13, "fspec/64", "fspec.png")
+        JAXTAM.plot_groups(fs; size_in=(1140,600/2))
         JAXTAM.plot_sgram(fs; size_in=(1140,600/2))
         fs = 0; GC.gc()
     end
