@@ -192,7 +192,7 @@ function plot!(data::FFTData; title_append="", norm=:rms, rebin=(:log10, 0.01), 
     if logx
         xaxis!(xscale=:log10, xformatter=xi->xi, xlim=(freq_min, freqs[end]), xlab="Freq (Hz) - log10")
     else
-        xaxis!(xlab="Freq (Hz)")
+        xaxis!(xlab="Freq (Hz)", xlim=(freq_min,freq_max))
     end
 
     if logy
