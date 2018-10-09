@@ -176,7 +176,7 @@ function plot!(data::FFTData; title_append="", norm=:rms, rebin=(:log10, 0.01), 
         ylab = "Amplitude (Leahy - 2)*freq"
     elseif norm == :leahy
         amp_max = maximum(avg_amp[2:end]); amp_min = minimum(avg_amp[2:end])
-        hline!([2], line=:dash)
+        hline!([2], line=:dash, lab="")
         ylab = "Amplitude (Leahy)"
     else
         @error "Plot norm type '$norm' not found" 
