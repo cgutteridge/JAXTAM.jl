@@ -49,5 +49,6 @@ include("science/plots.jl")
 include("science/sgram.jl")
 include("web/webgen.jl")
 include("web/subgen.jl")
+include("web/reports.jl")
 
 end
