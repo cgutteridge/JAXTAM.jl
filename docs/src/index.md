@@ -106,7 +106,7 @@ julia> JAXTAM.append(:nicer)
 [ Info: Saving /example/path/to/nicer/append.feather
 ```
 
-## Filtering Downloading Observations
+## Filtering Observations
 
 A basic filtering function has been included to help select observations, called [`master_query`](@ref), which takes in a mission name, column name, and then a value to filter by:
 
@@ -152,3 +152,29 @@ Note how this time only 178 rows (observations) have been returned, whereas befo
 Additionally, running the function with just the mission and no arguments for filtering (e.g. `JAXTAM.master_query_public(:mission_name)`) will return all the currently public observations.
 
 ## Downloading Observations
+
+Downloading data can be done using a number of functions with different arguments, the two main methods are `download(mission_name::Symbol, obsid::String)` and `download(mission_name::Symbol, obs_rows::DataFrames.DataFrame)`.
+
+This means that combining query and download commands is relatively easy:
+
+```julia
+julia> download_queue = JAXTAM.master_query_public(:nicer, :name, "MAXI_J1535-571");
+
+julia> JAXTAM.download(:nicer, download_queue)
+```
+
+Downloads are handled by the `lftp` package. The data is downloaded to the mission path specified in the relevant `MissionDefinition` stored in the configuration file, and the folder structure is identical to that of the FTP server, however the dot `.` denoting a hidden folders/files is stripped out.
+
+## 
+
+# Todo
+
+Look into using filter functions instead of masks
+
+Look into moving to pipeline syntax for analysis, such as:
+
+```julia
+julia> "cl_file_path.fits" |> read_fits |> calibrate(energy_range) |> lcurve(bin_time) |> fspec |> ...
+```
+
+Add in a count rate column to the append table, since low count rate sources are basically useless, might as well filter them out at the start
