@@ -275,10 +275,21 @@ function fspec(mission_name::Symbol, obsid::String, bin_time::Number, fspec_bin:
     return fs
 end
 
-function _fspec_rebin(amps, freqs, bin_count::Int, rebin=(:log10, 0.01))
-    rebin_type   = rebin[1]
-    rebin_factor = rebin[2]
-    freq_intervals = freqs[3] - freqs[2]
+function _fspec_rebin(amps, freqs, bin_count::Int, bin_size, bin_time, rebin=(:log10, 0.01))
+    rebin_type     = rebin[1]
+    rebin_factor   = rebin[2]
+    binary_thresh  = missing
+    freq_intervals = 1/(bin_size*bin_time) #freqs[3] - freqs[2]
+
+    # Frequency rebinning (e.g. binning to 1Hz, 2Hz, etc... intervals) is 
+    # just linear rebinning, with the factor determined by the desired frequency
+    if rebin_type == :freq
+        rebin_type   = :linear
+        rebin_factor = round(Int, bin_size*bin_time*rebin_factor)
+    elseif rebin_type == :freq_binary
+        rebin_factor  = round(Int, bin_size*bin_time*rebin_factor)
+        binary_thresh = rebin[3]
+    end
 
     if rebin_type == :log10
         freq_max = freqs[end]
@@ -318,13 +329,31 @@ function _fspec_rebin(amps, freqs, bin_count::Int, rebin=(:log10, 0.01))
         rebinned_fspec = mean(reshape(amps[1:in_rebin], rebin_factor, :), dims=1)'
 
         freq_scale = mean(reshape(freqs[1:in_rebin], rebin_factor, :), dims=1)'
-    end 
+    elseif rebin_type == :freq_binary
+        if rebin_factor < 1 || typeof(rebin_factor) != Int
+            error("Rebin factor must be a >1 integer for linear rebinning")
+        end
+
+        in_rebin = floor(Int, size(amps, 1)/rebin_factor).*rebin_factor
+
+        errors = amps ./ sqrt(bin_count*rebin_factor)
+        errors = zeros(in_rebin) # Errors don't really have a meaning for this
+
+        # amps[floor(Int, in_rebin/2)] = 1000 # Insert high-frequency power for debugging
+
+        binned_amps    = reshape(amps[1:in_rebin], rebin_factor, :)
+        rebinned_fspec = any(binned_amps .>= binary_thresh, dims=1)'
+
+        freq_scale = mean(reshape(freqs[1:in_rebin], rebin_factor, :), dims=1)'
+    else
+        error("Invalid rebin type $rebin_type, must be :log10, :linear, or :freq")
+    end
 
     return freq_scale, rebinned_fspec, errors
 end
 
 function fspec_rebin(fs::JAXTAM.FFTData; rebin=(:log10, 0.01))
-    rebinned_data = _fspec_rebin(fs.avg_amp, fs.freqs, fs.bin_count, rebin)
+    rebinned_data = _fspec_rebin(fs.avg_amp, fs.freqs, fs.bin_count, fs.bin_size, fs.bin_time, rebin)
 
     return rebinned_data
 end
@@ -338,7 +367,8 @@ function fspec_rebin_sgram(fs::Dict{Int64,JAXTAM.FFTData}; rebin=(:log10, 0.01))
     fs_freqs = fs[-1].freqs
     fs_amps  = hcat([f[2].amps for f in fs if f[1] > 0]...) # Skip special < 0 keys
 
-    fs_rebinned_amps  = hcat([_fspec_rebin(fs_amps[:, i], fs_freqs, 1, rebin)[2] for i in 1:size(fs_amps, 2)]...)
+    bin_size = fs[-1].bin_size; bin_time = fs[-1].bin_time
+    fs_rebinned_amps  = hcat([_fspec_rebin(fs_amps[:, i], fs_freqs, 1, bin_size, bin_time, rebin)[2] for i in 1:size(fs_amps, 2)]...)
     fs_rebinned_freqs = fspec_rebin(fs[-1], rebin=rebin)[1]
 
     return fs_rebinned_freqs, fs_rebinned_amps, fs_group_bounds, fs_groups

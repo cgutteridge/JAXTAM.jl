@@ -165,7 +165,7 @@ function plot!(data::FFTData; title_append="", norm=:rms, rebin=(:log10, 0.01), 
     avg_amp = avg_amp[idx_min:idx_max]
     freqs   = freqs[idx_min:idx_max]
 
-    freqs, avg_amp, errors = _fspec_rebin(avg_amp, freqs, data.bin_count, rebin)
+    freqs, avg_amp, errors = _fspec_rebin(avg_amp, freqs, data.bin_count, data.bin_size, data.bin_time, rebin)
     ylab = ""
     
     if norm == :rms
