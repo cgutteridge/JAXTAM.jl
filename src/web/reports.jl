@@ -48,12 +48,14 @@ function report(mission_name, obsid; overwrite=false, nuke=false)
         JAXTAM._plot_fspec_grid(fs, obs_row, mission_name, 2.0^-13, "fspec/128.0/", "fspec.png")
         JAXTAM.plot_groups(fs; size_in=(1140,600/2))
         JAXTAM.plot_sgram(fs; size_in=(1140,600/2))
+        JAXTAM.plot_pulses(fs; size_in=(1140,600/2))
         fs = 0; GC.gc()
 
         fs = fspec(mission_name, obs_row, 2.0^-13, 64)
         JAXTAM._plot_fspec_grid(fs, obs_row, mission_name, 2.0^-13, "fspec/64.0/", "fspec.png")
         JAXTAM.plot_groups(fs; size_in=(1140,600/2))
         JAXTAM.plot_sgram(fs; size_in=(1140,600/2))
+        JAXTAM.plot_pulses(fs; size_in=(1140,600/2))
         fs = 0; GC.gc()
     end
 

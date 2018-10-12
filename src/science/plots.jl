@@ -293,7 +293,11 @@ function plot!(data::PgramData; title_append="", rebin=(:linear, 1),
     powers[1] = NaN
     freqs[1]   = NaN
 
-    freqs, powers, errors = _fspec_rebin(powers, freqs, 1, rebin)
+    if rebin == (:linear, 1)
+        # Do... nothing
+    else
+        freqs, powers, errors = _fspec_rebin(powers, freqs, 1, data.bin_size, missing, rebin)
+    end
 
     Plots.plot!(xlab="Freq (Hz)", alpha=1)
     
@@ -377,6 +381,28 @@ end
 
 # Spectrogram plotting functions
 
+function _plot_sgram(sgram_freq, sgram_power, sgram_bounds, sgram_groups,
+        e_min, e_max, obsid, bin_time_pow2, bin_size, bin_time, rebin, size_in, disable_x=true)
+
+    if disable_x
+        heatmap(sgram_power, size=size_in, fill=true)
+        xaxis!(xticks=[0], xlab="Freq (Hz - log10 - log scale support faulty, ticks excluded)")
+    else
+        heatmap(sgram_freq, 1:size(sgram_power,1), sgram_power, size=size_in, fill=true)
+        xaxis!(xlab="Freq [Hz]")
+    end
+
+    title!("Spectrogram - $(obsid) - $e_min to $e_max keV- 2^$(bin_time_pow2) bt - $(bin_size*bin_time) bs - $rebin rebin")
+
+    if length(sgram_bounds) < 25
+        hline!(sgram_bounds.+0.5, alpha=0.75, line=:dot, lab="")
+        yaxis_bounds_to_group = Dict(diag([(bound,group) for bound in sgram_bounds, group in sgram_groups]))
+        yaxis!(yticks=sgram_bounds, yformatter=yi->yaxis_bounds_to_group[Int(yi)], ylab="Group")
+    end
+
+    _plot_formatter!()
+end
+
 function plot_sgram(fs::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}}; 
         rebin=(:log10, 0.01), size_in=(1140,600), save_plt=true)
     instruments = keys(fs)
@@ -393,22 +419,9 @@ function plot_sgram(fs::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}};
 
         (e_min, e_max) = (config(example_data.mission).good_energy_min, config(example_data.mission).good_energy_max)
 
-        heatmap(sgram_power, 
-            size=size_in, fill=true, #legend=false,
-            xlab="Freq (Hz - log10 - log scale support faulty, ticks excluded)", ylab="Group",
-            title="Spectrogram - $(example_data.obsid) - $e_min to $e_max keV- 2^$(bin_time_pow2) bt - $(example_data.bin_size*example_data.bin_time) bs - $rebin rebin")
-
-        xticks!([0])
-
-        if length(sgram_bounds) < 25
-            hline!(sgram_bounds.+0.5, alpha=0.75, line=:dot, lab="")
-            yaxis_bounds_to_group = Dict(diag([(bound,group) for bound in sgram_bounds, group in sgram_groups]))
-            yaxis!(yticks=sgram_bounds, yformatter=yi->yaxis_bounds_to_group[Int(yi)])
-        end
-
-        _plot_formatter!()
-
-        sgram_instrument_plots[instrument] = Plots.plot!()
+        sgram_instrument_plots[instrument] = _plot_sgram(sgram_freq, sgram_power, sgram_bounds, sgram_groups,
+            e_min, e_max, example_data.obsid, bin_time_pow2, example_data.bin_size, example_data.bin_time, rebin,
+            size_in)
 
         if(save_plt)
             obs_row = master_query(example_data.mission, :obsid, example_data.obsid)
@@ -417,6 +430,46 @@ function plot_sgram(fs::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}};
     end
 
     return sgram_instrument_plots
+end
+
+# Pulsation Check Spectrogram Plotting
+
+function plot_pulses(fs::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}};
+        freq_bin=10, power_limits=[10, 25, 50], size_in=(1140,600), save_plt=true)
+    
+    pulsation_instrument_plots = Dict{Symbol,Plots.Plot}()
+    instruments = keys(fs)
+    for instrument in instruments
+        example_data = fs[instrument][-1]
+        bin_time_pow2 = Int(log2(example_data.bin_time))
+        (e_min, e_max) = (config(example_data.mission).good_energy_min, config(example_data.mission).good_energy_max)
+
+        pulsation_freq, pulsation_power, pulsation_bounds, pulsation_groups = 0, 0, 0, 0
+        for p in power_limits
+            rebin = (:freq_binary, freq_bin, p)
+            
+            pulsation_freq, pulsation_power_new, pulsation_bounds, pulsation_groups = fspec_rebin_sgram(fs[instrument]; rebin=rebin)
+
+            if pulsation_power == 0
+                pulsation_power = pulsation_power_new
+            else
+                pulsation_power[pulsation_power_new .!= 0] .= p
+            end
+        end
+
+        rebin = (:freq_binary, freq_bin, power_limits)
+
+        pulsation_instrument_plots[instrument] = _plot_sgram(pulsation_freq, pulsation_power', pulsation_bounds, pulsation_groups,
+            e_min, e_max, example_data.obsid, bin_time_pow2, example_data.bin_size, example_data.bin_time,
+            rebin, size_in, false)
+
+        if(save_plt)
+            obs_row = master_query(example_data.mission, :obsid, example_data.obsid)
+            _savefig_obsdir(obs_row, example_data.mission, example_data.bin_time, "pulse/$(example_data.bin_size*example_data.bin_time)", "pulse.png")
+        end
+    end
+
+    return pulsation_instrument_plots
 end
 
 # Covariance plotting

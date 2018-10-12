@@ -235,7 +235,7 @@ function _webgen_subpage_findimg(JAXTAM_path)
 
         # 5  - folder named after on of the plot kinds: fspec, lc, or pgram
         img_kind = img_dir_splt[5]
-        @assert img_kind in ["fspec", "lc", "pgram", "sgram"]
+        @assert img_kind in ["fspec", "lc", "pgram", "sgram", "pulse"]
         append!(img_kinds, [img_kind])
 
         # 6  - Diverges based on kind
@@ -287,6 +287,12 @@ function _webgen_subpage_findimg(JAXTAM_path)
             img_kind_ordr = 3
             img_group = 0
             img_title = "Spectrogram - $img_bin_time bt - $img_bin_size bs"
+        elseif img_kind == "pulse"
+            img_bin_size = img_dir_splt[6]
+            # 6d2 - lc groups folder
+            img_kind_ordr = 4
+            img_group = 0
+            img_title = "Pulsations - $img_bin_time bt - $img_bin_size bs"
         end
 
         append!(img_bin_sizes, [img_bin_size])
