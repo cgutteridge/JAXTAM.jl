@@ -278,11 +278,17 @@ end
 function _fspec_rebin(amps, freqs, bin_count::Int, bin_size, bin_time, rebin=(:log10, 0.01))
     rebin_type     = rebin[1]
     rebin_factor   = rebin[2]
-    binary_thresh  = missing
-    freq_intervals = 1/(bin_size*bin_time) #freqs[3] - freqs[2]
-
+    
+    freq_intervals = missing
+    if ismissing(bin_time)
+        freq_intervals = mean(diff(freqs))
+    else
+        freq_intervals = 1/(bin_size*bin_time) #freqs[3] - freqs[2]
+    end
+    
     # Frequency rebinning (e.g. binning to 1Hz, 2Hz, etc... intervals) is 
     # just linear rebinning, with the factor determined by the desired frequency
+    binary_thresh  = missing
     if rebin_type == :freq
         rebin_type   = :linear
         rebin_factor = round(Int, bin_size*bin_time*rebin_factor)
@@ -342,14 +348,16 @@ function _fspec_rebin(amps, freqs, bin_count::Int, bin_size, bin_time, rebin=(:l
         # amps[floor(Int, in_rebin/2)] = 1000 # Insert high-frequency power for debugging
 
         binned_amps    = reshape(amps[1:in_rebin], rebin_factor, :)
-        rebinned_fspec = any(binned_amps .>= binary_thresh, dims=1)'
+        rebinned_fspec = zeros(1, size(binned_amps, 2))
+        rebinned_fspec[any(binned_amps .>= binary_thresh, dims=1)] .= binary_thresh
+        rebinned_fspec = rebinned_fspec'
 
         freq_scale = mean(reshape(freqs[1:in_rebin], rebin_factor, :), dims=1)'
     else
-        error("Invalid rebin type $rebin_type, must be :log10, :linear, or :freq")
+        error("Invalid rebin type $rebin_type, must be :log10, :linear, :freq, or :freq_binary")
     end
 
-    return freq_scale, rebinned_fspec, errors
+    return freq_scale[:], rebinned_fspec, errors
 end
 
 function fspec_rebin(fs::JAXTAM.FFTData; rebin=(:log10, 0.01))
@@ -372,4 +380,16 @@ function fspec_rebin_sgram(fs::Dict{Int64,JAXTAM.FFTData}; rebin=(:log10, 0.01))
     fs_rebinned_freqs = fspec_rebin(fs[-1], rebin=rebin)[1]
 
     return fs_rebinned_freqs, fs_rebinned_amps, fs_group_bounds, fs_groups
+end
+
+function fspec_pulses(fs::Dict{Int64,JAXTAM.FFTData};
+        freq_bin=1, power_limits=[10, 20, 100])
+
+    rebinned_data = Dict{Int,Tuple}()
+    for p in power_limits
+        rebinned_data[p] = fspec_rebin_sgram(fs;
+            rebin=(:freq_binary, freq_bin, p))
+    end
+
+    return rebinned_data
 end
