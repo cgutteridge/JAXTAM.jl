@@ -180,3 +180,7 @@ julia> "cl_file_path.fits" |> read_fits |> calibrate(energy_range) |> lcurve(bin
 Add in a count rate column to the append table, since low count rate sources are basically useless, might as well filter them out at the start
 
 Improve sections of code using `findfirst()` to get an index for a frequency. Instead try using `%` with the data frequency interval given by `bin_size*bin_time` to get the closest index
+
+Overhaul how plotting and analysis checks work. Included meta file in each observation JAXTAM directory listing the paths/titles of plots, what analysis has been done, etc...
+
+Add comprehensive tests. Learn how to use Coveralls
