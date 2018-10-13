@@ -158,23 +158,52 @@ function _webpage_subgen_slider_js()
         }
       });
     ")
-end
+end 
 
-function _webgen_results_intro(obs_row)
-    obsid = obs_row[1, :obsid]
+function _webgen_results_intro(mission_name, obs_row, results_page_dir)
+    mission_config = config(mission_name)
+    e_min, e_max = mission_config.good_energy_min, mission_config.good_energy_max
+    missions = string.(collect(keys(JAXTAM.config())))
+    missions = missions[missions .!= string(mission_name)] # Remove the current mission from the list
+    
+    missions_split = split.(missions, "_") # Spit off the _ to remove energy bound notation
+    # Select missions with the same base name 
+    similar_missions = [any(occursin.(string(mission_name), m)) for m in missions_split]
+    similar_missions = missions[similar_missions]
+
+    similar_missions_links = Dict()
+    for similar_mission in Symbol.(similar_missions)
+        similar_obs_row = JAXTAM.master_query(similar_mission, :obsid, obs_row[1, :obsid])
+
+        if similar_obs_row[1, :results_path] != "NA"
+            similar_missions_links[similar_mission] = similar_obs_row[1, :results_path]
+        end
+    end
+    
+    relative_path_addon = repeat("../", length(split(splitdir(results_page_dir)[1], "/")))
+    println(relative_path_addon)
+    similar_mission_text = p()
+    if length(similar_missions_links) != 0
+        similar_mission_text = p("Similar missions: ", [a(string("$(l[1]) "), href=string(relative_path_addon, l[2][3:end])) for l in similar_missions_links])
+    end
+
+    println(similar_mission_text)
+
+    obsid = #obs_row[1, :obsid]
     name  = obs_row[1, :name]
     abstract_text = obs_row[1, :abstract]
     node_intro = div(
-        h1("Observation $obsid - $name"),
+        h1("Observation $obsid - $name - $e_min to $e_max keV"),
+        similar_mission_text,
         h2("Abstract"),
         p(abstract_text),
         hr(),
         h4("Status"),
-        _webgen_table(obs_row[:, [:public_date, :publicity, :time]]; table_id=""),
+        _webgen_table(obs_row[[:public_date, :publicity, :time]]; table_id=""),
         h4("Source Details"),
-        _webgen_table(obs_row[:, [:name, :ra, :dec, :lii, :bii, :obs_type]]; table_id=""),
+        _webgen_table(obs_row[[:name, :ra, :dec, :lii, :bii, :obs_type]]; table_id=""),
         h4("Observation Details"),
-        _webgen_table(obs_row[: ,[:time, :end_time, :exposure, :remarks]]; table_id=""),
+        _webgen_table(obs_row[[:time, :end_time, :exposure, :remarks]]; table_id=""),
         h4("Misc"),
         _webgen_table(obs_row[[:processing_status, :processing_date, :processing_version, :num_processed, :caldb_version]], table_id="")
     )
@@ -370,6 +399,12 @@ function _webgen_subpage_footer()
             p("Note that when looking at the spectrogram the gaps in the lightcurve are not displayed, so trends shown in the spectrogram may not represent reality. Currently plotting function limitations mean that the x-axis ticks are not accurate for the spectorgram, so they have been disabled. 
             The spectrogram should only be used as an indication of QPOs moving over time, further analysis should be performed using external software."),
             p("The orange horizontal lines denote the boundry between different groups. The zone under a line belongs to the group on the line's y-axis tick."),
+        h5("Pulsation Spectrogram"),
+            p("Spectrograms with a `:freq_binary` rebin are used to search for pulsations."),
+            p("The rebin has two numbers: the first signifies the size of the frequency bins (by default 10 Hz), and the second is an array of threshold values (default 10, 25, 50)."),
+            p("If any values of the power spectra in the frequency bins is above one of the thresholds, the point is set to the threshold value."),
+            p("This makes it easy to spot any high-frequency, intermittent pulsations, as they will show up as a pattern of bright points/bands."),
+            p("A good example of this is the nicer observation `1013010126` (PSR_B0531+21), which shows clear, bright, banding patterns from ~50 to ~500 Hz."),
         h5("Groups"),
             p("\"Groups\" are GTIs seperated by less than 128 seconds, which have been grouped together. They are used to select smaller chunks of the lightcurve, which are then passed through periodogram and power spectra functions. Left and right arrow keys can be used to move between groups."),
     )
@@ -408,7 +443,7 @@ function _webgen_subpage(mission_name, obs_row)
         body(
             div(class="se-pre-con"),
             div(class="container",
-                _webgen_results_intro(obs_row),
+                _webgen_results_intro(mission_name, obs_row, results_page_dir),
                 _webgen_results_body(obs_row; img_dict=img_dict_overview),
                 _webgen_results_body_groups(obs_row, img_details_groups),
                 _webgen_subpage_footer()

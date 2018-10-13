@@ -24,12 +24,12 @@ function _webgen_head(;title_in="")
     )
 end
 
-function _webgen_home_intro(mission_name::Symbol)
+function _webgen_home_intro(mission_name::Symbol, e_min, e_max)
     node_intro = intro(
         m("div"; class="se-pre-con"),
         div(class="container",
             m("div"; class="container"),
-            m("h1", "JAXTAM.jl WebView - $mission_name"),
+            m("h1", "JAXTAM.jl WebView - $mission_name ($e_min to $e_max keV)"),
             m("hr"),
             m("p", "JAXTAM results summary page for $mission_name")
         )
@@ -48,15 +48,22 @@ function _add_obsid_url(obsid, results_path)
 end
 
 function _webgen_table(df::DataFrames.DataFrame; table_id="example")
+    # Replaces plain string obsid with hyperlink to the result
     if haskey(df, :obsid)
         obsid_url = _add_obsid_url(df[:obsid], df[:results_path])
         delete!(df, [:obsid, :results_path])
         df[:obsid] = obsid_url
         permutecols!(df, [:obsid; names(df)[1:end-1][:]])
     end
+
+    if haskey(df, :countrate)
+        df[:countrate] = round(Int, df[:countrate])
+    end
     
     rows, cols = size(df)
     headers = names(df)
+
+    replace!(headers, :subject_category=>:cat)
     
     node_table = div(class="container",
         table(id=table_id, class="table table-striped table-bordered", style="width:100%", 
@@ -74,12 +81,14 @@ end
 
 function webgen_mission(mission_name::Symbol)
     append_update(mission_name)
-    
-    web_dir = config(mission_name).path_web
-    
-    web_home_dir  = joinpath(web_dir, "index.html")
+    mission_config = config(mission_name)
+    web_dir = mission_config.path_web
 
-    master_a_df = master_a(mission_name)
+    e_min, e_max = mission_config.good_energy_min, mission_config.good_energy_max
+    
+    web_home_dir = joinpath(web_dir, "index.html")
+
+    master_a_df  = master_a(mission_name)
     
     included_cols = [
         :name,
@@ -104,7 +113,7 @@ function webgen_mission(mission_name::Symbol)
     html_out = html(
         _webgen_head(;title_in="JAXTAM $mission_name homepage"),
         body(
-            _webgen_home_intro(mission_name),
+            _webgen_home_intro(mission_name, e_min, e_max),
             _webgen_table(master_a_df[:, included_cols])
         )
     )
