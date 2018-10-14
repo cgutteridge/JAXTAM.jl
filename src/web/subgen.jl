@@ -168,7 +168,7 @@ function _webgen_results_intro(mission_name, obs_row, results_page_dir)
     
     missions_split = split.(missions, "_") # Spit off the _ to remove energy bound notation
     # Select missions with the same base name 
-    similar_missions = [any(occursin.(string(mission_name), m)) for m in missions_split]
+    similar_missions = [any(occursin.(split(string(mission_name), "_")[1], m)) for m in missions_split]
     similar_missions = missions[similar_missions]
 
     similar_missions_links = Dict()
@@ -180,16 +180,18 @@ function _webgen_results_intro(mission_name, obs_row, results_page_dir)
         end
     end
     
-    relative_path_addon = repeat("../", length(split(splitdir(results_page_dir)[1], "/")))
-    println(relative_path_addon)
+    # To avoid requiring the URL (if the website is actually hosted) all the paths are relative
+    # this is a very awkward way of using relative path movements to move up to another mission's
+    # results page
+    relative_path_addon = split(splitdir(replace(results_page_dir, mission_config.path_web=>""))[1], "/")
+    relative_path_addon = repeat("../", 3+length(relative_path_addon))
     similar_mission_text = p()
     if length(similar_missions_links) != 0
-        similar_mission_text = p("Similar missions: ", [a(string("$(l[1]) "), href=string(relative_path_addon, l[2][3:end])) for l in similar_missions_links])
+        similar_mission_text = p("Other energy ranges: ", 
+            [a(string("$(l[1]) "), href=string(relative_path_addon, l[1], "/web/", l[2][3:end])) for l in similar_missions_links])
     end
 
-    println(similar_mission_text)
-
-    obsid = #obs_row[1, :obsid]
+    obsid = obs_row[1, :obsid]
     name  = obs_row[1, :name]
     abstract_text = obs_row[1, :abstract]
     node_intro = div(
