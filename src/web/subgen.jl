@@ -413,8 +413,6 @@ function _webgen_subpage_footer()
 end
 
 function _webgen_subpage(mission_name, obs_row)
-    obsid = obs_row[1, :obsid] 
-
     obs_dir  = _clean_path_dots(config(mission_name).path_obs(obs_row))
     obs_path = string(config(mission_name).path, obs_dir)
     obs_path = replace(obs_path, "//"=>"/")
@@ -439,7 +437,7 @@ function _webgen_subpage(mission_name, obs_row)
     img_dict_groups      = OrderedDict(img_tuple_groups)
 
     html_out = html(
-        _webgen_head(;title_in="$mission_name - $obsid - Results"),
+        _webgen_head(;title_in="$mission_name - $(obs_row[1, :name]) - $(obs_row[1, :obsid]) - Results"),
         _webgen_subpage_css(),
         _webpage_subgen_slider_js(),
         body(

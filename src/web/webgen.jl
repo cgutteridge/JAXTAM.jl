@@ -2,6 +2,33 @@
 @tags_noescape script style
 @tags intro
 
+function _webgen_offline_sheets(path_web)
+    sheet_urls_css = [
+        "cdn/css/",
+        "https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.1.1/css/bootstrap.css",
+        "https://cdn.datatables.net/1.10.19/css/dataTables.bootstrap4.min.css",
+        "https://cdn.datatables.net/v/bs4/dt-1.10.18/b-1.5.2/b-html5-1.5.2/fc-3.2.5/fh-3.1.4/sc-1.5.0/datatables.min.css"
+    ]
+
+    sheet_urls_js  = [
+        "cdn/js/",
+        "https://code.jquery.com/jquery-3.3.1.js",
+        "https://cdn.datatables.net/1.10.19/js/jquery.dataTables.min.js",
+        "https://cdn.datatables.net/1.10.19/js/dataTables.bootstrap4.min.js",
+        "https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.36/pdfmake.min.js",
+        "https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.36/vfs_fonts.js",
+        "https://cdn.datatables.net/v/bs4/dt-1.10.18/b-1.5.2/b-html5-1.5.2/fc-3.2.5/fh-3.1.4/sc-1.5.0/datatables.min.js"
+    ]
+
+    for sheet_urls in [sheet_urls_css, sheet_urls_js]
+        dir  = sheet_urls[1]
+        urls = sheet_urls[2:end]
+        file_names = basename.(urls)
+        file_paths = string.(path_web, dir, file_names)
+        println(file_paths)
+    end
+end
+
 function _webgen_head(;title_in="")
     node = m("head",
         m("title", title_in),
