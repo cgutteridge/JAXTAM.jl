@@ -8,15 +8,15 @@ struct FFTData <: JAXTAMData
     gti_index::Int
     gti_start_time::Real
     group::Int
-    amps::Array
-    avg_amp::Array
-    freqs::Array
+    power::Array
+    avg_power::Array
+    freq::Array
 end
 
-function _FFTData(gti, freqs, amps, fspec_bin_size, bin_count)
+function _FFTData(gti, freq, power, fspec_bin_size, bin_count)
 
     return FFTData(gti.mission, gti.instrument, gti.obsid, gti.bin_time, fspec_bin_size, bin_count,
-        gti.gti_index, gti.gti_start_time, gti.group, amps, mean(amps, dims=2)[:], freqs)
+        gti.gti_index, gti.gti_start_time, gti.group, power, mean(power, dims=2)[:], freq)
 end
 
 function _fft(counts::Array, times::StepRangeLen, bin_time::Real, fspec_bin_size; leahy=true)
@@ -27,16 +27,14 @@ function _fft(counts::Array, times::StepRangeLen, bin_time::Real, fspec_bin_size
     counts = counts[1:Int(spec_no*fspec_bin_size)]
     counts = reshape(counts, fspec_bin_size, spec_no)
 
-    amps = abs.(rfft(counts))
-    freqs = Array(rfftfreq(fspec_bin_size, 1/bin_time))
+    power = abs.(rfft(counts))
+    freq = Array(rfftfreq(fspec_bin_size, 1/bin_time))
 
     if leahy
-        amps = (2 .*(amps.^2)) ./ sum(counts) # , dims=1
+        power = (2 .*(power.^2)) ./ sum(counts)
     end
-    
-    amps[1, :] .= 0 # Zero the 0Hz amplitude
 
-    return freqs, amps, spec_no
+    return freq, power, spec_no
 end
 
 function _best_gti_pow2(gtis::Dict{Int64,JAXTAM.GTIData})
@@ -84,9 +82,9 @@ function _fspec_save(fspec_data::Dict{Int64,JAXTAM.FFTData}, fspec_dir::String)
     for index in fspec_indecies
         fspec_savepath  = joinpath(fspec_dir, "$(fspec_basename)_$(index).feather")
 
-        fspec_data_df = DataFrame(fspec_data[index].amps)
-        fspec_data_df[:freqs]   = fspec_data[index].freqs
-        fspec_data_df[:avg_amp] = fspec_data[index].avg_amp
+        fspec_data_df = DataFrame(fspec_data[index].power)
+        fspec_data_df[:freq]   = fspec_data[index].freq
+        fspec_data_df[:avg_power] = fspec_data[index].avg_power
         
         Feather.write(fspec_savepath, fspec_data_df)
     end
@@ -114,17 +112,17 @@ function _fspec_load(fspec_dir, instrument, bin_time, fspec_bin)
         fspec_b_count = current_row[:b_counts][1]
         fspec_group   = current_row[:groups][1]
         fspec_file    = Feather.read(joinpath(fspec_dir, "$(fspec_basename)_$(fspec_idx).feather"))
-        fspec_freqs   = Array(fspec_file[:freqs]); delete!(fspec_file, :freqs)
-        fspec_ampavg  = Array(fspec_file[:avg_amp]); delete!(fspec_file, :avg_amp)
+        fspec_freq   = Array(fspec_file[:freq]); delete!(fspec_file, :freq)
+        fspec_ampavg  = Array(fspec_file[:avg_power]); delete!(fspec_file, :avg_power)
         if fspec_idx != -1
-            fspec_amps = convert(Array, fspec_file[:, names(fspec_file)])
-        else # If avg_amp is loaded, fspec_amps = [], throws Argument Error on convert
-            fspec_amps = []
+            fspec_power = convert(Array, fspec_file[:, names(fspec_file)])
+        else # If avg_power is loaded, fspec_power = [], throws Argument Error on convert
+            fspec_power = []
         end
 
         fspec_data[fspec_idx] = FFTData(fspec_mission, fspec_inst, fspec_obsid, fspec_bin_t,
-            fspec_bin_sze, fspec_b_count, fspec_idx, fspec_starts, fspec_group, fspec_amps, fspec_ampavg,
-            fspec_freqs)
+            fspec_bin_sze, fspec_b_count, fspec_idx, fspec_starts, fspec_group, fspec_power, fspec_ampavg,
+            fspec_freq)
     end
 
     return fspec_data
@@ -153,9 +151,9 @@ function _fspec(gtis::Dict{Int64,JAXTAM.GTIData}, fspec_bin::Real; pow2=true, fs
             continue
         end
 
-        freqs, amps, bin_count = _fft(gti.counts, gti.times, gti.bin_time, fspec_bin_size)
+        freq, power, bin_count = _fft(gti.counts, gti.times, gti.bin_time, fspec_bin_size)
 
-        powspec[gti.gti_index] = _FFTData(gti, freqs, amps, fspec_bin_size, bin_count)
+        powspec[gti.gti_index] = _FFTData(gti, freq, power, fspec_bin_size, bin_count)
     end
 
     return powspec
@@ -166,7 +164,7 @@ function _scrunch_sections(instrument_data::Dict{Int64,JAXTAM.FFTData}; append_m
     gti_example = instrument_data[collect(gtis)[1]]
 
     joined_powspecs = Dict{Symbol,Array}()
-    joined_together = Array{Float64,2}(undef, size(gti_example.amps, 1), 0)
+    joined_together = Array{Float64,2}(undef, size(gti_example.power, 1), 0)
 
     bin_count_sum = 0
 
@@ -176,14 +174,14 @@ function _scrunch_sections(instrument_data::Dict{Int64,JAXTAM.FFTData}; append_m
         end
 
         bin_count_sum += gti.bin_count
-        joined_together = hcat(joined_together, gti.amps)
+        joined_together = hcat(joined_together, gti.power)
     end
 
     if append_mean
         instrument_data[-1] = FFTData(
             gti_example.mission, gti_example.instrument, gti_example.obsid,
             gti_example.bin_time, gti_example.bin_size, bin_count_sum, -1, -1, -1, [],
-            mean(joined_together, dims=2)[:], gti_example.freqs
+            mean(joined_together, dims=2)[:], gti_example.freq
         )
     end
 
@@ -275,15 +273,15 @@ function fspec(mission_name::Symbol, obsid::String, bin_time::Number, fspec_bin:
     return fs
 end
 
-function _fspec_rebin(amps, freqs, bin_count::Int, bin_size, bin_time, rebin=(:log10, 0.01))
+function _fspec_rebin(power, freq, bin_count::Int, bin_size, bin_time, rebin=(:log10, 0.01))
     rebin_type     = rebin[1]
     rebin_factor   = rebin[2]
     
     freq_intervals = missing
     if ismissing(bin_time)
-        freq_intervals = mean(diff(freqs))
+        freq_intervals = mean(diff(freq))
     else
-        freq_intervals = 1/(bin_size*bin_time) #freqs[3] - freqs[2]
+        freq_intervals = 1/(bin_size*bin_time) #freq[3] - freq[2]
     end
     
     # Frequency rebinning (e.g. binning to 1Hz, 2Hz, etc... intervals) is 
@@ -298,7 +296,7 @@ function _fspec_rebin(amps, freqs, bin_count::Int, bin_size, bin_time, rebin=(:l
     end
 
     if rebin_type == :log10
-        freq_max = freqs[end]
+        freq_max = freq[end]
 
         scale_start  = log10(rebin_factor)
 
@@ -310,16 +308,16 @@ function _fspec_rebin(amps, freqs, bin_count::Int, bin_size, bin_time, rebin=(:l
         scale = unique(scale)
 
         final_scale_value = ceil(Int, exp10(log10(scale[end])+rebin_factor))
-        final_scale_value > length(amps) ? final_scale_value=length(amps) : ""
+        final_scale_value > length(power) ? final_scale_value=length(power) : ""
         scale = [scale [scale[2:end]; final_scale_value].+1]
 
-        errors = amps
+        errors = power
         errors = [mean(errors[scale[i, 1]:scale[i, 2]]) for i = 1:size(scale, 1)]
         errors = errors ./ sqrt.(diff(scale, dims=2).*bin_count)
 
-        rebinned_fspec = [mean(amps[scale[i, 1]:scale[i, 2]]) for i = 1:size(scale, 1)]
+        rebinned_fspec = [mean(power[scale[i, 1]:scale[i, 2]]) for i = 1:size(scale, 1)]
         
-        freq_scale = freqs[round.(Int, (scale[:, 2]+scale[:, 1])./2)]
+        freq_scale = freq[round.(Int, (scale[:, 2]+scale[:, 1])./2)]
         
         rebinned_fspec[rebinned_fspec.==0] .= NaN
     elseif rebin_type == :linear
@@ -327,32 +325,32 @@ function _fspec_rebin(amps, freqs, bin_count::Int, bin_size, bin_time, rebin=(:l
             error("Rebin factor must be a >1 integer for linear rebinning")
         end
 
-        in_rebin = floor(Int, size(amps, 1)/rebin_factor).*rebin_factor
+        in_rebin = floor(Int, size(power, 1)/rebin_factor).*rebin_factor
 
-        errors = amps ./ sqrt(bin_count*rebin_factor)
+        errors = power ./ sqrt(bin_count*rebin_factor)
         errors = mean(reshape(errors[1:in_rebin], rebin_factor, :), dims=1)'
 
-        rebinned_fspec = mean(reshape(amps[1:in_rebin], rebin_factor, :), dims=1)'
+        rebinned_fspec = mean(reshape(power[1:in_rebin], rebin_factor, :), dims=1)'
 
-        freq_scale = mean(reshape(freqs[1:in_rebin], rebin_factor, :), dims=1)'
+        freq_scale = mean(reshape(freq[1:in_rebin], rebin_factor, :), dims=1)'
     elseif rebin_type == :freq_binary
         if rebin_factor < 1 || typeof(rebin_factor) != Int
             error("Rebin factor must be a >1 integer for linear rebinning")
         end
 
-        in_rebin = floor(Int, size(amps, 1)/rebin_factor).*rebin_factor
+        in_rebin = floor(Int, size(power, 1)/rebin_factor).*rebin_factor
 
-        errors = amps ./ sqrt(bin_count*rebin_factor)
+        errors = power ./ sqrt(bin_count*rebin_factor)
         errors = zeros(in_rebin) # Errors don't really have a meaning for this
 
-        # amps[floor(Int, in_rebin/2)] = 1000 # Insert high-frequency power for debugging
+        # power[floor(Int, in_rebin/2)] = 1000 # Insert high-frequency power for debugging
 
-        binned_amps    = reshape(amps[1:in_rebin], rebin_factor, :)
-        rebinned_fspec = zeros(1, size(binned_amps, 2))
-        rebinned_fspec[any(binned_amps .>= binary_thresh, dims=1)] .= binary_thresh
+        binned_power    = reshape(power[1:in_rebin], rebin_factor, :)
+        rebinned_fspec = zeros(1, size(binned_power, 2))
+        rebinned_fspec[any(binned_power .>= binary_thresh, dims=1)] .= binary_thresh
         rebinned_fspec = rebinned_fspec'
 
-        freq_scale = mean(reshape(freqs[1:in_rebin], rebin_factor, :), dims=1)'
+        freq_scale = mean(reshape(freq[1:in_rebin], rebin_factor, :), dims=1)'
     else
         error("Invalid rebin type $rebin_type, must be :log10, :linear, :freq, or :freq_binary")
     end
@@ -361,7 +359,7 @@ function _fspec_rebin(amps, freqs, bin_count::Int, bin_size, bin_time, rebin=(:l
 end
 
 function fspec_rebin(fs::JAXTAM.FFTData; rebin=(:log10, 0.01))
-    rebinned_data = _fspec_rebin(fs.avg_amp, fs.freqs, fs.bin_count, fs.bin_size, fs.bin_time, rebin)
+    rebinned_data = _fspec_rebin(fs.avg_power, fs.freq, fs.bin_count, fs.bin_size, fs.bin_time, rebin)
 
     return rebinned_data
 end
@@ -372,14 +370,14 @@ function fspec_rebin_sgram(fs::Dict{Int64,JAXTAM.FFTData}; rebin=(:log10, 0.01))
     fs_group_bounds = cumsum([sum([f[2].bin_count for f in fs if f[2].group==g]) for g in fs_groups])
     #fs_group_bounds = cumsum([f[2].bin_count for f in fs if f[1]>0])
 
-    fs_freqs = fs[-1].freqs
-    fs_amps  = hcat([f[2].amps for f in fs if f[1] > 0]...) # Skip special < 0 keys
+    fs_freq = fs[-1].freq
+    fs_power  = hcat([f[2].power for f in fs if f[1] > 0]...) # Skip special < 0 keys
 
     bin_size = fs[-1].bin_size; bin_time = fs[-1].bin_time
-    fs_rebinned_amps  = hcat([_fspec_rebin(fs_amps[:, i], fs_freqs, 1, bin_size, bin_time, rebin)[2] for i in 1:size(fs_amps, 2)]...)
-    fs_rebinned_freqs = fspec_rebin(fs[-1], rebin=rebin)[1]
+    fs_rebinned_power  = hcat([_fspec_rebin(fs_power[:, i], fs_freq, 1, bin_size, bin_time, rebin)[2] for i in 1:size(fs_power, 2)]...)
+    fs_rebinned_freq = fspec_rebin(fs[-1], rebin=rebin)[1]
 
-    return fs_rebinned_freqs, fs_rebinned_amps, fs_group_bounds, fs_groups
+    return fs_rebinned_freq, fs_rebinned_power, fs_group_bounds, fs_groups
 end
 
 function fspec_pulses(fs::Dict{Int64,JAXTAM.FFTData};

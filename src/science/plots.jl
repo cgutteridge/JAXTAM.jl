@@ -145,7 +145,7 @@ function plot!(data::FFTData; title_append="", norm=:rms, rebin=(:log10, 0.01), 
     )
     bin_time_pow2 = Int(log2(data.bin_time))
 
-    avg_amp = data.avg_amp
+    avg_power = data.avg_power
     freqs   = data.freqs
 
     if freq_lims[1] == :end
@@ -166,20 +166,20 @@ function plot!(data::FFTData; title_append="", norm=:rms, rebin=(:log10, 0.01), 
         freq_max = freqs[idx_max]
     end
 
-    avg_amp = avg_amp[idx_min:idx_max]
+    avg_power = avg_power[idx_min:idx_max]
     freqs   = freqs[idx_min:idx_max]
 
-    freqs, avg_amp, errors = _fspec_rebin(avg_amp, freqs, data.bin_count, data.bin_size, data.bin_time, rebin)
+    freqs, avg_power, errors = _fspec_rebin(avg_power, freqs, data.bin_count, data.bin_size, data.bin_time, rebin)
     ylab = ""
     
     if norm == :rms
         errors = errors.*freqs
-        avg_amp = (avg_amp.-2).*freqs
-        amp_max = maximum(avg_amp[2:end]); amp_min = minimum(abs.(avg_amp[2:end]))
-        avg_amp[avg_amp .<=0] .= NaN
+        avg_power = (avg_power.-2).*freqs
+        power_max = maximum(avg_power[2:end]); power_min = minimum(abs.(avg_power[2:end]))
+        avg_power[avg_power .<=0] .= NaN
         ylab = "Amplitude (Leahy - 2)*freq"
     elseif norm == :leahy
-        amp_max = maximum(avg_amp[2:end]); amp_min = minimum(avg_amp[2:end])
+        power_max = maximum(avg_power[2:end]); power_min = minimum(avg_power[2:end])
         hline!([2], line=:dash, lab="")
         ylab = "Amplitude (Leahy)"
     else
@@ -187,10 +187,10 @@ function plot!(data::FFTData; title_append="", norm=:rms, rebin=(:log10, 0.01), 
     end
 
     if show_errors
-        Plots.plot!(freqs, avg_amp, color=:black,
+        Plots.plot!(freqs, avg_power, color=:black,
             yerr=errors, lab=lab)
     else
-        Plots.plot!(freqs, avg_amp, color=:black, lab=lab)
+        Plots.plot!(freqs, avg_power, color=:black, lab=lab)
     end
 
     if logx
@@ -200,8 +200,8 @@ function plot!(data::FFTData; title_append="", norm=:rms, rebin=(:log10, 0.01), 
     end
 
     if logy
-        # If amp_min < 1, can't use prevpow10 for ylims, hacky little fix is 1/prevpow(10, 1/amp_min)
-        amp_min > 1 ? ylim = (prevpow(10, amp_min), nextpow(10, amp_max)) : ylim = (1/prevpow(10, 1/amp_min), nextpow(10, amp_max))
+        # If power_min < 1, can't use prevpow10 for ylims, hacky little fix is 1/prevpow(10, 1/power_min)
+        power_min > 1 ? ylim = (prevpow(10, power_min), nextpow(10, power_max)) : ylim = (1/prevpow(10, 1/power_min), nextpow(10, power_max))
         yaxis!(yscale=:log10, yformatter=yi->round(yi, sigdigits=3), ylims=ylim, ylab="$ylab - log10")
     else
         yaxis!(ylab=ylab)
@@ -307,16 +307,16 @@ function plot!(data::PgramData; title_append="", rebin=(:linear, 1),
     
     (e_min, e_max) = (config(data.mission).good_energy_min, config(data.mission).good_energy_max)
     if logy      
-        amp_min = minimum(powers[2:end])
-        amp_max = maximum(powers[2:end])
+        power_min = minimum(powers[2:end])
+        power_max = maximum(powers[2:end])
         
         powers = powers[:]
         powers[powers .<= 0] .= NaN
         
-        # If amp_min < 1, can't use prevpow10 for ylims, hacky little fix is 1/prevpow(10, 1/amp_min)
-        # removed that anyway, set ylim to 1 if amp_min < 1
+        # If power_min < 1, can't use prevpow10 for ylims, hacky little fix is 1/prevpow(10, 1/power_min)
+        # removed that anyway, set ylim to 1 if power_min < 1
         # TODO: Look at/fix the manual ylim settings, since it seems to... make things worse usually
-        # amp_min > 1 ? ylim = (prevpow(10, amp_min), nextpow(10, amp_max)) : ylim = (1, nextpow(10, amp_max))
+        # power_min > 1 ? ylim = (prevpow(10, power_min), nextpow(10, power_max)) : ylim = (1, nextpow(10, power_max))
         yaxis!(yscale=:log10, yformatter=yi->round(yi, sigdigits=3))
     end
     
@@ -447,7 +447,7 @@ function plot_pulses_candle(fs::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}};
     for instrument in instruments
         base_freqs = fs[instrument][-1].freqs
 
-        powers = hcat([f[2].amps for f in fs[instrument] if f[1] > 0]...)
+        powers = hcat([f[2].power for f in fs[instrument] if f[1] > 0]...)
         masks  = powers .>= power_limit
         freqs  = repeat(base_freqs, inner=(1, size(masks, 2)))
 
@@ -598,7 +598,7 @@ function plot_fspec_cov2d(fs::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}}; size_in=(
     bin_time = example_data.bin_time
     bin_time_pow2 = Int(log2(example_data.bin_time))
     bin_size = example_data.bin_size
-    fs_length = length(example_data.avg_amp)
+    fs_length = length(example_data.avg_power)
 
     rebin_lin = (:linear, maximum([floor(Int, fs_length/1024), 1]))
     rebin_log = (:log10, 0.01)
