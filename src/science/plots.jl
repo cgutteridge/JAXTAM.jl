@@ -432,6 +432,43 @@ function plot_sgram(fs::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}};
     return sgram_instrument_plots
 end
 
+# Pulsation Check Candle Plotting
+
+function plot_pulses_candle(fs::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}};
+    power_limit=30, size_in=(1140,600), save_plt=true)
+
+    plots_candle = Dict{Symbol,Plots.Plot}()
+    
+    instruments = keys(fs)
+    for instrument in instruments
+        base_freqs = fs[instrument][-1].freqs
+
+        powers = hcat([f[2].amps for f in fs[instrument] if f[1] > 0]...)
+        masks  = powers .>= power_limit
+        freqs  = repeat(base_freqs, inner=(1, size(masks, 2)))
+
+        powers = powers[masks]
+        freqs  = freqs[masks]
+
+        nonzero = freqs .!= 0
+
+        powers = powers[nonzero]
+        freqs  = freqs[nonzero]
+
+        Plots.plot(freqs, powers, line=:sticks, lab="")
+        Plots.scatter!(freqs, powers, lab="", alpha=0.5)
+
+        xaxis!(xscale=:log10, xformatter=xi->xi, xlim=(base_freqs[2], base_freqs[end]), xlab="Freq [Hz] - log10")
+        yaxis!(ylab=("Powers [Leahy Normalised] >= $power_limit"))
+
+        _plot_formatter!()
+
+        plots_candle[instrument] = Plots.plot!(size=size_in)
+    end
+
+    return plots_candle
+end
+
 # Pulsation Check Spectrogram Plotting
 
 function plot_pulses(fs::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}};
