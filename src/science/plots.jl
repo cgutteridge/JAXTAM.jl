@@ -16,19 +16,23 @@ function _savefig_obsdir(mission_name, obsid, bin_time, fig_name)
     _savefig_obsdir(obs_row, mission_name, bin_time, fig_name)
 end
 
-function _pull_data(instrument_data::Union{Dict{Symbol,Dict{Int64,JAXTAM.FFTData}},Dict{Symbol,Dict{Int64,JAXTAM.PgramData}}})
-    inst1 = collect(keys(instrument_data))[1]
-    gti1  = collect(keys(instrument_data[inst1]))[1]
-    row1  = instrument_data[inst1][gti1]
+"""
+    _recursive_first(instrument_data::Dict)
 
-    return row1
-end
+Recursively uses the `first()` function to pull out the first actual element 
+of a dictionary
 
-function _pull_data(instrument_data::Union{Dict{Symbol,JAXTAM.BinnedData},Dict{Symbol,JAXTAM.PgramData}})
-    inst1 = collect(keys(instrument_data))[1]
-    row1  = instrument_data[inst1]
+Useful when dealing with nested `insturment_data` such as `Dict{Symbol,Dict{Int64,JAXTAM.FFTData}}` 
+as it will pull out a value of type `FFTData`, typically when getting other fields like `bin_time`
+"""
+function _recursive_first(instrument_data)
+    f = first(instrument_data)[2]
 
-    return row1
+    if typeof(f) <: Dict
+        return _recursive_first(f)
+    else
+        return f
+    end
 end
 
 function _plot_formatter!()
@@ -81,7 +85,7 @@ end
 function plot(instrument_data::Dict{Symbol,JAXTAM.BinnedData}; size_in=(1140,400), save_plt=true, title_append="")
     instruments = keys(instrument_data)
 
-    example_lc = _pull_data(instrument_data)
+    example_lc = _recursive_first(instrument_data)
     (e_min, e_max) = (config(example_lc.mission).good_energy_min, config(example_lc.mission).good_energy_max)
     title_append = string(" - $e_min to $e_max keV", title_append)
 
@@ -104,7 +108,7 @@ function plot_groups(instrument_data::Dict{Symbol,JAXTAM.BinnedData}; size_in=(1
 
     group_plots = Dict{Symbol,Dict{Int64,Plots.Plot}}()
 
-    example_gti = _pull_data(instrument_data)
+    example_gti = _recursive_first(instrument_data)
     (e_min, e_max) = (config(example_gti.mission).good_energy_min, config(example_gti.mission).good_energy_max)
     obs_row     = master_query(example_gti.mission, :obsid, example_gti.obsid)
 
@@ -228,7 +232,7 @@ function plot(instrument_data::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}}; title_ap
     end
 
     if(save_plt)
-        example_gti = _pull_data(instrument_data)
+        example_gti = _recursive_first(instrument_data)
         obs_row    = master_query(example_gti.mission, :obsid, example_gti.obsid)
         _savefig_obsdir(obs_row, example_gti.mission, example_gti.bin_time, "fspec/$(example_gti.bin_size*example_gti.bin_time)", "fspec.png")
     end
@@ -243,7 +247,7 @@ function plot_groups(instrument_data::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}};
 
     group_plots = Dict{Symbol,Dict{Int64,Plots.Plot}}()
 
-    example_gti = _pull_data(instrument_data)
+    example_gti = _recursive_first(instrument_data)
     obs_row     = master_query(example_gti.mission, :obsid, example_gti.obsid)
 
     for instrument in instruments
@@ -337,7 +341,7 @@ function plot(instrument_data::Dict{Symbol,JAXTAM.PgramData};
     end
 
     if save_plt
-        example_pgram = _pull_data(instrument_data)
+        example_pgram = _recursive_first(instrument_data)
         obs_row       = master_query(example_pgram.mission, :obsid, example_pgram.obsid)
         _savefig_obsdir(obs_row, example_pgram.mission, example_pgram.bin_time,
             "pgram", "$(example_pgram.pg_type)_pgram.png")
@@ -352,7 +356,7 @@ function plot_groups(instrument_data::Dict{Symbol,Dict{Int64,JAXTAM.PgramData}};
 
     instruments = keys(instrument_data)
 
-    example_pgram = _pull_data(instrument_data)
+    example_pgram = _recursive_first(instrument_data)
     obs_row       = master_query(example_pgram.mission, :obsid, example_pgram.obsid)
 
     group_plots = Dict{Symbol,Dict{Int64,Plots.Plot}}()
@@ -514,7 +518,7 @@ end
 function plot_fspec_cov1d(fs::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}}; size_in=(1140,600), rebin=(:log10, 0.01))
     instruments = keys(fs)
 
-    example_data = _pull_data(fs)
+    example_data = _recursive_first(fs)
     obsid = example_data.obsid
     bin_time = example_data.bin_time
     bin_time_pow2 = Int(log2(example_data.bin_time))
@@ -589,7 +593,7 @@ end
 function plot_fspec_cov2d(fs::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}}; size_in=(1140,600*2))
     instruments = keys(fs)
 
-    example_data = _pull_data(fs)
+    example_data = _recursive_first(fs)
     obsid = example_data.obsid
     bin_time = example_data.bin_time
     bin_time_pow2 = Int(log2(example_data.bin_time))
