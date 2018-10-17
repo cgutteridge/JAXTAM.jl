@@ -8,6 +8,7 @@ using Dates
 using FileIO
 using JLD2
 using FITSIO
+using JSON
 using Arrow
 using Feather
 using DataStructures
@@ -37,6 +38,7 @@ include("missions/default_missions.jl")
 include("io/user_config.jl")
 include("io/master_tables.jl")
 include("io/master_append.jl")
+include("io/obs_logging.jl")
 include("io/misc.jl")
 include("io/data_download.jl")
 include("science/read_events.jl")

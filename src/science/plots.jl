@@ -1,13 +1,33 @@
 # Helper functions
 
-function _savefig_obsdir(obs_row, mission_name, bin_time, subfolder, fig_name)
-    plot_dir = joinpath(obs_row[1, :obs_path], "JAXTAM/lc/$bin_time/images/", subfolder)
+function _savefig_obsdir(obs_row, mission_name, bin_time, 
+        fig_type, subfolder, fig_name, per_group::Bool, plt_properties)
+    plot_dir = joinpath(obs_row[1, :obs_path], "JAXTAM/lc/$bin_time/images/", fig_type, subfolder)
 
-    plot_path = joinpath(plot_dir, fig_name)
+    plot_path     = joinpath(plot_dir, fig_name)
+    plot_rel_path = replace(plot_path, obs_row[1, :obs_path]=>".")
 
     mkpath(plot_dir)
 
     savefig(plot_path)
+    
+    if per_group
+        log_key = "groups"
+        log_val = Dict(plot_rel_path => plt_properties)
+    else
+        log_key = plot_rel_path
+        log_val = plt_properties
+    end
+
+    img_log = Dict(
+        "images" => Dict(
+            fig_type => Dict(
+                log_key => log_val
+            )
+        )
+    )
+    _log_append(mission_name, obs_row, img_log)
+    
     @info "Saved $(plot_path)"
 end
 
@@ -135,7 +155,7 @@ end
 
 # Power spectra plotting functions
 
-function plot!(data::FFTData; title_append="", norm=:rms, rebin=(:log10, 0.01), freq_lims=(:end, :end),
+function plot!(data::FFTData; title_append="", norm=:rms, rebin=(:log10, 0.01), freq_lims=(:start, :end),
         lab="", logx=true, logy=true, show_errors=true,
         size_in=(1140,900), save_plt=false
     )
@@ -144,7 +164,7 @@ function plot!(data::FFTData; title_append="", norm=:rms, rebin=(:log10, 0.01), 
     avg_amp = data.avg_amp
     freqs   = data.freqs
 
-    if freq_lims[1] == :end
+    if freq_lims[1] == :start
         # Don't plot the 0Hz amplitude
         idx_min  = 2
         freq_min = freqs[idx_min]
@@ -216,9 +236,12 @@ function plot!(data::FFTData; title_append="", norm=:rms, rebin=(:log10, 0.01), 
     return Plots.plot!(size=size_in)
 end
 
-function plot(instrument_data::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}}; title_append="", freq_lims=(:end, :end),
+function plot(instrument_data::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}}; title_append="", freq_lims=(:start, :end),
         size_in=(1140,900), norm=:rms, rebin=(:log10, 0.01), logx=true, logy=true, save_plt=true)
     instruments = keys(instrument_data)
+
+    mission_config = config(first(first(instrument_data)[2])[2].mission)
+    (e_min, e_max) = (mission_config.good_energy_min, mission_config.good_energy_max)
 
     plt = Plots.plot()
     
@@ -230,7 +253,30 @@ function plot(instrument_data::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}}; title_ap
     if(save_plt)
         example_gti = _pull_data(instrument_data)
         obs_row    = master_query(example_gti.mission, :obsid, example_gti.obsid)
-        _savefig_obsdir(obs_row, example_gti.mission, example_gti.bin_time, "fspec/$(example_gti.bin_size*example_gti.bin_time)", "fspec.png")
+
+        plt_title  = string(
+            "fspec-",
+            "$(e_min)_$(e_max)_er-",
+            "$(freq_lims[1])_$(freq_lims[2])_fr-",
+            join(replace(split(string(norm),  ""), ":"=>"", " "=>"_")), "_nm-",
+            join(replace(split(string(rebin), ""), ":"=>"", ")"=>"", "("=>"", ","=>"", " "=>"_")), "_rb-",
+            "$(logx)_lx_$(logy)_ly",
+            ".png"
+        )
+
+        plt_properties = Dict(
+            "type" => "fspec",
+            "group" => false,
+            "title" => plt_title,
+            "freq_lims" => freq_lims,
+            "e_lims" => (e_min, e_max),
+            "norm" => norm,
+            "rebin" => rebin,
+            "log" => (logx, logy),
+        )
+
+        _savefig_obsdir(obs_row, example_gti.mission, example_gti.bin_time, 
+            "fspec", "$(example_gti.bin_size*example_gti.bin_time)", plt_title, false, plt_properties)
     end
 
     return Plots.plot!(size=size_in)
@@ -241,10 +287,24 @@ function plot_groups(instrument_data::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}};
 
     instruments = keys(instrument_data)
 
+    mission_config = config(first(first(instrument_data)[2])[2].mission)
+    (e_min, e_max) = (mission_config.good_energy_min, mission_config.good_energy_max)
+
     group_plots = Dict{Symbol,Dict{Int64,Plots.Plot}}()
 
     example_gti = _pull_data(instrument_data)
     obs_row     = master_query(example_gti.mission, :obsid, example_gti.obsid)
+
+    plt_properties = Dict(
+        "type"   => "fspec",
+        "group"  => true,
+        "title"  => "",
+        "f_lims" => (:start, :end),
+        "e_lims" => (e_min, e_max),
+        "norm"   => norm,
+        "rebin"  => rebin,
+        "log"    => (logx, logy),
+    )
 
     for instrument in instruments
         available_groups = unique([gti.group for gti in values(instrument_data[instrument])])
@@ -269,8 +329,10 @@ function plot_groups(instrument_data::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}};
             
             if save_plt
                 data = instrument_data_group[gtis_in_group[1]]
+                plt_properties["group"] = group
+                plt_properties["title"] = "$(group)_fspec.png"
                 _savefig_obsdir(obs_row, data.mission, data.bin_time,
-                    "fspec/$(data.bin_size.*data.bin_time)/groups/", "$(group)_fspec.png")
+                    "fspec", "$(data.bin_size.*data.bin_time)/groups/", "$(group)_fspec.png", true, plt_properties)
             end
 
         end
