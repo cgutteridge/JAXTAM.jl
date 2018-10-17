@@ -344,10 +344,22 @@ function _webgen_subpage_findimg(JAXTAM_path)
 end
 
 function _webgen_results_body(obs_row; img_dict=Dict())
+    images = []
+    prev_title = first(img_dict)[2]
+    for (title, link) in img_dict
+        title = split(title, " - ")[1]
+        if title != prev_title
+            images = [images; hr()]
+        end
+        images = [images; img(src=link)]
+        prev_title = title
+    end
+
     node_body = div(
         hr(),
         h2("Plots"),
-        [img(src=imgpair[2]) for imgpair in img_dict]
+        images
+        #[img(src=imgpair[2]) for imgpair in img_dict]
         # [(h4(imgpair[1]), img(src=imgpair[2])) for imgpair in img_dict]
     )
 end
