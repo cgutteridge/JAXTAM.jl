@@ -108,7 +108,7 @@ function read_cl_fits(mission_name::Symbol, obs_row::DataFrames.DataFrame)
     
     for file in file_path
         if isfile(file)
-            append!(files, [files])
+            append!(files, [file])
             @info "Found: $file"
         elseif isfile(string(file, ".gz")) # Check for files ending in .evt.gz too
             @info "Found: $(string(file, ".gz"))"
