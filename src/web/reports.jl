@@ -1,13 +1,13 @@
 function _plot_fspec_grid(fs::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}},
         obs_row, mission_name, bin_time, subfolder, fig_name)
-    plt_1 = plot(fs; norm=:rms,   save_plt=false)
-    plt_2 = plot(fs; norm=:leahy, save_plt=false)
+    plt_1 = plot(fs; norm=:rms,   save=false)
+    plt_2 = plot(fs; norm=:leahy, save=false)
 
-    plt_3 = plot(fs, norm=:leahy, save_plt=false, freq_lims=(0, 1),     rebin=(:linear, 1),
+    plt_3 = plot(fs, norm=:leahy, save=false, freq_lims=(0, 1),     rebin=(:linear, 1),
         logx=false, logy=false, title_append=" - 0 to 1 Hz")
-    plt_4 = plot(fs, norm=:leahy, save_plt=false, freq_lims=(1, :end),  rebin=(:linear, 1),
+    plt_4 = plot(fs, norm=:leahy, save=false, freq_lims=(1, :end),  rebin=(:linear, 1),
         logx=false, logy=false, title_append=" - 1 to :end Hz")
-    plt_4 = plot(fs, norm=:leahy, save_plt=false, freq_lims=(50, :end), rebin=(:linear, 1),
+    plt_4 = plot(fs, norm=:leahy, save=false, freq_lims=(50, :end), rebin=(:linear, 1),
         logx=false, logy=false, title_append=" - 50 to :end Hz")
 
     Plots.plot(plt_1, plt_2, plt_3, plt_4, layout=grid(4,1), size=(1140,600*4))
@@ -36,26 +36,26 @@ function report(mission_name, obsid; overwrite=false, nuke=false)
     end
 
     if size(images, 1) < 1 || overwrite
-        lc = lcurve(mission_name, obs_row, 2.0^0)
-        JAXTAM.plot(lc); JAXTAM.plot_groups(lc; size_in=(1140,400/2))
-        pg = pgram(lc); JAXTAM.plot(pg);
-        pg = pgram(lc; per_group=true); JAXTAM.plot_groups(pg; size_in=(1140,600/2));
+        lc = JAXTAM.lcurve(mission_name, obs_row, 2.0^0)
+        JAXTAM.plot(lc; save=true); JAXTAM.plot_groups(lc; save=true, size_in=(1140,400/2))
+        pg = JAXTAM.pgram(lc); JAXTAM.plot(pg; save=true);
+        pg = JAXTAM.pgram(lc; per_group=true); JAXTAM.plot_groups(pg; save=true, size_in=(1140,600/2));
         lc = 0; pg=0; GC.gc()
 
-        lcurve(mission_name, obs_row, 2.0^-13); GC.gc()
+        JAXTAM.lcurve(mission_name, obs_row, 2.0^-13); GC.gc()
 
-        fs = fspec(mission_name, obs_row, 2.0^-13, 128)
+        fs = JAXTAM.fspec(mission_name, obs_row, 2.0^-13, 128)
         JAXTAM._plot_fspec_grid(fs, obs_row, mission_name, 2.0^-13, "fspec/128.0/", "fspec.png")
-        JAXTAM.plot_groups(fs; size_in=(1140,600/2))
-        JAXTAM.plot_sgram(fs; size_in=(1140,600/2))
-        JAXTAM.plot_pulses(fs; size_in=(1140,600/2))
+        JAXTAM.plot_groups(fs; save=true, size_in=(1140,600/2))
+        JAXTAM.plot_sgram(fs;  save=true, size_in=(1140,600/2))
+        JAXTAM.plot_pulses_candle(fs; save=true, size_in=(1140,600/2))
         fs = 0; GC.gc()
 
-        fs = fspec(mission_name, obs_row, 2.0^-13, 64)
+        fs = JAXTAM.fspec(mission_name, obs_row, 2.0^-13, 64)
         JAXTAM._plot_fspec_grid(fs, obs_row, mission_name, 2.0^-13, "fspec/64.0/", "fspec.png")
-        JAXTAM.plot_groups(fs; size_in=(1140,600/2))
-        JAXTAM.plot_sgram(fs; size_in=(1140,600/2))
-        JAXTAM.plot_pulses(fs; size_in=(1140,600/2))
+        JAXTAM.plot_groups(fs; save=true, size_in=(1140,600/2))
+        JAXTAM.plot_sgram(fs;  save=true, size_in=(1140,600/2))
+        JAXTAM.plot_pulses_candle(fs; save=true, size_in=(1140,600/2))
         fs = 0; GC.gc()
     end
 
