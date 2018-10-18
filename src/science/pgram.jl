@@ -4,8 +4,8 @@ struct PgramData
     obsid      :: String
     bin_time   :: Real
     pg_type    :: Symbol
-    powers     :: Array
-    freqs      :: Array
+    power      :: Array
+    freq       :: Array
     group      :: Int
 end
 
@@ -15,16 +15,16 @@ function _pgram(counts, bin_time, pg_type=:standard)
 
     pg = lombscargle(pg_plan)
 
-    freqs, powers = freqpower(pg)
+    freq, power = freqpower(pg)
 
-    return freqs, powers
+    return freq, power
 end
 
 function _pgram(lc::BinnedData, pg_type, group)
-    freqs, powers = _pgram(lc.counts, lc.bin_time, pg_type)
+    freq, power = _pgram(lc.counts, lc.bin_time, pg_type)
 
     return PgramData(lc.mission, lc.instrument, lc.obsid, lc.bin_time,
-        pg_type, powers, freqs, group)
+        pg_type, power, freq, group)
 end
 
 function _pgram_lc_group_pad(group_lc::Dict{Int64,JAXTAM.BinnedData})
@@ -69,7 +69,7 @@ function pgram(instrument_lc::Dict{Symbol,BinnedData}; pg_type=:standard, per_gr
             end
 
             #group_pgram[-1] = PgramData(group_pgram[1].mission, group_pgram[1].instrument, group_pgram[1].obsid,
-            #    group_pgram[1].bin_time, pg_type, mean([pgram.powers for pgram in values(group_pgram)]), group_pgram[1].freqs, -1)
+            #    group_pgram[1].bin_time, pg_type, mean([pgram.power for pgram in values(group_pgram)]), group_pgram[1].freq, -1)
 
             instrument_pgram[instrument] = group_pgram
         else
