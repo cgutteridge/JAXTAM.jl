@@ -140,6 +140,34 @@ function _add_append_results!(append_df, mission_name)
 end
 
 """
+    _add_append_results_exist!(append_df, mission_name)
+
+Appends column of `Union{Bool,Missing}`, true if the `JAXTAM` directory exists
+
+TODO: Improve this function, currently an empty `JAXTAM` folder means it has been analysed
+"""
+function _add_append_results_exist!(append_df, mission_name)
+    append_results_exist = Array{Union{Bool,Missing},1}(undef, size(append_df, 1))
+
+    base_path = config(mission_name).path_web
+
+    for (i, results_path) in enumerate(append_df[:results_path])
+        if results_path == "NA"
+            append_results_exist[i] = false
+        else
+            abs_path = string(base_path, results_path[2:end])
+            if isfile(abs_path)
+                append_results_exist[i] = true
+            else
+                append_results_exist[i] = false
+            end
+        end
+    end
+
+    return append_df[:results_exist] = append_results_exist
+end
+
+"""
     _append_gen(mission_name, master_df)
 
 Runs all the `_add_append` functions, returns the full `append_df`
@@ -154,6 +182,7 @@ function _append_gen(mission_name, master_df)
     _add_append_downloaded!(append_df, mission_name)
     _add_append_analysed!(append_df, mission_name)
     _add_append_results!(append_df, mission_name)
+    _add_append_results_exist!(append_df, mission_name)
 
     return append_df
 end

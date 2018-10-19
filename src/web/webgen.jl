@@ -84,13 +84,14 @@ function _webgen_table(df::DataFrames.DataFrame; table_id="example")
     end
 
     if haskey(df, :countrate)
-        df[:countrate] = round(Int, df[:countrate])
+        df[:countrate] = round(Int, df[1, :countrate])
     end
     
     rows, cols = size(df)
     headers = names(df)
 
     replace!(headers, :subject_category=>:cat)
+    replace!(headers, :results_exist=>:report)
     
     node_table = div(class="container",
         table(id=table_id, class="table table-striped table-bordered", style="width:100%", 
@@ -120,11 +121,11 @@ function webgen_mission(mission_name::Symbol)
     included_cols = [
         :name,
         :obsid,
+        :results_exist,
         :subject_category,
         :obs_type,
         :publicity,
         :downloaded,
-        :analysed,
         :time,
         :results_path
     ]
