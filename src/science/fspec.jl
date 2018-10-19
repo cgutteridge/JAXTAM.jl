@@ -370,8 +370,9 @@ function fspec_rebin_sgram(fs::Dict{Int64,JAXTAM.FFTData}; rebin=(:log10, 0.01))
     fs_group_bounds = cumsum([sum([f[2].bin_count for f in fs if f[2].group==g]) for g in fs_groups])
     #fs_group_bounds = cumsum([f[2].bin_count for f in fs if f[1]>0])
 
-    fs_freq = fs[-1].freq
+    fs_freq   = fs[-1].freq
     fs_power  = hcat([f[2].power for f in fs if f[1] > 0]...) # Skip special < 0 keys
+    fs_power[1, :] .= NaN # NaN 0 Hz
 
     bin_size = fs[-1].bin_size; bin_time = fs[-1].bin_time
     fs_rebinned_power  = hcat([_fspec_rebin(fs_power[:, i], fs_freq, 1, bin_size, bin_time, rebin)[2] for i in 1:size(fs_power, 2)]...)
