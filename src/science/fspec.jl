@@ -331,10 +331,12 @@ function _fspec_rebin(power, freq, bin_count::Int, bin_size, bin_time, rebin=(:l
         errors = mean(reshape(errors[1:in_rebin], rebin_factor, :), dims=1)'
 
         rebinned_fspec = mean(reshape(power[1:in_rebin], rebin_factor, :), dims=1)'
+        rebinned_fspec = rebinned_fspec[:]
 
         freq_scale = mean(reshape(freq[1:in_rebin], rebin_factor, :), dims=1)'
+        freq_scale = freq_scale[:]
 
-        rebinned_fspec[freq_scale.==0] .= NaN
+        rebinned_fspec[freq_scale .== 0] .= NaN
     elseif rebin_type == :freq_binary
         if rebin_factor < 1 || typeof(rebin_factor) != Int
             error("Rebin factor must be a >1 integer for linear rebinning")
