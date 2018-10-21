@@ -51,12 +51,13 @@ function report(mission_name, obsid; overwrite=false, nuke=false)
         JAXTAM.plot_pulses_candle(fs; save=true, size_in=(1140,600/2))
         fs = 0; GC.gc()
 
-        fs = JAXTAM.fspec(mission_name, obs_row, 2.0^-13, 64)
-        JAXTAM._plot_fspec_grid(fs, obs_row, mission_name, 2.0^-13, "fspec/64.0/", "fspec.png")
-        JAXTAM.plot_groups(fs; save=true, size_in=(1140,600/2))
-        JAXTAM.plot_sgram(fs;  save=true, size_in=(1140,600/2))
-        JAXTAM.plot_pulses_candle(fs; save=true, size_in=(1140,600/2))
-        fs = 0; GC.gc()
+        # Disable second 64 s power spectra plots
+        # fs = JAXTAM.fspec(mission_name, obs_row, 2.0^-13, 64)
+        # JAXTAM._plot_fspec_grid(fs, obs_row, mission_name, 2.0^-13, "fspec/64.0/", "fspec.png")
+        # JAXTAM.plot_groups(fs; save=true, size_in=(1140,600/2))
+        # JAXTAM.plot_sgram(fs;  save=true, size_in=(1140,600/2))
+        # JAXTAM.plot_pulses_candle(fs; save=true, size_in=(1140,600/2))
+        # fs = 0; GC.gc()
     end
 
     sp = _webgen_subpage(mission_name, obs_row)
