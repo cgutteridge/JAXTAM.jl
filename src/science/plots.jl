@@ -151,7 +151,7 @@ function plot!(data::FFTData; title_append="", norm=:rms, rebin=(:log10, 0.01), 
     if freq_lims[1] == :end
         # Don't plot the 0Hz amplitude
         idx_min  = 2
-        freq_min = freq[idx_min]
+        freq_min = 0.01 #freq[idx_min]
     else
         idx_min  = findfirst(freq .>= freq_lims[1])
         idx_min <= 0 ? idx_min=1 : idx_min=idx_min
@@ -472,7 +472,7 @@ function plot_pulses_candle(fs::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}};
         Plots.scatter!(freq, power, lab="", alpha=0.5)
         Plots.title!("Pulsations - $obsid - $e_min to $e_max keV - 2^$(bin_time_pow2) bt - $(bin_size*bin_time) bs")
 
-        xaxis!(xscale=:log10, xformatter=xi->xi, xlim=(base_freq[2], base_freq[end]), xlab="Freq [Hz] - log10")
+        xaxis!(xscale=:log10, xformatter=xi->xi, xlim=(0.01, base_freq[end]), xlab="Freq [Hz] - log10")
         yaxis!(ylab=("power [Leahy Normalised] >= $power_limit"))
 
         _plot_formatter!()

@@ -10,7 +10,7 @@ git-tree-sha1 = "c66fc3e71747c99a3e3940ade685c0d8ea66c0ae"
 repo-rev = "master"
 repo-url = "https://github.com/ExpandingMan/Arrow.jl.git"
 uuid = "69666777-d1a9-59fb-9406-91d4454c9d45"
-version = "0.2.2+"
+version = "0.2.3+"
 
 [[Base64]]
 uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
@@ -154,7 +154,7 @@ git-tree-sha1 = "90850787fae5bddd99fd9927edd6b52e1a87e62f"
 repo-rev = "master"
 repo-url = "https://github.com/JuliaDocs/Documenter.jl.git"
 uuid = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
-version = "0.19.6"
+version = "0.19.6+"
 
 [[FFTW]]
 deps = ["AbstractFFTs", "BinaryProvider", "Compat", "Conda", "Libdl", "LinearAlgebra", "Reexport", "Test"]
@@ -232,7 +232,7 @@ version = "0.7.0"
 
 [[Hyperscript]]
 deps = ["Test"]
-git-tree-sha1 = "b192e01b37c98ce59997d23dd01bddb16b392445"
+git-tree-sha1 = "0010aedc588a2b9ec1ef24d95b3ca7cfac0934ee"
 repo-rev = "master"
 repo-url = "https://github.com/yurivish/Hyperscript.jl.git"
 uuid = "61f73626-e61e-46c8-aded-7ef67e964bac"
@@ -349,9 +349,9 @@ version = "5.0.0"
 
 [[OnlineStats]]
 deps = ["DataStructures", "Dates", "LearnBase", "LinearAlgebra", "LossFunctions", "OnlineStatsBase", "PenaltyFunctions", "Pkg", "Random", "RecipesBase", "Reexport", "Statistics", "StatsBase", "SweepOperator", "Test"]
-git-tree-sha1 = "b138347bd8bc963210b5de87df8bd913671a2e9f"
+git-tree-sha1 = "70fe5cbb31d37c18f6312a2994c31b782be50607"
 uuid = "a15396b6-48d5-5d58-9928-6d29437db91e"
-version = "0.19.1"
+version = "0.19.2"
 
 [[OnlineStatsBase]]
 deps = ["LearnBase", "Pkg", "Test"]
@@ -500,9 +500,9 @@ version = "0.2.0"
 
 [[TableTraits]]
 deps = ["IteratorInterfaceExtensions", "Test"]
-git-tree-sha1 = "afee1fb3bc99c28eb4533ff0f22e33f6effcec18"
+git-tree-sha1 = "da062a2c31f16178f68190243c24140801720a43"
 uuid = "3783bdb8-4a98-5b6b-af9a-565f29a5fe9c"
-version = "0.3.1"
+version = "0.4.0"
 
 [[Tables]]
 deps = ["Pkg", "Requires", "Test"]
