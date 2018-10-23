@@ -84,7 +84,9 @@ function _webgen_table(df::DataFrames.DataFrame; table_id="example")
     end
 
     if haskey(df, :countrate)
-        df[:countrate] = round(Int, df[1, :countrate])
+        df[:countrate][df[:countrate] .== Inf] .= -2.0
+        df[:countrate][isnan.(df[:countrate])] .= -3.0
+        df[:countrate] = round.(Int, countrate)
     end
 
     if haskey(df, :time) && table_id=="report_page"
@@ -139,7 +141,8 @@ function webgen_mission(mission_name::Symbol)
         append!(included_cols, [:countrate])
 
         countrate = master_a_df[:countrate]
-        countrate[countrate .== Inf] = 0
+        countrate[isnan.(countrate)] .= -2.0
+        countrate[countrate .== Inf] .= -3.0
         countrate = floor.(Int, countrate)
     end
 
