@@ -455,6 +455,32 @@ end
 
 # Pulsation Check Candle Plotting
 
+function _plot_pulses_candle(
+        power, freq, power_limit,
+        e_min, e_max,
+        f_min, f_max,
+    )
+
+    base_freq = freq[:, 1]
+
+    if f_min == :start
+        f_min = base_freq[2]
+    end
+
+    if f_max == :end
+        f_max = base_freq[end]
+    end
+
+    # Mask for power limits, and fo excluding zero-freq
+    mask = (power .>= power_limit) .* (freq .!= 0)
+
+    power = power[mask]
+    freq  = freq[mask]
+
+    Plots.plot(freq, power, line=:sticks, lab="")
+    return Plots.scatter!(freq, power, lab="", alpha=0.5)
+end
+
 function plot_pulses_candle(fs::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}};
     power_limit=30, size_in=(1140,600), save=false)
 
@@ -471,26 +497,19 @@ function plot_pulses_candle(fs::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}};
     
     instruments = keys(fs)
     for instrument in instruments
-        base_freq = fs[instrument][-1].freq
-
         power = hcat([f[2].power for f in fs[instrument] if f[1] > 0]...)
-        masks  = power .>= power_limit
-        freq  = repeat(base_freq, inner=(1, size(masks, 2)))
+        freq  = repeat(fs[instrument][-1].freq, inner=(1, size(power, 2)))
 
-        power = power[masks]
-        freq  = freq[masks]
+        _plot_pulses_candle(
+            power, freq, power_limit,
+            e_min, e_max,
+            0.01, :end
+        )
 
-        nonzero = freq .!= 0
-
-        power = power[nonzero]
-        freq  = freq[nonzero]
-
-        Plots.plot(freq, power, line=:sticks, lab="")
-        Plots.scatter!(freq, power, lab="", alpha=0.5)
         Plots.title!("Pulsations - $obsid - $e_min to $e_max keV - 2^$(bin_time_pow2) bt - $(bin_size*bin_time) bs")
 
-        xaxis!(xscale=:log10, xformatter=xi->xi, xlim=(0.01, base_freq[end]), xlab="Freq [Hz] - log10")
-        yaxis!(ylab=("power [Leahy Normalised] >= $power_limit"))
+        xaxis!(xscale=:log10, xformatter=xi->xi, xlim=(0.01, freq[end, 1]), xlab="Freq [Hz] - log10")
+        yaxis!(ylab=("Amplitude (Leahy) >= $power_limit"))
 
         _plot_formatter!()
 
@@ -503,6 +522,61 @@ function plot_pulses_candle(fs::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}};
     end
 
     return plots_candle
+end
+
+function plot_pulses_candle_groups(fs::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}};
+    power_limit=30, size_in=(1140,600), save=false, f_lims=(0.01, :end))
+
+    instruments = keys(fs)
+
+    example_fs = _recursive_first(fs)
+    obs_row    = master_query(example_fs.mission, :obsid, example_fs.obsid)
+    mission_config = config(example_fs.mission)
+    e_min, e_max = (mission_config.good_energy_min, mission_config.good_energy_max)
+    bin_time_pow2 = Int(log2(example_fs.bin_time))
+    bin_time = example_fs.bin_time
+    bin_size = example_fs.bin_size
+    obsid = example_fs.obsid
+
+    group_plots = Dict{Symbol,Dict{Int64,Plots.Plot}}()
+    for instrument in instruments
+        instrument_group_plots = Dict{Int64,Plots.Plot}()
+        available_groups = unique([f[2].group for f in fs[instrument] if f[1] > 0])
+
+        for group in available_groups
+            title_append = " - group $group/$(maximum(available_groups))"
+
+            power = hcat([f[2].power for f in fs[instrument] if f[2].group == group]...)
+            freq  = repeat(fs[instrument][-1].freq, inner=(1, size(power, 2)))
+
+            f_lims[1] == :start ? f_lims = (freq[1, 1], f_lims[2])    : ""
+            f_lims[2] == :end   ? f_lims = (f_lims[1] , freq[end, 1]) : ""
+
+            _plot_pulses_candle(
+                power, freq, power_limit,
+                e_min, e_max,
+                f_lims[1], f_lims[2],
+            )
+
+            Plots.title!("Pulsations - $obsid - $e_min to $e_max keV - 2^$(bin_time_pow2) bt - $(bin_size*bin_time) bs$title_append")
+
+            xaxis!(xscale=:log10, xformatter=xi->xi, xlim=f_lims, xlab="Freq [Hz] - log10")
+            yaxis!(ylab=("Amplitude (Leahy) >= $power_limit"))
+    
+            _plot_formatter!()
+
+            instrument_group_plots[group] = Plots.plot!(size=size_in)
+
+            if save
+                _savefig_obsdir(obs_row, example_fs.mission, example_fs.bin_time,
+                "pulses/groups/", "$(group)_pulses.png")
+            end
+        end
+
+        group_plots[instrument] = instrument_group_plots
+    end
+
+    return group_plots
 end
 
 # Pulsation Check Spectrogram Plotting
