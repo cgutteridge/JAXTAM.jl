@@ -61,7 +61,7 @@ function _read_fits_event(fits_path::String, mission_name)
 
     instrument_name = fits_header["INSTRUME"]
     #fits_telescope  = fits_header["TELESCOP"]
-    fits_telescope  = ring(mission_name)
+    fits_telescope  = string(mission_name)
     fits_telescope  = Symbol(lowercase(fits_telescope))
     
     fits_events_df = _read_fits_hdu(fits_file, "EVENTS"; cols=String["TIME", "PI"])
