@@ -382,6 +382,9 @@ function _add_append_countrate!(append_df, mission_name)
             try 
                 JAXTAM.read_cl(mission_name, obs_row[:])
             catch e
+                if e == InterruptException()
+                    break
+                end
                 # Likely error reading large fits files
                 countrate = -1.0
                 @warn "Error reading/creating read cl files\n$e"
@@ -398,7 +401,11 @@ function _add_append_countrate!(append_df, mission_name)
                 if e == KeyError(:SRC_RT)
                     try 
                         JAXTAM.read_cl(mission_name, obs_row[:]; overwrite=true)
+                        countrate += Feather.read(meta)[1, :SRC_RT]
                     catch e2
+                        if e2 == InterruptException()
+                            break
+                        end
                         countrate = -1.0
                         @warn "Error reading/creating read cl files\n$e2"
                         obs_row[:countrate] = countrate
