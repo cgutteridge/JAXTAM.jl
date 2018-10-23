@@ -4,7 +4,7 @@ function _webgen_subpage_css()
     style("
         #slider{
             width:100%;
-            height:1150px;
+            height:1450px;
             position:relative;
             overflow:hidden;
             float:left;
@@ -320,10 +320,17 @@ function _webgen_subpage_findimg(JAXTAM_path)
             img_title = "Spectrogram - $img_bin_time bt - $img_bin_size bs"
         elseif img_kind == "pulse"
             img_bin_size = img_dir_splt[6]
-            # 6d2 - lc groups folder
-            img_kind_ordr = 4
-            img_group = 0
-            img_title = "Pulsations - $img_bin_time bt - $img_bin_size bs"
+            if length(img_dir_splt) > 6 && img_dir_splt[7] == "groups"
+                # 6a1 - pulses groups folder
+                img_kind_ordr = 25
+                img_group = parse(Int, replace(img_name, "_pulses.png"=>""))
+                img_title = "Pulsations - group $img_group - $img_bin_time bt - $img_bin_size bs"
+            else
+                # 6a2 - not a group plot
+                img_kind_ordr = 4
+                img_group = 0
+                img_title = "Pulsations - $img_bin_time bt - $img_bin_size bs"
+            end
         end
 
         append!(img_bin_sizes, [img_bin_size])

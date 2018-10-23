@@ -45,10 +45,11 @@ function report(mission_name, obsid; overwrite=false, nuke=false)
         JAXTAM.lcurve(mission_name, obs_row, 2.0^-13); GC.gc()
 
         fs = JAXTAM.fspec(mission_name, obs_row, 2.0^-13, 128)
-        JAXTAM._plot_fspec_grid(fs, obs_row, mission_name, 2.0^-13, "fspec/128.0/", "fspec.png")
-        JAXTAM.plot_groups(fs; save=true, size_in=(1140,600/2))
-        JAXTAM.plot_sgram(fs;  save=true, size_in=(1140,600/2))
-        JAXTAM.plot_pulses_candle(fs; save=true, size_in=(1140,600/2))
+        @info "Plotting fspec grid";    JAXTAM._plot_fspec_grid(fs, obs_row, mission_name, 2.0^-13, "fspec/128.0/", "fspec.png")
+        @info "Plotting fspec groups";  JAXTAM.plot_groups(fs; save=true, size_in=(1140,600/2))
+        @info "Plotting sgram";         JAXTAM.plot_sgram(fs;  save=true, size_in=(1140,600/2))
+        @info "Plotting pulses";        JAXTAM.plot_pulses_candle(fs; save=true, size_in=(1140,600/2))
+        @info "Plotting pulses groups"; JAXTAM.plot_pulses_candle_groups(fs; save=true, size_in=(1140,600/2))
         fs = 0; GC.gc()
 
         # Disable second 64 s power spectra plots

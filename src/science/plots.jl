@@ -569,7 +569,7 @@ function plot_pulses_candle_groups(fs::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}};
 
             if save
                 _savefig_obsdir(obs_row, example_fs.mission, example_fs.bin_time,
-                "pulses/groups/", "$(group)_pulses.png")
+                "pulse/$(example_fs.bin_size*example_fs.bin_time)/groups/", "$(group)_pulses.png")
             end
         end
 
