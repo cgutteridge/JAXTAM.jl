@@ -8,15 +8,17 @@ struct FFTData <: JAXTAMData
     gti_index::Int
     gti_start_time::Real
     group::Int
+    src_ctrate::Array
+    bkg_ctrate::Array
     power::Array
     avg_power::Array
     freq::Array
 end
 
-function _FFTData(gti, freq, power, fspec_bin_size, bin_count)
+function _FFTData(gti, freq, power, fspec_bin_size, bin_count, src_ctrate)
 
     return FFTData(gti.mission, gti.instrument, gti.obsid, gti.bin_time, fspec_bin_size, bin_count,
-        gti.gti_index, gti.gti_start_time, gti.group, power, mean(power, dims=2)[:], freq)
+        gti.gti_index, gti.gti_start_time, gti.group, src_ctrate, zeros(size(src_ctrate)), power, mean(power, dims=2)[:], freq)
 end
 
 function _fft(counts::Array, times::StepRangeLen, bin_time::Real, fspec_bin_size; leahy=true)
@@ -27,6 +29,8 @@ function _fft(counts::Array, times::StepRangeLen, bin_time::Real, fspec_bin_size
     counts = counts[1:Int(spec_no*fspec_bin_size)]
     counts = reshape(counts, fspec_bin_size, spec_no)
 
+    src_ctrate = mean(counts, 1)./bin_time
+
     power = abs.(rfft(counts))
     freq = Array(rfftfreq(fspec_bin_size, 1/bin_time))
 
@@ -34,7 +38,7 @@ function _fft(counts::Array, times::StepRangeLen, bin_time::Real, fspec_bin_size
         power = (2 .*(power.^2)) ./ sum(counts)
     end
 
-    return freq, power, spec_no
+    return freq, power, spec_no, src_ctrate
 end
 
 function _best_gti_pow2(gtis::Dict{Int64,JAXTAM.GTIData})
@@ -102,15 +106,15 @@ function _fspec_load(fspec_dir, instrument, bin_time, fspec_bin)
 
     for row_idx in 1:size(fspec_meta, 1)
         current_row = fspec_meta[row_idx, :]
-        fspec_mission = Symbol(current_row[:mission][1])
-        fspec_inst    = Symbol(current_row[:instrument][1])
-        fspec_obsid   = current_row[:obsid][1]
-        fspec_bin_t   = current_row[:bin_time][1]
-        fspec_bin_sze = current_row[:bin_size][1]
-        fspec_idx     = current_row[:indecies][1]
-        fspec_starts  = current_row[:starts][1]
-        fspec_b_count = current_row[:b_counts][1]
-        fspec_group   = current_row[:groups][1]
+        fspec_mission = Symbol(current_row[1, :mission])
+        fspec_inst    = Symbol(current_row[1, :instrument])
+        fspec_obsid   = current_row[1, :obsid]
+        fspec_bin_t   = current_row[1, :bin_time]
+        fspec_bin_sze = current_row[1, :bin_size]
+        fspec_idx     = current_row[1, :indecies]
+        fspec_starts  = current_row[1, :starts]
+        fspec_b_count = current_row[1, :b_counts]
+        fspec_group   = current_row[1, :groups]
         fspec_file    = Feather.read(joinpath(fspec_dir, "$(fspec_basename)_$(fspec_idx).feather"))
         fspec_freq   = Array(fspec_file[:freq]); delete!(fspec_file, :freq)
         fspec_ampavg  = Array(fspec_file[:avg_power]); delete!(fspec_file, :avg_power)
@@ -151,9 +155,9 @@ function _fspec(gtis::Dict{Int64,JAXTAM.GTIData}, fspec_bin::Real; pow2=true, fs
             continue
         end
 
-        freq, power, bin_count = _fft(gti.counts, gti.times, gti.bin_time, fspec_bin_size)
+        freq, power, bin_count, src_ctrate = _fft(gti.counts, gti.times, gti.bin_time, fspec_bin_size)
 
-        powspec[gti.gti_index] = _FFTData(gti, freq, power, fspec_bin_size, bin_count)
+        powspec[gti.gti_index] = _FFTData(gti, freq, power, fspec_bin_size, bin_count, src_ctrate)
     end
 
     return powspec
@@ -168,6 +172,8 @@ function _scrunch_sections(instrument_data::Dict{Int64,JAXTAM.FFTData}; append_m
 
     bin_count_sum = 0
 
+    mean_src_ctrate = Array{Float64,1}(undef, 1)
+    mean_bkc_ctrate = Array{Float64,1}(undef, 1)
     for gti in values(instrument_data)
         if gti.gti_index <= 0 # Don't try and scrunch special, non-gti values
             continue
@@ -175,13 +181,19 @@ function _scrunch_sections(instrument_data::Dict{Int64,JAXTAM.FFTData}; append_m
 
         bin_count_sum += gti.bin_count
         joined_together = hcat(joined_together, gti.power)
+        mean_src_ctrate = hcat(mean_src_ctrate, gti.src_ctrate)
+        mean_bkc_ctrate = hcat(mean_bkc_ctrate, gti.bkg_ctrate)
     end
+
+    mean_src_ctrate = [mean(mean_src_ctrate[2:end])]
+    mean_bkc_ctrate = [mean(mean_bkc_ctrate[2:end])]
 
     if append_mean
         instrument_data[-1] = FFTData(
             gti_example.mission, gti_example.instrument, gti_example.obsid,
-            gti_example.bin_time, gti_example.bin_size, bin_count_sum, -1, -1, -1, [],
-            mean(joined_together, dims=2)[:], gti_example.freq
+            gti_example.bin_time, gti_example.bin_size, bin_count_sum, -1, -1, -1,
+            mean_src_ctrate, mean_bkc_ctrate,
+            [], mean(joined_together, dims=2)[:], gti_example.freq
         )
     end
 

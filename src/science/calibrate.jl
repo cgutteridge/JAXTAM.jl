@@ -135,11 +135,13 @@ function calibrate(mission_name::Symbol, obs_row::DataFrames.DataFrame)
             events_calib[:E] = calib[:E]
 
             meta_missn = mission_name #Symbol(lowercase(meta[:TELESCOP][1]))
-            meta_obsid = meta[:OBS_ID][1]
-            meta_start = meta[:TSTART][1]
-            meta_stop  = meta[:TSTOP][1]
+            meta_obsid = meta[1, :OBS_ID]
+            meta_start = meta[1, :TSTART]
+            meta_stop  = meta[1, :TSTOP]
 
-            calibrated_energy[Symbol(instrument)] = InstrumentData(meta_missn, instrument, meta_obsid, events_calib, gtis, meta_start, meta_stop, meta)
+            calibrated_energy[Symbol(instrument)] = InstrumentData(meta_missn, instrument, meta_obsid,
+                events_calib, gtis, meta_start, meta_stop,
+                meta[1, :SRC_RT], meta[1, :BKG_RT], meta)
         end
     end
 

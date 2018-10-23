@@ -6,6 +6,8 @@ struct InstrumentData <: JAXTAMData
     gtis::DataFrame
     start::Number
     stop::Number
+    src_ctrate::Union{Missing,Number}
+    bkg_ctrate::Union{Missing,Number}
     header::DataFrame
 end
 
@@ -59,7 +61,7 @@ function _read_fits_event(fits_path::String, mission_name)
 
     instrument_name = fits_header["INSTRUME"]
     #fits_telescope  = fits_header["TELESCOP"]
-    fits_telescope  = string(mission_name)
+    fits_telescope  = ring(mission_name)
     fits_telescope  = Symbol(lowercase(fits_telescope))
     
     fits_events_df = _read_fits_hdu(fits_file, "EVENTS"; cols=String["TIME", "PI"])
@@ -68,7 +70,7 @@ function _read_fits_event(fits_path::String, mission_name)
     
     fits_obsid = fits_header["OBS_ID"]
     fits_start = fits_header["TSTART"]
-    fits_stop = fits_header["TSTOP"]
+    fits_stop  = fits_header["TSTOP"]
 
     fits_header_df = DataFrame()
 
@@ -81,9 +83,26 @@ function _read_fits_event(fits_path::String, mission_name)
         end
     end
 
+    # Hacky fix to not create DF with col type of missing
+    src_rt = Array{Union{Float64,Missing},1}(undef, 1)
+    bkg_rt = Array{Union{Float64,Missing},1}(undef, 1)
+
+    total_gti_time    = sum(fits_gtis_df[:STOP] .- fits_gtis_df[:START])
+    total_event_count = size(fits_events_df, 1)
+
+    src_rt[1] = total_event_count/total_gti_time
+    println(src_rt[1])
+    bkg_rt[1] = missing
+
+    fits_header_df[:SRC_RT] = src_rt
+    fits_header_df[:BKG_RT] = bkg_rt
+
     close(fits_file)
 
-    return InstrumentData(fits_telescope, instrument_name, fits_obsid, fits_events_df, fits_gtis_df, fits_start, fits_stop, fits_header_df)
+    return InstrumentData(fits_telescope, instrument_name, fits_obsid, 
+        fits_events_df, fits_gtis_df, fits_start, fits_stop,
+        src_rt[1], bkg_rt[1],
+        fits_header_df)
 end
 
 """
@@ -200,11 +219,15 @@ function read_cl(mission_name::Symbol, obs_row::DataFrames.DataFrame; overwrite=
             file_meta  = joinpath(JAXTAM_path, inst_files[contains.(inst_files, "meta")][1])
             data_meta  = Feather.read(file_meta)
             meta_missn = Symbol(lowercase(data_meta[:TELESCOP][1]))
-            meta_obsid = data_meta[:OBS_ID][1]
-            meta_start = data_meta[:TSTART][1]
-            meta_stop  = data_meta[:TSTOP][1]
+            meta_obsid = data_meta[1, :OBS_ID]
+            meta_start = data_meta[1, :TSTART]
+            meta_stop  = data_meta[1, :TSTOP]
+            meta_srcrt = data_meta[1, :SRC_RT]
+            meta_bkgrt = data_meta[1, :BKG_RT]
             
-            mission_data[Symbol(instrument)] = InstrumentData(meta_missn, instrument, meta_obsid, data_events, data_gtis, meta_start, meta_stop, data_meta)
+            mission_data[Symbol(instrument)] = InstrumentData(meta_missn, instrument, meta_obsid,
+                data_events, data_gtis, meta_start, meta_stop,
+                meta_srcrt, meta_bkgrt, data_meta)
         end
     else
         mission_data = read_cl_fits(mission_name, obs_row)
@@ -214,13 +237,13 @@ function read_cl(mission_name::Symbol, obs_row::DataFrames.DataFrame; overwrite=
             @info "Saving $(string(instrument))"
 
             if size(mission_data[instrument].events, 1) == 0
-                bad_events = DataFrame(TIME=[0], PI=[0])
+                bad_events = DataFrame(TIME=[0],  PI=[0])
                 bad_gtis   = DataFrame(START=[0], STOP=[0])
                 _save_cl_feather(JAXTAM_path, mission_data[instrument].instrument, bad_events,
                     bad_gtis, mission_data[instrument].header)
 
                 mission_data[instrument] = InstrumentData(mission_data[instrument].mission, mission_data[instrument].instrument, mission_data[instrument].obsid,
-                    bad_events, bad_gtis, mission_data[instrument].start, mission_data[instrument].stop, mission_data[instrument].header)
+                    bad_events, bad_gtis, mission_data[instrument].start, mission_data[instrument].stop, 0, missing, mission_data[instrument].header)
             else    
                 _save_cl_feather(JAXTAM_path, mission_data[instrument].instrument, mission_data[instrument].events,
                     mission_data[instrument].gtis, mission_data[instrument].header)

@@ -146,7 +146,7 @@ function plot!(data::FFTData; title_append="", norm=:rms, rebin=(:log10, 0.01), 
     bin_time_pow2 = Int(log2(data.bin_time))
 
     avg_power = data.avg_power
-    freq   = data.freq
+    freq      = data.freq
 
     if freq_lims[1] == :end
         # Don't plot the 0Hz amplitude
@@ -173,6 +173,23 @@ function plot!(data::FFTData; title_append="", norm=:rms, rebin=(:log10, 0.01), 
     ylab = ""
     
     if norm == :rms
+        
+        src_ctrate = mean(data.src_ctrate); bkg_ctrate = mean(data.bkg_ctrate)
+        
+        rms_factor = 1
+        if bkg_ctrate == 0.0
+            rms_factor = 1/src_ctrate
+        else
+            rms_factor = (src_ctrate + bkg_ctrate) ./ src_ctrate^2
+        end
+
+        avg_power = avg_power .- 2
+        avg_power = (avg_power.*rms_factor).*freq
+        errors = errors.*freq*rms_factor
+        power_max = maximum(avg_power[2:end]); power_min = maximum([0.0001, minimum(abs.(avg_power[2:end]))])
+        avg_power[avg_power .<=0] .= NaN
+        ylab = "Amplitude (RMS*freq)"
+    elseif norm == :leahym2
         errors = errors.*freq
         avg_power = (avg_power.-2).*freq
         power_max = maximum(avg_power[2:end]); power_min = minimum(abs.(avg_power[2:end]))
