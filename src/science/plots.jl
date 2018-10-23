@@ -40,6 +40,20 @@ function _plot_formatter!()
     return Plots.plot!(title_location=:left, margin=2mm, xguidefontsize=12, yguidefontsize=12)
 end
 
+function _log10_minor_ticks!(start=0.01, stop=4096)
+    start < 1 ? start = 1/prevpow(10, 1/start) : start = prevpow(10, start)
+    stop  < 1 ? stop  = 1/prevpow(10, 1/stop)  : stop  = nextpow(10, stop)
+
+    segments = Int(log10(stop./start)+1)
+    ranges   = repeat(2:9, inner=(1, segments)) # Skip powers of 10 (1, 10) to avoid redrawing
+
+    segment_mults = 10 .^(0:segments-1) .* start
+    segment_mults = repeat(segment_mults', outer=(8,1))
+
+    log10_minors = ranges .* segment_mults
+    vline!(log10_minors[:], color=:grey, alpha=0.2, lab="")
+end
+
 # Lightcurve plotting functions
 
 function plot!(data::BinnedData; lab="", size_in=(1140,400), save=false, title_append="")
@@ -53,8 +67,9 @@ function plot!(data::BinnedData; lab="", size_in=(1140,400), save=false, title_a
         xlab="Time (s)", ylab="Counts (log10)",
         lab=lab, alpha=1, title=plot_title)
 
-    Plots.vline!(data.gtis[:, 2], lab="GTI Stop",  alpha=0.75)
-    Plots.vline!(data.gtis[:, 1], lab="GTI Start", alpha=0.75)
+    # NOTE: Disabled GTI start/stop lable 
+    Plots.vline!(data.gtis[:, 2], lab="",  alpha=0.75)
+    Plots.vline!(data.gtis[:, 1], lab="", alpha=0.75)
 
     count_min = maximum([minimum(data.counts[data.counts != 0]), 0.1])
     count_max = maximum(data.counts)
@@ -91,8 +106,9 @@ function plot(instrument_data::Dict{Symbol,JAXTAM.BinnedData}; size_in=(1140,400
 
     plt = Plots.plot()
     
+    # NOTE: Disable instrument lable
     for instrument in instruments
-        plt = plot!(instrument_data[Symbol(instrument)]; lab=String(instrument), save=false, title_append=title_append)
+        plt = plot!(instrument_data[Symbol(instrument)]; lab="", save=false, title_append=title_append)
     end
 
     if save
@@ -212,6 +228,7 @@ function plot!(data::FFTData; title_append="", norm=:rms, rebin=(:log10, 0.01), 
 
     if logx
         xaxis!(xscale=:log10, xformatter=xi->xi, xlim=(freq_min, freq[end]), xlab="Freq (Hz) - log10")
+        _log10_minor_ticks!()
     else
         xaxis!(xlab="Freq (Hz)", xlim=(freq_min,freq_max))
     end
@@ -243,9 +260,9 @@ function plot(instrument_data::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}}; title_ap
 
     plt = Plots.plot()
     
-    for instrument in instruments
+    for instrument in instruments # NOTE: Disabled instrument lable `String(instrument)`
         plt = JAXTAM.plot!(instrument_data[Symbol(instrument)][-1]; title_append=title_append, freq_lims=freq_lims,
-            norm=norm, rebin=rebin, logx=logx, logy=logy, lab=String(instrument), save=false)
+            norm=norm, rebin=rebin, logx=logx, logy=logy, lab="", save=false)
     end
 
     if save
@@ -337,7 +354,8 @@ function plot!(data::PgramData; title_append="", rebin=(:linear, 1),
         yaxis!(yscale=:log10, yformatter=yi->round(yi, sigdigits=3))
     end
     
-    Plots.plot!(freq, power, color=:black, ylab="Amplitude", lab="$lab - $(data.pg_type)",
+    # NOTE: Disabled instrument and pgram type lable `lab="$lab - $(data.pg_type)"`
+    Plots.plot!(freq, power, color=:black, ylab="Amplitude", lab="",
         title="Periodogram - $(data.obsid) - $e_min to $e_max keV - 2^$(bin_time_pow2) bt - $rebin rebin$title_append")
         
     _plot_formatter!()
@@ -352,8 +370,8 @@ function plot(instrument_data::Dict{Symbol,JAXTAM.PgramData};
 
     plt = Plots.plot()
 
-    for instrument in instruments
-        plt = plot!(instrument_data[instrument], lab=string(instrument),
+    for instrument in instruments # NOTE: Disabled instrument lable `string(instrument)`
+        plt = plot!(instrument_data[instrument], lab="",
             rebin=rebin, size_in=size_in, logx=logx, logy=logy, title_append=title_append)
     end
 
@@ -477,7 +495,9 @@ function _plot_pulses_candle(
     power = power[mask]
     freq  = freq[mask]
 
-    Plots.plot(freq, power, line=:sticks, lab="")
+    Plots.plot()
+    _log10_minor_ticks!(0.01, 4096)
+    Plots.plot!(freq, power, line=:sticks, lab="")
     return Plots.scatter!(freq, power, lab="", alpha=0.5)
 end
 
@@ -641,7 +661,7 @@ function plot_fspec_cov1d(fs::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}}; size_in=(
 
         fspec_diag[fspec_diag .<= 10] .= NaN
 
-        Plots.plot(fspec_freq, fspec_diag, lab=instrument,
+        Plots.plot(fspec_freq, fspec_diag, lab="", #NOTE: Disabled instrument lable `lab=instrument`
             color=:black, size=size_in,
             title="FFT 1D Covariance - $(obsid) - 2^$(bin_time_pow2) bt - $(bin_size*bin_time) bs - $rebin rebin - $(bin_count) sections averaged")
 
