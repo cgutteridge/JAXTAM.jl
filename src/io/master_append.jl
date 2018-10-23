@@ -363,7 +363,7 @@ function _add_append_countrate!(append_df, mission_name)
         append_df[:countrate] = append_countrate
     end
 
-    downloaded = filter(x->x[:downloaded], append_df)
+    instruments = config(mission_name).instruments
 
     for i in 1:size(append_df,1)
         obs_row = view(append_df, i, :) # Use view to mutate dataframe in-place
@@ -371,37 +371,47 @@ function _add_append_countrate!(append_df, mission_name)
             continue
         end
 
-        if obs_row[1, :countrate] == 0.0
-            data = try
-                JAXTAM.read_cl(mission_name, obs_row[:]) # Require `obs_row[:]` to pass DataFrame not SubDataFrame
+        obs_JAXTAM = abspath(obs_row[1, :obs_path], "JAXTAM/")
+        obs_METAs  = [joinpath(obs_JAXTAM, "$(instrument)_meta.feather") for instrument in instruments]
+
+        countrate = 0.0
+        obs_data  = missing
+
+        # Missing metas - read_cl likely not run yet
+        if !all(isfile.(obs_METAs))
+            try 
+                JAXTAM.read_cl(mission_name, obs_row[:])
             catch e
-                if typeof(e) == MethodError
-                    rethrow(e)
-                end
-
-                if haskey(fieldnames(typeof(e)), :msg) || occursin("error uncompressing image", e.msg)
-                    @warn "FITS could not be uncompressed"
-                    continue
-                else
-                    rethrow(e)
-                end
-            end
-            instruments = keys(data)
-
-            countrate = 0.0
-            if length(instruments) > 0
-                for instrument in instruments
-                    countrate += data.src_ctrate
-                end
-                countrate = countrate/length(instruments) # Average count rate over instruments
-            else
+                # Likely error reading large fits files
                 countrate = -1.0
+                @warn "Error reading/creating read cl files\n$e"
+                obs_row[:countrate] = countrate
+                continue
             end
-
-            print(" - Countrate $countrate\n")
-
-            obs_row[:countrate] = countrate
         end
+
+        for meta in obs_METAs
+            try
+                countrate += Feather.read(meta)[1, :SRC_RT]
+            catch e
+                # Likely error due to old event files from before :SRC_RT was added
+                if e == KeyError(:SRC_RT)
+                    try 
+                        JAXTAM.read_cl(mission_name, obs_row[:]; overwrite=true)
+                    catch e2
+                        countrate = -1.0
+                        @warn "Error reading/creating read cl files\n$e2"
+                        obs_row[:countrate] = countrate
+                        continue
+                    end
+                end
+            end
+        end
+
+        countrate = countrate/length(obs_METAs)
+
+        obs_row[:countrate] = countrate
+        print("$(obs_row[1, :obsid]) - Countrate $countrate\n")
     end
 
     return append_df
