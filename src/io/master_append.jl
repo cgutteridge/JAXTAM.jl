@@ -373,7 +373,7 @@ function _add_append_countrate!(append_df, mission_name)
 
         if obs_row[1, :countrate] == 0.0
             data = try
-                JAXTAM.calibrate(mission_name, obs_row[:]) # Require `obs_row[:]` to pass DataFrame not SubDataFrame
+                JAXTAM.read_cl(mission_name, obs_row[:]) # Require `obs_row[:]` to pass DataFrame not SubDataFrame
             catch e
                 if typeof(e) == MethodError
                     rethrow(e)
@@ -389,17 +389,13 @@ function _add_append_countrate!(append_df, mission_name)
             instruments = keys(data)
 
             countrate = 0.0
-            for instrument in instruments
-                gtis = data[instrument].gtis
-
-                total_gti_time    = sum(gtis[:STOP] .- gtis[:START])
-                total_event_count = size(data[instrument].events, 1)
-                countrate        += total_event_count/total_gti_time
-            end
-            countrate = countrate/length(instruments) # Average count rate over instruments
-
-            if countrate == Inf
-                countrate = 0
+            if length(instruments) > 0
+                for instrument in instruments
+                    countrate += data.src_ctrate
+                end
+                countrate = countrate/length(instruments) # Average count rate over instruments
+            else
+                countrate = -1.0
             end
 
             print(" - Countrate $countrate\n")
