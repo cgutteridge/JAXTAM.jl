@@ -86,6 +86,11 @@ function _webgen_table(df::DataFrames.DataFrame; table_id="example")
     if haskey(df, :countrate)
         df[:countrate] = round(Int, df[1, :countrate])
     end
+
+    if haskey(df, :time) && table_id=="report_page"
+        # Include MJD time in report summary
+        df[:time] = string.(df[:time], " | ", round.(JAXTAM._datetime2mjd.(convert.(Dates.DateTime, df[:time])), digits=3), " (MJD 3dp)")
+    end
     
     rows, cols = size(df)
     headers = names(df)

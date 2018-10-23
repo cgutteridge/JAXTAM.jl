@@ -201,7 +201,7 @@ function _webgen_results_intro(mission_name, obs_row, results_page_dir)
         p(abstract_text),
         hr(),
         h4("Status"),
-        _webgen_table(obs_row[[:public_date, :publicity, :time]]; table_id=""),
+        _webgen_table(obs_row[[:public_date, :publicity, :time]]; table_id="report_page"),
         h4("Source Details"),
         _webgen_table(obs_row[[:name, :ra, :dec, :lii, :bii, :obs_type]]; table_id=""),
         h4("Observation Details"),
