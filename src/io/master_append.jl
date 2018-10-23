@@ -379,7 +379,7 @@ function _add_append_countrate!(append_df, mission_name)
                     rethrow(e)
                 end
 
-                if occursin("error uncompressing image", e.msg)
+                if haskey(fieldnames(typeof(e)), :msg) || occursin("error uncompressing image", e.msg)
                     @warn "FITS could not be uncompressed"
                     continue
                 else
