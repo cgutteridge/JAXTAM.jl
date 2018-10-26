@@ -1,6 +1,6 @@
 function _plot_fspec_grid(fs::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}},
         obs_row, mission_name, bin_time, subfolder, fig_name)
-    plt_1 = plot(fs; norm=:rms,   save=false)
+    plt_1 = plot(fs; norm=:rms,   save=false, save_csv=true)
     plt_2 = plot(fs; norm=:leahy, save=false)
 
     plt_3 = plot(fs, norm=:leahy, save=false, freq_lims=(0, 1),     rebin=(:linear, 1),

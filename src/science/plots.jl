@@ -1,6 +1,6 @@
 # Helper functions
 
-function _savefig_obsdir(obs_row, mission_name, bin_time, subfolder, fig_name)
+function _savefig_obsdir(obs_row, bin_time, subfolder, fig_name)
     plot_dir = joinpath(obs_row[1, :obs_path], "JAXTAM/lc/$bin_time/images/", subfolder)
 
     plot_path = joinpath(plot_dir, fig_name)
@@ -13,7 +13,7 @@ end
 
 function _savefig_obsdir(mission_name, obsid, bin_time, fig_name)
     obs_row = master_query(mission_name, :obsid, obsid)
-    _savefig_obsdir(obs_row, mission_name, bin_time, fig_name)
+    _savefig_obsdir(obs_row, bin_time, fig_name)
 end
 
 """
@@ -52,6 +52,22 @@ function _log10_minor_ticks!(start=0.01, stop=4096)
 
     log10_minors = ranges .* segment_mults
     vline!(log10_minors[:], color=:grey, alpha=0.2, lab="")
+end
+
+function _save_plot_data_csv(obs_row, bin_time, subfolder, file_name; kwargs...)
+    file_dir  = joinpath(obs_row[1, :obs_path], "JAXTAM/lc/$bin_time/images/", subfolder)
+    file_path = joinpath(file_dir, file_name)
+
+    mkpath(file_dir)
+
+    data = DataFrame(kwargs)
+    data = hcat([data[i] for i in 1:size(data,2)]...)
+
+    writedlm(file_path, data)
+
+    println("CSV: $file_path")
+
+    return data
 end
 
 # Lightcurve plotting functions
@@ -255,20 +271,28 @@ function plot!(data::FFTData; title_append="", norm=:rms, rebin=(:log10, 0.01), 
 end
 
 function plot(instrument_data::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}}; title_append="", freq_lims=(:end, :end),
-        size_in=(1140,900), norm=:rms, rebin=(:log10, 0.01), logx=true, logy=true, save=false)
+        size_in=(1140,900), norm=:rms, rebin=(:log10, 0.01), logx=true, logy=true, save=false, save_csv=false)
     instruments = keys(instrument_data)
 
     plt = Plots.plot()
     
+    example_gti = _recursive_first(instrument_data)
+
     for instrument in instruments # NOTE: Disabled instrument lable `String(instrument)`
         plt = JAXTAM.plot!(instrument_data[Symbol(instrument)][-1]; title_append=title_append, freq_lims=freq_lims,
             norm=norm, rebin=rebin, logx=logx, logy=logy, lab="", save=false)
+
+        if save_csv
+            obs_row = master_query(example_gti.mission, :obsid, example_gti.obsid)
+            _save_plot_data_csv(obs_row, example_gti.bin_time,
+                "fspec/$(example_gti.bin_size*example_gti.bin_time)", "fspec.csv";
+                freq=plt.series_list[1].d[:x], power=plt.series_list[1].d[:y], power_error=plt.series_list[1].d[:yerror])
+        end
     end
 
     if save
-        example_gti = _recursive_first(instrument_data)
-        obs_row    = master_query(example_gti.mission, :obsid, example_gti.obsid)
-        _savefig_obsdir(obs_row, example_gti.mission, example_gti.bin_time, "fspec/$(example_gti.bin_size*example_gti.bin_time)", "fspec.png")
+        obs_row = master_query(example_gti.mission, :obsid, example_gti.obsid)
+        _savefig_obsdir(obs_row, example_gti.bin_time, "fspec/$(example_gti.bin_size*example_gti.bin_time)", "fspec.png")
     end
 
     return Plots.plot!(size=size_in)
@@ -307,7 +331,7 @@ function plot_groups(instrument_data::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}};
             
             if save
                 data = instrument_data_group[gtis_in_group[1]]
-                _savefig_obsdir(obs_row, data.mission, data.bin_time,
+                _savefig_obsdir(obs_row, data.bin_time,
                     "fspec/$(data.bin_size.*data.bin_time)/groups/", "$(group)_fspec.png")
             end
 
@@ -378,7 +402,7 @@ function plot(instrument_data::Dict{Symbol,JAXTAM.PgramData};
     if save
         example_pgram = _recursive_first(instrument_data)
         obs_row       = master_query(example_pgram.mission, :obsid, example_pgram.obsid)
-        _savefig_obsdir(obs_row, example_pgram.mission, example_pgram.bin_time,
+        _savefig_obsdir(obs_row, example_pgram.bin_time,
             "pgram", "$(example_pgram.pg_type)_pgram.png")
     end
 
@@ -407,7 +431,7 @@ function plot_groups(instrument_data::Dict{Symbol,Dict{Int64,JAXTAM.PgramData}};
                 title_append=title_append, size_in=size_in, save=false)
 
             if save
-                _savefig_obsdir(obs_row, example_pgram.mission, example_pgram.bin_time,
+                _savefig_obsdir(obs_row, example_pgram.bin_time,
                 "pgram/groups/", "$(group)_pgram.png")
             end
         end
@@ -464,7 +488,7 @@ function plot_sgram(fs::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}};
 
         if save
             obs_row = master_query(example_data.mission, :obsid, example_data.obsid)
-            _savefig_obsdir(obs_row, example_data.mission, example_data.bin_time, "sgram/$(example_data.bin_size*example_data.bin_time)", "sgram.png")
+            _savefig_obsdir(obs_row, example_data.bin_time, "sgram/$(example_data.bin_size*example_data.bin_time)", "sgram.png")
         end
     end
 
@@ -537,7 +561,7 @@ function plot_pulses_candle(fs::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}};
 
         if save
             obs_row = master_query(example_data.mission, :obsid, example_data.obsid)
-            _savefig_obsdir(obs_row, example_data.mission, example_data.bin_time, "pulse/$(example_data.bin_size*example_data.bin_time)", "pulse.png")
+            _savefig_obsdir(obs_row, example_data.bin_time, "pulse/$(example_data.bin_size*example_data.bin_time)", "pulse.png")
         end
     end
 
@@ -588,7 +612,7 @@ function plot_pulses_candle_groups(fs::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}};
             instrument_group_plots[group] = Plots.plot!(size=size_in)
 
             if save
-                _savefig_obsdir(obs_row, example_fs.mission, example_fs.bin_time,
+                _savefig_obsdir(obs_row, example_fs.bin_time,
                 "pulse/$(example_fs.bin_size*example_fs.bin_time)/groups/", "$(group)_pulses.png")
             end
         end
@@ -632,7 +656,7 @@ function plot_pulses(fs::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}};
 
         if save
             obs_row = master_query(example_data.mission, :obsid, example_data.obsid)
-            _savefig_obsdir(obs_row, example_data.mission, example_data.bin_time, "pulse/$(example_data.bin_size*example_data.bin_time)", "pulse.png")
+            _savefig_obsdir(obs_row, example_data.bin_time, "pulse/$(example_data.bin_size*example_data.bin_time)", "pulse.png")
         end
     end
 

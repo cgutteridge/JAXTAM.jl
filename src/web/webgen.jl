@@ -86,7 +86,7 @@ function _webgen_table(df::DataFrames.DataFrame; table_id="example")
     if haskey(df, :countrate)
         df[:countrate][df[:countrate] .== Inf] .= -2.0
         df[:countrate][isnan.(df[:countrate])] .= -3.0
-        df[:countrate] = round.(Int, countrate)
+        df[:countrate] = round.(Int, df[:countrate])
     end
 
     if haskey(df, :time) && table_id=="report_page"
