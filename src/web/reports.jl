@@ -12,7 +12,7 @@ function _plot_fspec_grid(fs::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}},
 
     Plots.plot(plt_1, plt_2, plt_3, plt_4, layout=grid(4,1), size=(1140,600*4))
 
-    _savefig_obsdir(obs_row, mission_name, bin_time, subfolder, fig_name)
+    _savefig_obsdir(obs_row, bin_time, subfolder, fig_name)
 end
 
 function report(mission_name, obsid; overwrite=false, nuke=false)

@@ -1,6 +1,6 @@
 # Helper functions
 
-function _savefig_obsdir(obs_row, bin_time, subfolder, fig_name)
+function _savefig_obsdir(obs_row::DataFrames.DataFrame, bin_time::Number, subfolder::String, fig_name::String)
     plot_dir = joinpath(obs_row[1, :obs_path], "JAXTAM/lc/$bin_time/images/", subfolder)
 
     plot_path = joinpath(plot_dir, fig_name)
@@ -129,7 +129,7 @@ function plot(instrument_data::Dict{Symbol,JAXTAM.BinnedData}; size_in=(1140,400
 
     if save
         obs_row    = master_query(example_lc.mission, :obsid, example_lc.obsid)
-        _savefig_obsdir(obs_row, example_lc.mission, example_lc.bin_time, "lc", "lcurve.png")
+        _savefig_obsdir(obs_row, example_lc.bin_time, "lc", "lcurve.png")
     end
 
     return Plots.plot!(size=size_in)
@@ -159,7 +159,7 @@ function plot_groups(instrument_data::Dict{Symbol,JAXTAM.BinnedData}; size_in=(1
                     title_append=title_append, size_in=size_in)
 
             if save
-                _savefig_obsdir(obs_row, group_lc.mission, group_lc.bin_time, "lc/groups/", "$(group)_lcurve.png")
+                _savefig_obsdir(obs_row, group_lc.bin_time, "lc/groups/", "$(group)_lcurve.png")
             end
         end
 
@@ -263,7 +263,7 @@ function plot!(data::FFTData; title_append="", norm=:rms, rebin=(:log10, 0.01), 
         title="FFT - $(data.obsid) - $e_min to $e_max keV - 2^$(bin_time_pow2) bt - $(data.bin_size*data.bin_time) bs - $rebin rebin - $(data.bin_count) - sections averaged$title_append")
 
     if save
-        _savefig_obsdir(data.mission, data.bin_time, "fspec.png")
+        _savefig_obsdir(data.mission, data.obsid, data.bin_time, "fspec.png")
     end
 
     _plot_formatter!()
