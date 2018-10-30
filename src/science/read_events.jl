@@ -78,6 +78,8 @@ function _read_fits_event(fits_path::String, mission_name)
         key = Symbol(replace(key, '-', '_')) # Colnames with `-` don't behave well with DataFrames/Feather
         if typeof(fits_header[i]) == Nothing
             fits_header_df[Symbol(key)] =  "empty" # Have to write something, or Feahter.jl errors saving ""
+        elseif fits_header[i] == ""
+            fits_header_df[Symbol(key)] =  "empty"
         else
             fits_header_df[Symbol(key)] = fits_header[i]
         end
@@ -91,7 +93,6 @@ function _read_fits_event(fits_path::String, mission_name)
     total_event_count = size(fits_events_df, 1)
 
     src_rt[1] = total_event_count/total_gti_time
-    println(src_rt[1])
     bkg_rt[1] = missing
 
     fits_header_df[:SRC_RT] = src_rt
