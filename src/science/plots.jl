@@ -72,7 +72,7 @@ end
 
 # Lightcurve plotting functions
 
-function plot!(data::BinnedData; lab="", size_in=(1140,400), save=false, title_append="")
+function plot!(data::BinnedData; lab="", size_in=(1140,400), save=false, title_append="", logy=false)
     bin_time_pow2 = Int(log2(data.bin_time))
 
     Plots.plot()
@@ -80,22 +80,27 @@ function plot!(data::BinnedData; lab="", size_in=(1140,400), save=false, title_a
     plot_title = "Lightcurve - 2^$(bin_time_pow2) - $(data.bin_time) bt$title_append"
 
     Plots.plot!(data.times, data.counts,
-        xlab="Time (s)", ylab="Counts (log10)",
+        xlab="Time (s)",
         lab=lab, alpha=1, title=plot_title)
 
-    # NOTE: Disabled GTI start/stop lable 
+    # NOTE: Disabled GTI start/stop label
     Plots.vline!(data.gtis[:, 2], lab="",  alpha=0.75)
     Plots.vline!(data.gtis[:, 1], lab="", alpha=0.75)
 
     count_min = maximum([minimum(data.counts[data.counts != 0]), 0.1])
     count_max = maximum(data.counts)
-    log10_min = count_min > 1 ? prevpow(10, count_min) : 1/prevpow(10, 1/count_min)
-    yticks = range(log10(log10_min), stop=log10(nextpow(10, count_max)), length=5)
-
-    yticks = round.(exp10.(yticks), sigdigits=3)
-
-    ylim = (log10_min, nextpow(10, count_max))
-    yaxis!(yscale=:log10, yticks=yticks, ylims=ylim)
+    if logy
+        log10_min = count_min > 1 ? prevpow(10, count_min) : 1/prevpow(10, 1/count_min)
+        yticks = range(log10(log10_min), stop=log10(nextpow(10, count_max)), length=5)
+    
+        yticks = round.(exp10.(yticks), sigdigits=3)
+    
+        ylim = (log10_min, nextpow(10, count_max))
+        yaxis!(yticks=yticks, ylims=ylim, yscale=:log10, ylab="Counts (log10)")
+    else
+        width = count_max - count_min
+        yaxis!(ylims=(count_min-(width*0.1),count_max+(width*0.1)), ylab="Counts")
+    end
 
     try
         yaxis!(yformatter=yi->round(yi, sigdigits=3))
@@ -122,7 +127,7 @@ function plot(instrument_data::Dict{Symbol,JAXTAM.BinnedData}; size_in=(1140,400
 
     plt = Plots.plot()
     
-    # NOTE: Disable instrument lable
+    # NOTE: Disable instrument label
     for instrument in instruments
         plt = plot!(instrument_data[Symbol(instrument)]; lab="", save=false, title_append=title_append)
     end
@@ -148,12 +153,12 @@ function plot_groups(instrument_data::Dict{Symbol,JAXTAM.BinnedData}; size_in=(1
         instrument_group_data  = _group_return(instrument_data[instrument])
         instrument_group_plots = Dict{Int64,Plots.Plot}()
 
-        available_groups = collect(keys(instrument_group_data))
+        availabel_groups = collect(keys(instrument_group_data))
 
-        for group in available_groups
+        for group in availabel_groups
             group_lc = instrument_group_data[group]
 
-            title_append = " - $e_min to $e_max keV - group $group/$(maximum(available_groups))"
+            title_append = " - $e_min to $e_max keV - group $group/$(maximum(availabel_groups))"
 
             instrument_group_plots[group] = plot(Dict(instrument=>group_lc); save=false,
                     title_append=title_append, size_in=size_in)
@@ -171,7 +176,7 @@ end
 
 # Power spectra plotting functions
 
-function plot!(data::FFTData; title_append="", norm=:rms, rebin=(:log10, 0.01), freq_lims=(:end, :end),
+function plot!(data::FFTData; title_append="", norm=:rms, rebin=(:log10, 0.01), freq_lims=(:start, :end),
         lab="", logx=true, logy=true, show_errors=true,
         size_in=(1140,900), save=false
     )
@@ -180,10 +185,10 @@ function plot!(data::FFTData; title_append="", norm=:rms, rebin=(:log10, 0.01), 
     avg_power = data.avg_power
     freq      = data.freq
 
-    if freq_lims[1] == :end
+    if freq_lims[1] == :start
         # Don't plot the 0Hz amplitude
         idx_min  = 2
-        freq_min = 0.01 #freq[idx_min]
+        freq_min = freq[idx_min]
     else
         idx_min  = findfirst(freq .>= freq_lims[1])
         idx_min <= 0 ? idx_min=1 : idx_min=idx_min
@@ -270,17 +275,17 @@ function plot!(data::FFTData; title_append="", norm=:rms, rebin=(:log10, 0.01), 
     return Plots.plot!(size=size_in)
 end
 
-function plot(instrument_data::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}}; title_append="", freq_lims=(:end, :end),
-        size_in=(1140,900), norm=:rms, rebin=(:log10, 0.01), logx=true, logy=true, save=false, save_csv=false)
+function plot(instrument_data::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}}; title_append="", freq_lims=(:start, :end),
+        size_in=(1140,900), norm=:rms, rebin=(:log10, 0.01), logx=true, logy=true, show_errors=true, save=false, save_csv=false)
     instruments = keys(instrument_data)
 
     plt = Plots.plot()
     
     example_gti = _recursive_first(instrument_data)
 
-    for instrument in instruments # NOTE: Disabled instrument lable `String(instrument)`
+    for instrument in instruments # NOTE: Disabled instrument label `String(instrument)`
         plt = JAXTAM.plot!(instrument_data[Symbol(instrument)][-1]; title_append=title_append, freq_lims=freq_lims,
-            norm=norm, rebin=rebin, logx=logx, logy=logy, lab="", save=false)
+            norm=norm, rebin=rebin, logx=logx, logy=logy, lab="", show_errors=show_errors, save=false)
 
         if save_csv
             obs_row = master_query(example_gti.mission, :obsid, example_gti.obsid)
@@ -299,7 +304,7 @@ function plot(instrument_data::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}}; title_ap
 end
 
 function plot_groups(instrument_data::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}};
-    size_in=(1140,600), norm=:rms, rebin=(:log10, 0.01), logx=true, logy=true, save=false)
+    size_in=(1140,600), norm=:rms, rebin=(:log10, 0.01), freq_lims=(:start,:end), logx=true, logy=true, show_errors=true, save=false)
 
     instruments = keys(instrument_data)
 
@@ -309,12 +314,12 @@ function plot_groups(instrument_data::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}};
     obs_row     = master_query(example_gti.mission, :obsid, example_gti.obsid)
 
     for instrument in instruments
-        available_groups = unique([gti.group for gti in values(instrument_data[instrument])])
-        available_groups = available_groups[available_groups .>= 0] # Excluse -1, -2, etc... for scrunched/mean FFTData
+        availabel_groups = unique([gti.group for gti in values(instrument_data[instrument])])
+        availabel_groups = availabel_groups[availabel_groups .>= 0] # Excluse -1, -2, etc... for scrunched/mean FFTData
 
         instrument_group_plots = Dict{Int64,Plots.Plot}()
 
-        for group in available_groups
+        for group in availabel_groups
             instrument_data_group = Dict{Int64,JAXTAM.FFTData}()
             gtis_in_group = [gti.gti_index for gti in values(instrument_data[instrument]) if gti.group == group]
 
@@ -322,11 +327,11 @@ function plot_groups(instrument_data::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}};
                 instrument_data_group[gti_no] = instrument_data[instrument][gti_no]
             end
 
-            title_append = " - group $group/$(maximum(available_groups))"
+            title_append = " - group $group/$(maximum(availabel_groups))"
 
             # Have to run _scrunch_sections on group data, since it lacks the -1 indexed average amplitudes
             instrument_group_plots[group] = plot(Dict(instrument=>_scrunch_sections(instrument_data_group));
-                    size_in=size_in, norm=norm, rebin=rebin, logx=logx, logy=logy, save=false,
+                    size_in=size_in, norm=norm, rebin=rebin, freq_lims=freq_lims, logx=logx, logy=logy, save=false, show_errors=show_errors,
                     title_append=title_append)
             
             if save
@@ -382,7 +387,7 @@ function plot!(data::PgramData; title_append="", rebin=(:linear, 1),
         xaxis!(xscale=:log10)
     end
     
-    # NOTE: Disabled instrument and pgram type lable `lab="$lab - $(data.pg_type)"`
+    # NOTE: Disabled instrument and pgram type label `lab="$lab - $(data.pg_type)"`
     Plots.plot!(freq, power, color=:black, ylab="Amplitude", lab="",
         title="Periodogram - $(data.obsid) - $e_min to $e_max keV - 2^$(bin_time_pow2) bt - $rebin rebin$title_append")
         
@@ -398,7 +403,7 @@ function plot(instrument_data::Dict{Symbol,JAXTAM.PgramData};
 
     plt = Plots.plot()
 
-    for instrument in instruments # NOTE: Disabled instrument lable `string(instrument)`
+    for instrument in instruments # NOTE: Disabled instrument label `string(instrument)`
         plt = plot!(instrument_data[instrument], lab="",
             rebin=rebin, size_in=size_in, logx=logx, logy=logy, title_append=title_append)
     end
@@ -425,11 +430,11 @@ function plot_groups(instrument_data::Dict{Symbol,Dict{Int64,JAXTAM.PgramData}};
     group_plots = Dict{Symbol,Dict{Int64,Plots.Plot}}()
     for instrument in instruments
         instrument_group_plots = Dict{Int64,Plots.Plot}()
-        available_groups = unique([gti.group for gti in values(instrument_data[instrument])])
-        available_groups = available_groups[available_groups .>= 0] # Excluse -1, -2, etc... for scrunched/mean FFTData
+        availabel_groups = unique([gti.group for gti in values(instrument_data[instrument])])
+        availabel_groups = availabel_groups[availabel_groups .>= 0] # Excluse -1, -2, etc... for scrunched/mean FFTData
 
-        for group in available_groups
-            title_append = " - group $group/$(maximum(available_groups))"
+        for group in availabel_groups
+            title_append = " - group $group/$(maximum(availabel_groups))"
 
             instrument_group_plots[group] = plot(Dict(instrument=>instrument_data[instrument][group]);
                 title_append=title_append, size_in=size_in, save=false)
@@ -589,10 +594,10 @@ function plot_pulses_candle_groups(fs::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}};
     group_plots = Dict{Symbol,Dict{Int64,Plots.Plot}}()
     for instrument in instruments
         instrument_group_plots = Dict{Int64,Plots.Plot}()
-        available_groups = unique([f[2].group for f in fs[instrument] if f[1] > 0])
+        availabel_groups = unique([f[2].group for f in fs[instrument] if f[1] > 0])
 
-        for group in available_groups
-            title_append = " - group $group/$(maximum(available_groups))"
+        for group in availabel_groups
+            title_append = " - group $group/$(maximum(availabel_groups))"
 
             power = hcat([f[2].power for f in fs[instrument] if f[2].group == group]...)
             freq  = repeat(fs[instrument][-1].freq, inner=(1, size(power, 2)))
@@ -689,7 +694,7 @@ function plot_fspec_cov1d(fs::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}}; size_in=(
 
         fspec_diag[fspec_diag .<= 10] .= NaN
 
-        Plots.plot(fspec_freq, fspec_diag, lab="", #NOTE: Disabled instrument lable `lab=instrument`
+        Plots.plot(fspec_freq, fspec_diag, lab="", #NOTE: Disabled instrument label `lab=instrument`
             color=:black, size=size_in,
             title="FFT 1D Covariance - $(obsid) - 2^$(bin_time_pow2) bt - $(bin_size*bin_time) bs - $rebin rebin - $(bin_count) sections averaged")
 
