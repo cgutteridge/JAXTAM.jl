@@ -9,9 +9,21 @@ struct PgramData
     group      :: Int
 end
 
-function _pgram(counts, bin_time, pg_type=:standard)
-    pg_plan = LombScargle.plan(1:length(counts), float(counts), 
-        normalization=pg_type, maximum_frequency=0.5/bin_time)
+function _pgram(counts, times, bin_time, pg_type=:standard; maximum_frequency=:auto)
+    if maximum_frequency == :auto
+        maximum_frequency = 0.5/bin_time
+    elseif maximum_frequency > 0.5/bin_time
+        @warn "Maximum frequency cannot be greater than 0.5/bin_time ($(0.5/bin_time))"
+        maximum_frequency = 0.5/bin_time
+    end
+
+    pg_plan = LombScargle.plan(
+        times, float(counts), 
+        normalization=pg_type,
+        minimum_frequency=0,
+        maximum_frequency=maximum_frequency,
+        samples_per_peak=1,
+    )
 
     pg = lombscargle(pg_plan)
 
@@ -20,9 +32,17 @@ function _pgram(counts, bin_time, pg_type=:standard)
     return freq, power
 end
 
-function _pgram(lc::BinnedData, pg_type, group)
-    freq, power = _pgram(lc.counts, lc.bin_time, pg_type)
-
+function _pgram(lc::BinnedData, pg_type, group; maximum_frequency=:auto)
+    freq, power = (missing, missing)
+    if group == 0 # Using whole lightcurve
+        lc_groups = _group_return(lc)
+        lc_group_counts = vcat([lc[2].counts for lc in lc_groups]...)
+        lc_group_times  = vcat([lc[2].times for lc in lc_groups]...)
+        freq, power = _pgram(lc_group_counts, lc_group_times, lc.bin_time, pg_type; maximum_frequency=maximum_frequency)
+    else
+        freq, power = _pgram(lc.counts, lc.times, lc.bin_time, pg_type; maximum_frequency=maximum_frequency)
+    end
+    
     return PgramData(lc.mission, lc.instrument, lc.obsid, lc.bin_time,
         pg_type, power, freq, group)
 end
@@ -52,7 +72,7 @@ function _pgram_lc_group_pad(group_lc::Dict{Int64,JAXTAM.BinnedData})
     return padded_groups
 end
 
-function pgram(instrument_lc::Dict{Symbol,BinnedData}; pg_type=:standard, per_group=false)
+function pgram(instrument_lc::Dict{Symbol,BinnedData}; pg_type=:standard, per_group=false, maximum_frequency=:auto)
     instruments = keys(instrument_lc)
 
     instrument_pgram = per_group ? Dict{Symbol,Dict{Int,PgramData}}() : Dict{Symbol,PgramData}()
@@ -65,7 +85,7 @@ function pgram(instrument_lc::Dict{Symbol,BinnedData}; pg_type=:standard, per_gr
             groups = keys(lc_groups)
 
             for group in groups
-                group_pgram[group] = _pgram(lc_groups[group], pg_type, group)
+                group_pgram[group] = _pgram(lc_groups[group], pg_type, group, maximum_frequency=maximum_frequency)
             end
 
             #group_pgram[-1] = PgramData(group_pgram[1].mission, group_pgram[1].instrument, group_pgram[1].obsid,
@@ -73,7 +93,7 @@ function pgram(instrument_lc::Dict{Symbol,BinnedData}; pg_type=:standard, per_gr
 
             instrument_pgram[instrument] = group_pgram
         else
-            instrument_pgram[instrument] = _pgram(instrument_lc[instrument], pg_type, 0)
+            instrument_pgram[instrument] = _pgram(instrument_lc[instrument], pg_type, 0, maximum_frequency=maximum_frequency)
         end
     end
     

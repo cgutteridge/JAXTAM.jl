@@ -346,7 +346,7 @@ end
 # Periodogram plotting functions
 
 function plot!(data::PgramData; title_append="", rebin=(:linear, 1),
-        lab="", logx=true, logy=true, size_in=(1140,600))
+        lab="", logx=false, logy=true, size_in=(1140,600))
     bin_time_pow2 = Int(log2(data.bin_time))
 
     # Don't plot the 0Hz amplitude
@@ -358,14 +358,14 @@ function plot!(data::PgramData; title_append="", rebin=(:linear, 1),
     if rebin == (:linear, 1)
         # Do... nothing
     else
-        freq, power, errors = _fspec_rebin(power, freq, 1, data.bin_size, missing, rebin)
+        freq, power, errors = _fspec_rebin(power, freq, 1, 1, missing, rebin)
     end
 
     Plots.plot!(xlab="Freq (Hz)", alpha=1)
     
     (e_min, e_max) = (config(data.mission).good_energy_min, config(data.mission).good_energy_max)
     if logy      
-        power_min = minimum(power[2:end])
+        power_min = maximum([0.0001 minimum(power[2:end])])
         power_max = maximum(power[2:end])
         
         power = power[:]
@@ -375,7 +375,11 @@ function plot!(data::PgramData; title_append="", rebin=(:linear, 1),
         # removed that anyway, set ylim to 1 if power_min < 1
         # TODO: Look at/fix the manual ylim settings, since it seems to... make things worse usually
         # power_min > 1 ? ylim = (prevpow(10, power_min), nextpow(10, power_max)) : ylim = (1, nextpow(10, power_max))
-        yaxis!(yscale=:log10, yformatter=yi->round(yi, sigdigits=3))
+        yaxis!(yscale=:log10, yformatter=yi->round(yi, sigdigits=3), ylims=(power_min,power_max))
+    end
+
+    if logx
+        xaxis!(xscale=:log10)
     end
     
     # NOTE: Disabled instrument and pgram type lable `lab="$lab - $(data.pg_type)"`
@@ -387,7 +391,7 @@ function plot!(data::PgramData; title_append="", rebin=(:linear, 1),
 end
 
 function plot(instrument_data::Dict{Symbol,JAXTAM.PgramData};
-        rebin=(:linear, 1), logx=false, logy=true, save=false,
+        rebin=(:linear, 1), logx=false, logy=false, save=false,
         size_in=(1140,600), title_append="")
 
     instruments = keys(instrument_data)
