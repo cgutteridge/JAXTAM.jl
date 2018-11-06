@@ -348,6 +348,51 @@ function plot_groups(instrument_data::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}};
     return group_plots
 end
 
+# Energy Spectra plotting functions
+
+function plot_energy!(data::JAXTAM.InstrumentData; e_lims=:auto, size_in=(1140,400), save=false, title_append="")
+    mission_config = config(data.mission)
+    
+    if e_lims == :auto
+        e_lims = (mission_config.good_energy_min, mission_config.good_energy_max)
+    end
+
+    exposure = sum(data.gtis[:STOP] .- data.gtis[:START])
+
+    energies = data.events[:E]
+    energies = energies[e_lims[1] .<= energies .<= e_lims[2]]
+
+    energy_bins     = e_lims[1]:1e-2:e_lims[2]
+    energy_hist_fit = OnlineStats.Hist(energy_bins)
+    energy_hist     = fit!(energy_hist_fit, sort(energies))
+
+    Plots.plot(value(energy_hist)[1], value(energy_hist)[2]./exposure;
+        size=size_in, lab="",
+        title="Energy Spectra - $(data.obsid) - $e_lims keV")
+
+    Plots.xaxis!(xlab="Energy [keV]")
+    Plots.yaxis!(yscale=:log10, yformatter=yi->yi, ylab="Normalised Counts - log10")
+
+    _plot_formatter!()
+    return Plots.plot!()
+end
+
+function plot_energy(instrument_data::Dict{Symbol,JAXTAM.InstrumentData}; size_in=(1140,400), save=false, title_append="")
+    instruments = keys(instrument_data)
+
+    example_lc = _recursive_first(instrument_data)
+
+    if !haskey(example_lc.events, :E)
+        @error "`instrument_data` does not contain the energy column. Are you passing data from read_cl or calibrate?"
+    end
+
+    for instrument in instruments
+        plt = plot_energy!(instrument_data[instrument], save=false, title_append=title_append)
+    end
+
+    return Plots.plot!(size=size_in)
+end
+
 # Periodogram plotting functions
 
 function plot!(data::PgramData; title_append="", rebin=(:linear, 1),
