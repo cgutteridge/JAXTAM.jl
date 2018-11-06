@@ -249,12 +249,12 @@ function _feather2tuple(append_df::DataFrames.DataFrame)
         cols = columns_tuple[occursin.(tuple_name, string.(columns_tuple))]
 
         tuple_df = DataFrame()
-        tuple_df[Symbol(tuple_name)] = [tuple(convert(Array, x)...) for x in DataFrames.eachrow(append_df[:, cols])]
-        tuple_df[:obsid]             = [convert(String, x) for x in append_df[:, :obsid]]
+        tuple_df[Symbol(tuple_name)] = [tuple(convert(Array, x)...) for x in DataFrames.eachrow(append_df[cols])]
+        tuple_df[:obsid]             = [convert(String, x) for x in append_df[:obsid]]
 
         append_df = join(append_df, tuple_df, on=:obsid)
 
-        append_df = append_df[:, setdiff(names(append_df), cols)]
+        append_df = append_df[setdiff(names(append_df), cols)]
     end
 
     return append_df
@@ -442,10 +442,33 @@ end
 
 Joins the `master_df` (raw, unedited HEASARC master table) and the `append_df`
 `DataFrame`s together on `:obsid`, returns the joined tables
-"""
-function master_a(mission_name)
-    master_df = master(mission_name)
-    append_df = append(mission_name)
 
-    return join(master_df, append_df, on=:obsid)
+Uses some metaprogramming magic to load the master table to a global module value 
+at first run to speed up future calls
+
+TODO: Make this work after master table updates
+"""
+function master_a(mission_name; cache=true)
+    master_df_var = Symbol(mission_name, "_master_df")
+    
+    if cache
+        if isdefined(JAXTAM, master_df_var)
+            @assert typeof(getproperty(JAXTAM, master_df_var)) == DataFrames.DataFrame
+            @debug "Using cached master_df"
+            return getproperty(JAXTAM, master_df_var)
+        else cache
+            master_df = master(mission_name)
+            append_df = append(mission_name)
+            master_df_a = join(master_df, append_df, on=:obsid)
+
+            eval(:(global $master_df_var = $master_df_a))
+
+            return getproperty(JAXTAM, master_df_var)
+        end
+    else
+        master_df = master(mission_name)
+        append_df = append(mission_name)
+        master_df_a = join(master_df, append_df, on=:obsid)
+        return master_df_a
+    end
 end
