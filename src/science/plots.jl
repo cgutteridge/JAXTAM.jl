@@ -1,19 +1,92 @@
 # Helper functions
 
-function _savefig_obsdir(obs_row::DataFrames.DataFrame, bin_time::Number, subfolder::String, fig_name::String)
-    plot_dir = joinpath(obs_row[1, :obs_path], "JAXTAM/lc/$bin_time/images/", subfolder)
+function _nested_dict_gen(keys::Array{String,1}, val::String)  
+    no_keys = length(keys)
 
-    plot_path = joinpath(plot_dir, fig_name)
+    d_out = Dict{Any,Any}(keys[end] => val)
+    for i in 1:no_keys-1
+        d_out = Dict{Any,Any}(keys[no_keys-i] => d_out)
+    end
 
-    mkpath(plot_dir)
-
-    savefig(plot_path)
-    @info "Saved $(plot_path)"
+    return d_out
 end
 
-function _savefig_obsdir(mission_name, obsid, bin_time, fig_name)
-    obs_row = master_query(mission_name, :obsid, obsid)
-    _savefig_obsdir(obs_row, bin_time, fig_name)
+function savefig(mission::Symbol, obs_row::DataFrames.DataFrame, e_range::Tuple, plot_type::Symbol, plot_name::String; kwargs...)
+    kwargs = Dict(kwargs)
+
+    plot_dir = joinpath(obs_row[1, :obs_path], "JAXTAM/images/")
+    
+    plot_dir = joinpath(plot_dir, "$(e_range[1])_$(e_range[2])")
+    
+    optional_args = [:bin_time, :bin_size_sec]
+    for arg in optional_args
+        if haskey(kwargs, arg)
+            if arg == :bin_time
+                bin_time = "2e$(Int(log2(kwargs[:bin_time])))"; bin_time = replace(bin_time, "-"=>"m")
+                plot_dir = joinpath(plot_dir, bin_time)
+            else
+                plot_dir = joinpath(plot_dir, string(kwargs[arg]))
+            end
+        end
+    end
+    
+    plot_dir = joinpath(plot_dir, string(plot_type))
+    
+    if haskey(kwargs, :group)
+        plot_dir  = joinpath(plot_dir, "groups")
+        plot_name = "$(kwargs[:group])_$(plot_name)"
+    end
+    
+    plot_path = joinpath(plot_dir, string(plot_name, ".png"))
+    rel_path  = replace(plot_path, string(obs_row[1, :obs_path], "/JAXTAM/")=>"")
+
+    log_dict = _nested_dict_gen(
+        string.(replace.(split(rel_path, "/"), ".png"=>"")),
+        string("./JAXTAM/", rel_path)
+    )
+
+    _log_append(mission, obs_row, log_dict)
+
+    mkpath(plot_dir); Plots.savefig(plot_path)
+    @info "Saved $plot_path"
+
+    return plot_path
+end
+
+function savefig(plot_data::JAXTAMData, obs_row::DataFrames.DataFrame, e_range::Tuple; plot_name::String="", kwargs...)
+    mission = plot_data.mission
+
+    types_unbinned = [ESpec]
+    types_binned   = [BinnedData, PgramData]
+    types_binsec   = [FFTData, FFTSpec, PulseC]
+
+    plot_type_symbols = Dict(
+        ESpec      => :espec,
+        BinnedData => :lcurve,
+        PgramData  => :pgram,
+        FFTData    => :fspec,
+        FFTSpec    => :sgram,
+        PulseC     => :pulsec
+    )
+
+    plot_type = plot_type_symbols[typeof(plot_data)]
+
+    if plot_name == ""
+        plot_name = string(plot_type)
+    end
+
+    plot_path = if any(isa.(plot_data, types_unbinned))
+        savefig(mission, obs_row, e_range, plot_type, plot_name; kwargs...)
+    elseif any(isa.(plot_data, types_binned))
+        savefig(mission, obs_row, e_range, plot_type, plot_name; bin_time=plot_data.bin_time, kwargs...)
+    elseif any(isa.(plot_data, types_binsec))
+        bss = plot_data.bin_time * plot_data.bin_size
+        savefig(mission, obs_row, e_range, plot_type, plot_name; bin_time=plot_data.bin_time, bin_size_sec=bss, kwargs...)
+    else
+        @error "Data type not found in savefig configuration"
+    end
+
+    return plot_path
 end
 
 """
@@ -72,7 +145,7 @@ end
 
 # Lightcurve plotting functions
 
-function plot!(data::BinnedData; lab="", size_in=(1140,400), save=false, title_append="", logy=false)
+function plot!(data::BinnedData; lab="", size_in=(1140,400), title_append="", logy=false)
     bin_time_pow2 = Int(log2(data.bin_time))
 
     Plots.plot()
@@ -84,10 +157,10 @@ function plot!(data::BinnedData; lab="", size_in=(1140,400), save=false, title_a
         lab=lab, alpha=1, title=plot_title)
 
     # NOTE: Disabled GTI start/stop label
-    Plots.vline!(data.gtis[:, 2], lab="",  alpha=0.75)
-    Plots.vline!(data.gtis[:, 1], lab="", alpha=0.75)
+    Plots.vline!(data.gtis[2], lab="",  alpha=0.75)
+    Plots.vline!(data.gtis[1], lab="", alpha=0.75)
 
-    count_min = maximum([minimum(data.counts[data.counts != 0]), 0.1])
+    count_min = maximum([minimum(data.counts[data.counts .!= 0]), 0.1])
     count_max = maximum(data.counts)
     if logy
         log10_min = count_min > 1 ? prevpow(10, count_min) : 1/prevpow(10, 1/count_min)
@@ -110,10 +183,6 @@ function plot!(data::BinnedData; lab="", size_in=(1140,400), save=false, title_a
 
     Plots.plot!(size=size_in)
 
-    if save
-        _savefig_obsdir(data.mission, data.obsid, data.bin_time, NaN, "lc", "$(data.instrument)_lcurve.png")
-    end
-
     _plot_formatter!()
     return Plots.plot!()
 end
@@ -121,20 +190,20 @@ end
 function plot(instrument_data::Dict{Symbol,JAXTAM.BinnedData}; size_in=(1140,400), save=false, title_append="")
     instruments = keys(instrument_data)
 
-    example_lc = _recursive_first(instrument_data)
-    (e_min, e_max) = (config(example_lc.mission).good_energy_min, config(example_lc.mission).good_energy_max)
+    example = _recursive_first(instrument_data)
+    (e_min, e_max) = (config(example.mission).good_energy_min, config(example.mission).good_energy_max)
     title_append = string(" - $e_min to $e_max keV", title_append)
 
     plt = Plots.plot()
     
     # NOTE: Disable instrument label
     for instrument in instruments
-        plt = plot!(instrument_data[Symbol(instrument)]; lab="", save=false, title_append=title_append)
+        plt = plot!(instrument_data[Symbol(instrument)]; lab="", title_append=title_append)
     end
 
     if save
-        obs_row    = master_query(example_lc.mission, :obsid, example_lc.obsid)
-        _savefig_obsdir(obs_row, example_lc.bin_time, "lc", "lcurve.png")
+        obs_row = master_query(example.mission, :obsid, example.obsid)
+        savefig(example, obs_row, (e_min, e_max))
     end
 
     return Plots.plot!(size=size_in)
@@ -145,9 +214,9 @@ function plot_groups(instrument_data::Dict{Symbol,JAXTAM.BinnedData}; size_in=(1
 
     group_plots = Dict{Symbol,Dict{Int64,Plots.Plot}}()
 
-    example_gti = _recursive_first(instrument_data)
-    (e_min, e_max) = (config(example_gti.mission).good_energy_min, config(example_gti.mission).good_energy_max)
-    obs_row     = master_query(example_gti.mission, :obsid, example_gti.obsid)
+    example = _recursive_first(instrument_data)
+    (e_min, e_max) = (config(example.mission).good_energy_min, config(example.mission).good_energy_max)
+    obs_row = master_query(example.mission, :obsid, example.obsid)
 
     for instrument in instruments
         instrument_group_data  = _group_return(instrument_data[instrument])
@@ -156,15 +225,15 @@ function plot_groups(instrument_data::Dict{Symbol,JAXTAM.BinnedData}; size_in=(1
         availabel_groups = collect(keys(instrument_group_data))
 
         for group in availabel_groups
-            group_lc = instrument_group_data[group]
+            group_data = instrument_group_data[group]
 
             title_append = " - $e_min to $e_max keV - group $group/$(maximum(availabel_groups))"
 
-            instrument_group_plots[group] = plot(Dict(instrument=>group_lc); save=false,
+            instrument_group_plots[group] = plot(Dict(instrument=>group_data); save=false,
                     title_append=title_append, size_in=size_in)
 
             if save
-                _savefig_obsdir(obs_row, group_lc.bin_time, "lc/groups/", "$(group)_lcurve.png")
+                savefig(group_data, obs_row, (e_min, e_max); group=group)
             end
         end
 
@@ -178,7 +247,7 @@ end
 
 function plot!(data::FFTData; title_append="", norm=:rms, rebin=(:log10, 0.01), freq_lims=(:start, :end),
         lab="", logx=true, logy=true, show_errors=true,
-        size_in=(1140,900), save=false
+        size_in=(1140,900)
     )
     bin_time_pow2 = Int(log2(data.bin_time))
 
@@ -210,9 +279,7 @@ function plot!(data::FFTData; title_append="", norm=:rms, rebin=(:log10, 0.01), 
     ylab = ""
     
     if norm == :rms
-        
         src_ctrate = mean(data.src_ctrate); bkg_ctrate = mean(data.bkg_ctrate)
-        
         rms_factor = 1
         if bkg_ctrate == 0.0
             rms_factor = 1/src_ctrate
@@ -267,10 +334,6 @@ function plot!(data::FFTData; title_append="", norm=:rms, rebin=(:log10, 0.01), 
     Plots.plot!(alpha=1,
         title="FFT - $(data.obsid) - $e_min to $e_max keV - 2^$(bin_time_pow2) bt - $(data.bin_size*data.bin_time) bs - $rebin rebin - $(data.bin_count) - sections averaged$title_append")
 
-    if save
-        _savefig_obsdir(data.mission, data.obsid, data.bin_time, "fspec.png")
-    end
-
     _plot_formatter!()
     return Plots.plot!(size=size_in)
 end
@@ -281,23 +344,24 @@ function plot(instrument_data::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}}; title_ap
 
     plt = Plots.plot()
     
-    example_gti = _recursive_first(instrument_data)
+    example = _recursive_first(instrument_data)
+    (e_min, e_max) = (config(example.mission).good_energy_min, config(example.mission).good_energy_max)
 
     for instrument in instruments # NOTE: Disabled instrument label `String(instrument)`
         plt = JAXTAM.plot!(instrument_data[Symbol(instrument)][-1]; title_append=title_append, freq_lims=freq_lims,
-            norm=norm, rebin=rebin, logx=logx, logy=logy, lab="", show_errors=show_errors, save=false)
+            norm=norm, rebin=rebin, logx=logx, logy=logy, lab="", show_errors=show_errors)
 
         if save_csv
-            obs_row = master_query(example_gti.mission, :obsid, example_gti.obsid)
-            _save_plot_data_csv(obs_row, example_gti.bin_time,
-                "fspec/$(example_gti.bin_size*example_gti.bin_time)", "fspec.csv";
+            obs_row = master_query(example.mission, :obsid, example.obsid)
+            _save_plot_data_csv(obs_row, example.bin_time,
+                "fspec/$(example.bin_size*example.bin_time)", "fspec.csv";
                 freq=plt.series_list[1].d[:x], power=plt.series_list[1].d[:y], power_error=plt.series_list[1].d[:yerror])
         end
     end
 
     if save
-        obs_row = master_query(example_gti.mission, :obsid, example_gti.obsid)
-        _savefig_obsdir(obs_row, example_gti.bin_time, "fspec/$(example_gti.bin_size*example_gti.bin_time)", "fspec.png")
+        obs_row = master_query(example.mission, :obsid, example.obsid)
+        savefig(example, obs_row, (e_min, e_max))
     end
 
     return Plots.plot!(size=size_in)
@@ -310,8 +374,9 @@ function plot_groups(instrument_data::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}};
 
     group_plots = Dict{Symbol,Dict{Int64,Plots.Plot}}()
 
-    example_gti = _recursive_first(instrument_data)
-    obs_row     = master_query(example_gti.mission, :obsid, example_gti.obsid)
+    example = _recursive_first(instrument_data)
+    obs_row = master_query(example.mission, :obsid, example.obsid)
+    (e_min, e_max) = (config(example.mission).good_energy_min, config(example.mission).good_energy_max)
 
     for instrument in instruments
         availabel_groups = unique([gti.group for gti in values(instrument_data[instrument])])
@@ -335,9 +400,8 @@ function plot_groups(instrument_data::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}};
                     title_append=title_append)
             
             if save
-                data = instrument_data_group[gtis_in_group[1]]
-                _savefig_obsdir(obs_row, data.bin_time,
-                    "fspec/$(data.bin_size.*data.bin_time)/groups/", "$(group)_fspec.png")
+                group_data = instrument_data_group[gtis_in_group[1]]
+                savefig(group_data, obs_row, (e_min, e_max); group=group)
             end
 
         end
@@ -349,6 +413,8 @@ function plot_groups(instrument_data::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}};
 end
 
 # Energy Spectra plotting functions
+
+struct ESpec end
 
 function plot_energy!(data::JAXTAM.InstrumentData; e_lims=:auto, size_in=(1140,400), save=false, title_append="")
     mission_config = config(data.mission)
@@ -454,10 +520,11 @@ function plot(instrument_data::Dict{Symbol,JAXTAM.PgramData};
     end
 
     if save
-        example_pgram = _recursive_first(instrument_data)
-        obs_row       = master_query(example_pgram.mission, :obsid, example_pgram.obsid)
-        _savefig_obsdir(obs_row, example_pgram.bin_time,
-            "pgram", "$(example_pgram.pg_type)_pgram.png")
+        example = _recursive_first(instrument_data)
+        obs_row = master_query(example.mission, :obsid, example.obsid)
+        (e_min, e_max) = (config(example.mission).good_energy_min, config(example.mission).good_energy_max)
+
+        savefig(example, obs_row, (e_min, e_max))
     end
 
     return Plots.plot!(size=size_in)
@@ -469,8 +536,9 @@ function plot_groups(instrument_data::Dict{Symbol,Dict{Int64,JAXTAM.PgramData}};
 
     instruments = keys(instrument_data)
 
-    example_pgram = _recursive_first(instrument_data)
-    obs_row       = master_query(example_pgram.mission, :obsid, example_pgram.obsid)
+    example = _recursive_first(instrument_data)
+    obs_row = master_query(example.mission, :obsid, example.obsid)
+    (e_min, e_max) = (config(example.mission).good_energy_min, config(example.mission).good_energy_max)
 
     group_plots = Dict{Symbol,Dict{Int64,Plots.Plot}}()
     for instrument in instruments
@@ -485,8 +553,7 @@ function plot_groups(instrument_data::Dict{Symbol,Dict{Int64,JAXTAM.PgramData}};
                 title_append=title_append, size_in=size_in, save=false)
 
             if save
-                _savefig_obsdir(obs_row, example_pgram.bin_time,
-                "pgram/groups/", "$(group)_pgram.png")
+                savefig(example, obs_row, (e_min, e_max))
             end
         end
 
@@ -497,6 +564,13 @@ function plot_groups(instrument_data::Dict{Symbol,Dict{Int64,JAXTAM.PgramData}};
 end
 
 # Spectrogram plotting functions
+
+struct FFTSpec <: JAXTAMData 
+    mission::Symbol
+    bin_time::Real
+    bin_size::Int
+end
+FFTSpec(fs::JAXTAM.FFTData) = FFTSpec(fs.mission, fs.bin_time, fs.bin_size)
 
 function _plot_sgram(sgram_freq, sgram_power, sgram_bounds, sgram_groups,
         e_min, e_max, obsid, bin_time_pow2, bin_size, bin_time, rebin, size_in, disable_x=true)
@@ -526,23 +600,23 @@ function plot_sgram(fs::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}};
 
     sgram_instrument_plots = Dict{Symbol,Plots.Plot}()
     for instrument in instruments
-        example_data = fs[instrument][-1]
-        bin_time_pow2 = Int(log2(example_data.bin_time))
+        example = fs[instrument][-1]
+        bin_time_pow2 = Int(log2(example.bin_time))
 
         sgram_freq, sgram_power, sgram_bounds, sgram_groups = fspec_rebin_sgram(fs[instrument], rebin=rebin)
         sgram_power = (sgram_power .- 2) .* sgram_freq
         sgram_power[sgram_power .<= 0] .= 0
         sgram_power = sgram_power'
 
-        (e_min, e_max) = (config(example_data.mission).good_energy_min, config(example_data.mission).good_energy_max)
+        (e_min, e_max) = (config(example.mission).good_energy_min, config(example.mission).good_energy_max)
 
         sgram_instrument_plots[instrument] = _plot_sgram(sgram_freq, sgram_power, sgram_bounds, sgram_groups,
-            e_min, e_max, example_data.obsid, bin_time_pow2, example_data.bin_size, example_data.bin_time, rebin,
+            e_min, e_max, example.obsid, bin_time_pow2, example.bin_size, example.bin_time, rebin,
             size_in)
 
         if save
-            obs_row = master_query(example_data.mission, :obsid, example_data.obsid)
-            _savefig_obsdir(obs_row, example_data.bin_time, "sgram/$(example_data.bin_size*example_data.bin_time)", "sgram.png")
+            obs_row = master_query(example.mission, :obsid, example.obsid)
+            savefig(FFTSpec(example), obs_row, (e_min, e_max))
         end
     end
 
@@ -550,6 +624,13 @@ function plot_sgram(fs::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}};
 end
 
 # Pulsation Check Candle Plotting
+
+struct PulseC  <: JAXTAMData
+    mission::Symbol
+    bin_time::Real
+    bin_size::Int
+end
+PulseC(fs::JAXTAMData) = PulseC(fs.mission, fs.bin_time, fs.bin_size)
 
 function _plot_pulses_candle(
         power, freq, power_limit,
@@ -576,6 +657,7 @@ function _plot_pulses_candle(
     Plots.plot()
     _log10_minor_ticks!(0.01, 4096)
     Plots.plot!(freq, power, line=:sticks, lab="")
+
     return Plots.scatter!(freq, power, lab="", alpha=0.5)
 end
 
@@ -584,14 +666,14 @@ function plot_pulses_candle(fs::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}};
 
     plots_candle = Dict{Symbol,Plots.Plot}()
 
-    example_data = _recursive_first(fs)
+    example = _recursive_first(fs)
 
-    mission_config = config(example_data.mission)
+    mission_config = config(example.mission)
     e_min, e_max = (mission_config.good_energy_min, mission_config.good_energy_max)
-    bin_time_pow2 = Int(log2(example_data.bin_time))
-    bin_time = example_data.bin_time
-    bin_size = example_data.bin_size
-    obsid = example_data.obsid
+    bin_time_pow2 = Int(log2(example.bin_time))
+    bin_time = example.bin_time
+    bin_size = example.bin_size
+    obsid = example.obsid
     
     instruments = keys(fs)
     for instrument in instruments
@@ -614,8 +696,8 @@ function plot_pulses_candle(fs::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}};
         plots_candle[instrument] = Plots.plot!(size=size_in)
 
         if save
-            obs_row = master_query(example_data.mission, :obsid, example_data.obsid)
-            _savefig_obsdir(obs_row, example_data.bin_time, "pulse/$(example_data.bin_size*example_data.bin_time)", "pulse.png")
+            obs_row = master_query(example.mission, :obsid, example.obsid)
+            savefig(PulseC(example), obs_row, (e_min, e_max))
         end
     end
 
@@ -627,14 +709,14 @@ function plot_pulses_candle_groups(fs::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}};
 
     instruments = keys(fs)
 
-    example_fs = _recursive_first(fs)
-    obs_row    = master_query(example_fs.mission, :obsid, example_fs.obsid)
-    mission_config = config(example_fs.mission)
+    example = _recursive_first(fs)
+    obs_row    = master_query(example.mission, :obsid, example.obsid)
+    mission_config = config(example.mission)
     e_min, e_max = (mission_config.good_energy_min, mission_config.good_energy_max)
-    bin_time_pow2 = Int(log2(example_fs.bin_time))
-    bin_time = example_fs.bin_time
-    bin_size = example_fs.bin_size
-    obsid = example_fs.obsid
+    bin_time_pow2 = Int(log2(example.bin_time))
+    bin_time = example.bin_time
+    bin_size = example.bin_size
+    obsid = example.obsid
 
     group_plots = Dict{Symbol,Dict{Int64,Plots.Plot}}()
     for instrument in instruments
@@ -666,8 +748,7 @@ function plot_pulses_candle_groups(fs::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}};
             instrument_group_plots[group] = Plots.plot!(size=size_in)
 
             if save
-                _savefig_obsdir(obs_row, example_fs.bin_time,
-                "pulse/$(example_fs.bin_size*example_fs.bin_time)/groups/", "$(group)_pulses.png")
+                savefig(PulseC(), obs_row, (e_min, e_max); group=group)
             end
         end
 
@@ -710,7 +791,7 @@ function plot_pulses(fs::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}};
 
         if save
             obs_row = master_query(example_data.mission, :obsid, example_data.obsid)
-            _savefig_obsdir(obs_row, example_data.bin_time, "pulse/$(example_data.bin_size*example_data.bin_time)", "pulse.png")
+            _savefig_obsdir(example_data.mission, obs_row, example_data.bin_time, "pulse/$(example_data.bin_size*example_data.bin_time)", "pulse.png")
         end
     end
 

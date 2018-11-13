@@ -1,4 +1,4 @@
-struct PgramData
+struct PgramData <: JAXTAMData
     mission    :: Symbol
     instrument :: Symbol
     obsid      :: String
