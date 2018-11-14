@@ -234,6 +234,7 @@ function read_cl(mission_name::Symbol, obs_row::DataFrames.DataFrame; overwrite=
         mission_data = read_cl_fits(mission_name, obs_row)
 
         instruments = keys(mission_data)
+        src_ctrate = 0
         for instrument in instruments
             @info "Saving $(string(instrument))"
 
@@ -249,7 +250,13 @@ function read_cl(mission_name::Symbol, obs_row::DataFrames.DataFrame; overwrite=
                 _save_cl_feather(JAXTAM_path, mission_data[instrument].instrument, mission_data[instrument].events,
                     mission_data[instrument].gtis, mission_data[instrument].header)
             end
+
+            src_ctrate += mission_data[instrument].header[1, :SRC_RT]
         end
+
+        src_ctrate = src_ctrate/length(instruments)
+
+        _log_append(mission_name, obs_row, Dict("meta"=>Dict("src_ctrate"=>src_ctrate)))
     end
 
     return mission_data
