@@ -1,56 +1,18 @@
 # Helper functions
 
-function _nested_dict_gen(keys::Array{String,1}, val::String)  
-    no_keys = length(keys)
-
-    d_out = Dict{Any,Any}(keys[end] => val)
-    for i in 1:no_keys-1
-        d_out = Dict{Any,Any}(keys[no_keys-i] => d_out)
-    end
-
-    return d_out
-end
-
-function savefig(mission::Symbol, obs_row::DataFrames.DataFrame, e_range::Tuple, plot_type::Symbol, plot_name::String; kwargs...)
+function savefig(mission::Symbol, obs_row::DataFrames.DataFrame, e_range::Tuple, kind::Symbol, plot_name::String; kwargs...)
     kwargs = Dict(kwargs)
 
-    plot_dir = joinpath(obs_row[1, :obs_path], "JAXTAM/images/")
-    
-    plot_dir = joinpath(plot_dir, "$(e_range[1])_$(e_range[2])")
-    
-    optional_args = [:bin_time, :bin_size_sec]
-    for arg in optional_args
-        if haskey(kwargs, arg)
-            if arg == :bin_time
-                bin_time = "2e$(Int(log2(kwargs[:bin_time])))"; bin_time = replace(bin_time, "-"=>"m")
-                plot_dir = joinpath(plot_dir, bin_time)
-            else
-                plot_dir = joinpath(plot_dir, string(kwargs[arg]))
-            end
-        end
-    end
-    
-    plot_dir = joinpath(plot_dir, string(plot_type))
-    
-    if haskey(kwargs, :group)
-        plot_dir  = joinpath(plot_dir, "groups")
-        plot_name = "$(kwargs[:group])_$(plot_name)"
-    end
-    
-    plot_path = joinpath(plot_dir, string(plot_name, ".png"))
-    rel_path  = replace(plot_path, string(obs_row[1, :obs_path], "/JAXTAM/")=>"")
+    obs_log = _log_entry(; category=:images, e_range=e_range, kind=kind, file_name=string(plot_name, ".png"), kwargs...)
 
-    log_dict = _nested_dict_gen(
-        string.(replace.(split(rel_path, "/"), ".png"=>"")),
-        string("./JAXTAM/", rel_path)
-    )
+    plot_path_abs = replace(obs_log[1, :path], "./"=>joinpath(obs_row[1, :obs_path], "JAXTAM/"), count=1)
 
-    _log_append(mission, obs_row, log_dict)
+    mkpath(dirname(plot_path_abs)); Plots.savefig(plot_path_abs)
+    @info "Saved $plot_path_abs"
 
-    mkpath(plot_dir); Plots.savefig(plot_path)
-    @info "Saved $plot_path"
+    _log_add(mission, obs_row, obs_log)
 
-    return plot_path
+    return plot_path_abs
 end
 
 function savefig(plot_data::JAXTAMData, obs_row::DataFrames.DataFrame, e_range::Tuple; plot_name::String="", kwargs...)
@@ -114,17 +76,20 @@ function _plot_formatter!()
 end
 
 function _log10_minor_ticks!(start=0.01, stop=4096)
-    start < 1 ? start = 1/prevpow(10, 1/start) : start = prevpow(10, start)
+    start < 1 ? start = 1/nextpow(10, 1/start) : start = prevpow(10, start)
     stop  < 1 ? stop  = 1/prevpow(10, 1/stop)  : stop  = nextpow(10, stop)
 
     segments = Int(log10(stop./start)+1)
-    ranges   = repeat(2:9, inner=(1, segments)) # Skip powers of 10 (1, 10) to avoid redrawing
+    ranges   = repeat(1:9, inner=(1, segments)) # Skip powers of 10 (1, 10) to avoid redrawing
 
     segment_mults = 10 .^(0:segments-1) .* start
-    segment_mults = repeat(segment_mults', outer=(8,1))
+    segment_mults = repeat(segment_mults', outer=(9,1))
 
     log10_minors = ranges .* segment_mults
-    vline!(log10_minors[:], color=:grey, alpha=0.2, lab="")
+
+    vline!(log10_minors[2:end, :][:], color=:grey, alpha=0.2, lab="")
+
+    return log10_minors[1, :]
 end
 
 function _save_plot_data_csv(obs_row, bin_time, subfolder, file_name; kwargs...)
@@ -316,7 +281,7 @@ function plot!(data::FFTData; title_append="", norm=:rms, rebin=(:log10, 0.01), 
 
     if logx
         xaxis!(xscale=:log10, xformatter=xi->xi, xlim=(freq_min, freq[end]), xlab="Freq (Hz) - log10")
-        _log10_minor_ticks!()
+        _log10_minor_ticks!(freq_min, freq[end])
     else
         xaxis!(xlab="Freq (Hz)", xlim=(freq_min,freq_max))
     end
@@ -492,10 +457,17 @@ function plot!(data::PgramData; title_append="", rebin=(:linear, 1),
         # TODO: Look at/fix the manual ylim settings, since it seems to... make things worse usually
         # power_min > 1 ? ylim = (prevpow(10, power_min), nextpow(10, power_max)) : ylim = (1, nextpow(10, power_max))
         yaxis!(yscale=:log10, yformatter=yi->round(yi, sigdigits=3), ylims=(power_min,power_max))
+    else
+        yaxis!(ylims=(maximum([0.0, minimum(power[2:end])]), maximum(power[2:end])*1.1))
     end
 
+    xlim = (freq[2], freq[end])
     if logx
-        xaxis!(xscale=:log10)
+        xaxis!(xscale=:log10, xformatter=xi->xi, xlim=xlim, xlab="Freq (Hz) - log10")
+        pow10_ticks = _log10_minor_ticks!(xlim[1], xlim[2])
+        xticks!(pow10_ticks)
+    else
+        xaxis!(xlab="Freq (Hz)", xlim=xlim)
     end
     
     # NOTE: Disabled instrument and pgram type label `lab="$lab - $(data.pg_type)"`
@@ -507,7 +479,7 @@ function plot!(data::PgramData; title_append="", rebin=(:linear, 1),
 end
 
 function plot(instrument_data::Dict{Symbol,JAXTAM.PgramData};
-        rebin=(:linear, 1), logx=false, logy=false, save=false,
+        rebin=(:linear, 1), logx=true, logy=false, save=false,
         size_in=(1140,600), title_append="")
 
     instruments = keys(instrument_data)
@@ -531,7 +503,7 @@ function plot(instrument_data::Dict{Symbol,JAXTAM.PgramData};
 end
 
 function plot_groups(instrument_data::Dict{Symbol,Dict{Int64,JAXTAM.PgramData}};
-    rebin=(:linear, 1), logx=false, logy=true, save=false,
+    rebin=(:linear, 1), logx=true, logy=false, save=false,
     size_in=(1140,600), title_append="")
 
     instruments = keys(instrument_data)
@@ -553,7 +525,7 @@ function plot_groups(instrument_data::Dict{Symbol,Dict{Int64,JAXTAM.PgramData}};
                 title_append=title_append, size_in=size_in, save=false)
 
             if save
-                savefig(example, obs_row, (e_min, e_max))
+                savefig(example, obs_row, (e_min, e_max); group=group)
             end
         end
 
@@ -689,7 +661,7 @@ function plot_pulses_candle(fs::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}};
         Plots.title!("Pulsations - $obsid - $e_min to $e_max keV - 2^$(bin_time_pow2) bt - $(bin_size*bin_time) bs")
 
         xaxis!(xscale=:log10, xformatter=xi->xi, xlim=(0.01, freq[end, 1]), xlab="Freq [Hz] - log10")
-        yaxis!(ylab=("Amplitude (Leahy) >= $power_limit"))
+        yaxis!(ylab=("Amplitude (Leahy) >= $power_limit"), ylims=(power_limit, maximum(power[2:end, :])*1.1))
 
         _plot_formatter!()
 
@@ -741,14 +713,14 @@ function plot_pulses_candle_groups(fs::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}};
             Plots.title!("Pulsations - $obsid - $e_min to $e_max keV - 2^$(bin_time_pow2) bt - $(bin_size*bin_time) bs$title_append")
 
             xaxis!(xscale=:log10, xformatter=xi->xi, xlim=f_lims, xlab="Freq [Hz] - log10")
-            yaxis!(ylab=("Amplitude (Leahy) >= $power_limit"))
+            yaxis!(ylab=("Amplitude (Leahy) >= $power_limit"), ylims=(power_limit, maximum(power[2:end, :])*1.1))
     
             _plot_formatter!()
 
             instrument_group_plots[group] = Plots.plot!(size=size_in)
 
             if save
-                savefig(PulseC(), obs_row, (e_min, e_max); group=group)
+                savefig(PulseC(example), obs_row, (e_min, e_max); group=group)
             end
         end
 

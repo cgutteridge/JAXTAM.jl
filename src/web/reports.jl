@@ -33,13 +33,14 @@ function report(mission_name, obsid; overwrite=false, nuke=false)
         rm(JAXTAM_path, recursive=true)
     end
 
-    if isdir(JAXTAM_path)
-        images = _webgen_subpage_findimg(JAXTAM_path)
+    obs_log = _log_read(mission_name, obs_row)
+    img_count = if haskey(obs_log, "images")
+        size(obs_log["images"], 1)
     else
-        images = []
+        0
     end
 
-    if size(images, 1) < 1 || overwrite
+    if img_count < 1 || overwrite
         lc = JAXTAM.lcurve(mission_name, obs_row, 2.0^0)
         JAXTAM.plot(lc; save=true); JAXTAM.plot_groups(lc; save=true, size_in=(1140,400/2))
         pg = JAXTAM.pgram(lc); JAXTAM.plot(pg; save=true);
@@ -49,9 +50,9 @@ function report(mission_name, obsid; overwrite=false, nuke=false)
         JAXTAM.lcurve(mission_name, obs_row, 2.0^-13); GC.gc()
 
         fs = JAXTAM.fspec(mission_name, obs_row, 2.0^-13, 128)
-        @info "Plotting fspec grid";    JAXTAM._plot_fspec_grid(fs, obs_row, mission_name, 2.0^-13, "fspec/128.0/", "fspec.png")
+        @info "Plotting fspec grid";    JAXTAM._plot_fspec_grid(fs, obs_row)
         @info "Plotting fspec groups";  JAXTAM.plot_groups(fs; save=true, size_in=(1140,600/2))
-        @info "Plotting sgram";         JAXTAM.plot_sgram(fs;  save=true, size_in=(1140,600/2))
+        @info "Plotting sgram";         JAXTAM.plot_sgram(fs;  save=true, size_in=(1140,600))
         @info "Plotting pulses";        JAXTAM.plot_pulses_candle(fs; save=true, size_in=(1140,600/2))
         @info "Plotting pulses groups"; JAXTAM.plot_pulses_candle_groups(fs; save=true, size_in=(1140,600/2))
         fs = 0; GC.gc()

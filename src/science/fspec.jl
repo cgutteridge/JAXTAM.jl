@@ -29,7 +29,7 @@ function _fft(counts::Array, times::StepRangeLen, bin_time::Real, fspec_bin_size
     counts = counts[1:Int(spec_no*fspec_bin_size)]
     counts = reshape(counts, fspec_bin_size, spec_no)
 
-    src_ctrate = mean(counts, 1)./bin_time
+    src_ctrate = mean(counts, dims=1)./bin_time
 
     power = abs.(rfft(counts))
     freq = Array(rfftfreq(fspec_bin_size, 1/bin_time))

@@ -86,11 +86,8 @@ function _add_append_downloaded!(append_df, mission_name)
     for (i, obspath) in enumerate(append_df[:obs_path])
         cl_files    = append_df[i, :event_cl]
         cl_files_gz = string.(append_df[i, :event_cl], ".gz")
-        if all(isfile.(cl_files)) || all(isfile.(cl_files_gz))
-            append_downloaded[i] = true
-        else
-            append_downloaded[i] = false
-        end
+
+        append_downloaded[i] = all(isfile.(cl_files)) || all(isfile.(cl_files_gz))
     end
 
     return append_df[:downloaded] = append_downloaded
@@ -114,57 +111,48 @@ function _add_append_analysed!(append_df, mission_name)
 end
 
 """
-    _add_append_results!(append_df, mission_name)
+    _add_append_reports!(append_df, mission_name)
 
-Appends column of `String`, if the `results.html` file exists for an observation
+Appends column of `String`, if the `reports.html` file exists for an observation
 the path to the file is returned, otherwise "NA" is returned
 """
-function _add_append_results!(append_df, mission_name)
-    append_resultspath = Array{String,1}(undef, size(append_df, 1))
+function _add_append_reports!(append_df, mission_name)
+    append_report_path = Array{String,1}(undef, size(append_df, 1))
 
     path_obs = config(mission_name).path
     path_web = config(mission_name).path_web
 
     for (i, obspath) in enumerate(append_df[:obs_path])
-        results_page_dir = replace(obspath, path_obs => path_web)
-        results_page_path = joinpath(results_page_dir, "result.html")
-        if isfile(results_page_path)
-            append_resultspath[i] = replace(results_page_path, path_web => "./")
-        else
-            append_resultspath[i] = "NA"
-        end
+        report_page_dir  = replace(obspath, path_obs => path_web)
+        report_page_path = joinpath(report_page_dir, "JAXTAM/report.html")
         
+        append_report_path[i] = report_page_path # replace(report_page_path, path_web => "./")        
     end
 
-    return append_df[:results_path] = append_resultspath
+    return append_df[:report_path] = append_report_path
 end
 
 """
-    _add_append_results_exist!(append_df, mission_name)
+    _add_append_report_exists!(append_df, mission_name)
 
 Appends column of `Union{Bool,Missing}`, true if the `JAXTAM` directory exists
 
 TODO: Improve this function, currently an empty `JAXTAM` folder means it has been analysed
 """
-function _add_append_results_exist!(append_df, mission_name)
-    append_results_exist = Array{Union{Bool,Missing},1}(undef, size(append_df, 1))
+function _add_append_report_exists!(append_df, mission_name)
+    append_report_exists = Array{Union{Bool,Missing},1}(undef, size(append_df, 1))
 
     base_path = config(mission_name).path_web
 
-    for (i, results_path) in enumerate(append_df[:results_path])
-        if results_path == "NA"
-            append_results_exist[i] = false
+    for (i, report_path) in enumerate(append_df[:report_path])
+        if report_path == "NA"
+            append_report_exists[i] = false
         else
-            abs_path = string(base_path, results_path[2:end])
-            if isfile(abs_path)
-                append_results_exist[i] = true
-            else
-                append_results_exist[i] = false
-            end
+            append_report_exists[i] = isfile(report_path)
         end
     end
 
-    return append_df[:results_exist] = append_results_exist
+    return append_df[:report_exists] = append_report_exists
 end
 
 """
@@ -181,8 +169,8 @@ function _append_gen(mission_name, master_df)
     _add_append_cl!(append_df, master_df, mission_name)
     _add_append_downloaded!(append_df, mission_name)
     _add_append_analysed!(append_df, mission_name)
-    _add_append_results!(append_df, mission_name)
-    _add_append_results_exist!(append_df, mission_name)
+    _add_append_reports!(append_df, mission_name)
+    _add_append_report_exists!(append_df, mission_name)
 
     return append_df
 end
@@ -354,6 +342,7 @@ function append_update(mission_name)
 
     @info "Saving $append_path_feather"
     _append_save(append_path_feather, append_df)
+    master_a(mission_name; reload_cache=true)
     return append_df
 end
 
@@ -448,11 +437,11 @@ at first run to speed up future calls
 
 TODO: Make this work after master table updates
 """
-function master_a(mission_name; cache=true)
+function master_a(mission_name; cache=true, reload_cache=false)
     master_df_var = Symbol(mission_name, "_master_df")
     
     if cache
-        if isdefined(JAXTAM, master_df_var)
+        if isdefined(JAXTAM, master_df_var) && !reload_cache
             @assert typeof(getproperty(JAXTAM, master_df_var)) == DataFrames.DataFrame
             @debug "Using cached master_df"
             return getproperty(JAXTAM, master_df_var)

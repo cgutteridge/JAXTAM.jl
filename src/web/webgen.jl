@@ -58,27 +58,27 @@ function _webgen_home_intro(mission_name::Symbol, e_min, e_max)
             m("div"; class="container"),
             m("h1", "JAXTAM.jl WebView - $mission_name ($e_min to $e_max keV)"),
             m("hr"),
-            m("p", "JAXTAM results summary page for $mission_name")
+            m("p", "JAXTAM reports summary page for $mission_name")
         )
     )
 end
 
-function _add_obsid_url(obsid, results_path)
-    results_exist = results_path .!= "NA"
+function _add_obsid_url(obsid, report_path)
+    reports_exist = report_path .!= "NA"
 
-    obsid_url = Array{Union{Hyperscript.Node{Hyperscript.HTMLSVG},String},1}(undef, size(results_exist, 1))
+    obsid_url = Array{Union{Hyperscript.Node{Hyperscript.HTMLSVG},String},1}(undef, size(reports_exist, 1))
 
-    obsid_url[results_exist] = [a(obsid[i], href=results_path[i]) for i in findall(results_exist)]
-    obsid_url[results_exist .!= true] = obsid[results_exist .!= true]
+    obsid_url[reports_exist] = [a(obsid[i], href=report_path[i]) for i in findall(reports_exist)]
+    obsid_url[reports_exist .!= true] = obsid[reports_exist .!= true]
 
     return obsid_url
 end
 
 function _webgen_table(df::DataFrames.DataFrame; table_id="example")
-    # Replaces plain string obsid with hyperlink to the result
+    # Replaces plain string obsid with hyperlink to the report
     if haskey(df, :obsid)
-        obsid_url = _add_obsid_url(df[:obsid], df[:results_path])
-        delete!(df, [:obsid, :results_path])
+        obsid_url = _add_obsid_url(df[:obsid], df[:report_path])
+        delete!(df, [:obsid, :report_path])
         df[:obsid] = obsid_url
         permutecols!(df, [:obsid; names(df)[1:end-1][:]])
     end
@@ -98,7 +98,7 @@ function _webgen_table(df::DataFrames.DataFrame; table_id="example")
     headers = names(df)
 
     replace!(headers, :subject_category=>:cat)
-    replace!(headers, :results_exist=>:report)
+    replace!(headers, :reports_exist=>:report)
     
     node_table = div(class="container",
         table(id=table_id, class="table table-striped table-bordered", style="width:100%", 
@@ -128,13 +128,13 @@ function webgen_mission(mission_name::Symbol)
     included_cols = [
         :name,
         :obsid,
-        :results_exist,
+        :report_exists,
         :subject_category,
         :obs_type,
         :publicity,
         :downloaded,
         :time,
-        :results_path
+        :report_path
     ]
 
     if haskey(master_a_df, :countrate)

@@ -160,7 +160,7 @@ function _webpage_subgen_slider_js()
     ")
 end 
 
-function _webgen_results_intro(mission_name, obs_row, results_page_dir)
+function _webgen_report_intro(mission_name, obs_row, report_page_dir)
     mission_config = config(mission_name)
     e_min, e_max = mission_config.good_energy_min, mission_config.good_energy_max
     missions = string.(collect(keys(JAXTAM.config())))
@@ -172,18 +172,19 @@ function _webgen_results_intro(mission_name, obs_row, results_page_dir)
     similar_missions = missions[similar_missions]
 
     similar_missions_links = Dict()
-    for similar_mission in Symbol.(similar_missions)
-        similar_obs_row = JAXTAM.master_query(similar_mission, :obsid, obs_row[1, :obsid])
+    # TODO: Enable similar missions again
+    # for similar_mission in Symbol.(similar_missions)
+    #     similar_obs_row = JAXTAM.master_query(similar_mission, :obsid, obs_row[1, :obsid])
 
-        if similar_obs_row[1, :results_path] != "NA"
-            similar_missions_links[similar_mission] = similar_obs_row[1, :results_path]
-        end
-    end
+    #     if similar_obs_row[1, :reports_path] != "NA"
+    #         similar_missions_links[similar_mission] = similar_obs_row[1, :reports_path]
+    #     end
+    # end
     
     # To avoid requiring the URL (if the website is actually hosted) all the paths are relative
     # this is a very awkward way of using relative path movements to move up to another mission's
-    # results page
-    relative_path_addon = split(splitdir(replace(results_page_dir, mission_config.path_web=>""))[1], "/")
+    # reports page
+    relative_path_addon = split(splitdir(replace(report_page_dir, mission_config.path_web=>""))[1], "/")
     relative_path_addon = repeat("../", 3+length(relative_path_addon))
     similar_mission_text = p()
     if length(similar_missions_links) != 0
@@ -211,172 +212,25 @@ function _webgen_results_intro(mission_name, obs_row, results_page_dir)
     )
 end
 
-function _webgen_subpage_findimg(JAXTAM_path)
-    paths = []
-    for (root, dirs, files) in walkdir(JAXTAM_path)
-        for file in files
-            if file[end-3:end] == ".png"
-                append!(paths, [joinpath(root, file)])
-            end
-        end
-    end
-
-    img_bin_times  = []
-    img_kinds      = []
-    img_bin_sizes  = []
-    img_groups     = []
-    img_titles     = []
-    img_kind_ordrs = Array{Int64,1}()
-    for path in paths
-        img_dir  = splitdir(replace.(path, JAXTAM_path=>""))[1]
-        img_name = splitdir(replace.(path, JAXTAM_path=>""))[2]
-
-        img_dir_splt = split(img_dir, "/")
-
-        # 1  - empty string, as split("/", "/") = ""
-        @assert img_dir_splt[1] == ""
-
-        # 2  - lc diectory
-        @assert img_dir_splt[2] == "lc"
-
-        # 3  - bin time
-        img_bin_time = Meta.parse(img_dir_splt[3])
-        @assert typeof(img_bin_time) == Float64
-        if img_bin_time < 1.0
-            # Pray this is a power of 2
-            if ispow2(Int(1/img_bin_time))
-                # Adopt semi-standard notation that -ve value implies a -ve power of 2
-                img_bin_time = -log2(1/img_bin_time)
-            else
-                @warn "img_bin_time doesn't seem to be a power of 2"
-            end
-        end
-        append!(img_bin_times, img_bin_time)
-
-        try
-            img_bin_time = Int(img_bin_time)
-        finally
-            if img_bin_time < 0
-                img_bin_time = "2^$(img_bin_time)"
-            end
-        end
-        
-        # 4  - /images/ directory
-        @assert img_dir_splt[4] == "images"
-
-        # 5  - folder named after on of the plot kinds: fspec, lc, or pgram
-        img_kind = img_dir_splt[5]
-        @assert img_kind in ["fspec", "lc", "pgram", "sgram", "pulse"]
-        append!(img_kinds, [img_kind])
-
-        # 6  - Diverges based on kind
-        if img_kind == "fspec"
-            # 6a - fspec bin_size
-            img_bin_size = img_dir_splt[6]
-            if length(img_dir_splt) > 6 && img_dir_splt[7] == "groups"
-                # 6a1 - fspec groups folder
-                img_kind_ordr = 20
-                img_group = parse(Int, replace(img_name, "_fspec.png"=>""))
-                img_title = "Power Spectra - group $img_group - $img_bin_time bt - $img_bin_size bs"
-            else
-                # 6a2 - not a group plot
-                img_kind_ordr = 3
-                img_title = "Power Spectra - $img_bin_time bt - $img_bin_size bs"
-                img_group = 0
-            end
-        elseif img_kind == "lc"
-            # 6b - lc has no bin size
-            img_bin_size = missing
-            if length(img_dir_splt) > 5 && img_dir_splt[6] == "groups"
-                # 6b1 - lc groups folder
-                img_kind_ordr = 10
-                img_group = parse(Int, replace(img_name, "_lcurve.png"=>""))
-                img_title = "Light Curve - group $img_group - $img_bin_time bt"
-            else
-                # 6b2 - not a group plot
-                img_kind_ordr = 1
-                img_title = "Light Curve - $img_bin_time bt"
-                img_group = 0
-            end
-        elseif img_kind == "pgram"
-            # 6c - pgram has no bin size
-            img_bin_size = missing
-            if length(img_dir_splt) > 5 && img_dir_splt[6] == "groups"
-                # 6c1 - lc groups folder
-                img_kind_ordr = 30
-                img_group = parse(Int, replace(img_name, "_pgram.png"=>""))
-                img_title = "Periodogram - group $img_group - $img_bin_time bt"
-            else
-                # 6c2 - not a group plot
-                img_kind_ordr = 2
-                img_title = "Periodogram - $img_bin_time bt"
-                img_group = 0
-            end
-        elseif img_kind == "sgram"
-            img_bin_size = img_dir_splt[6]
-            # 6d2 - lc groups folder
-            img_kind_ordr = 3
-            img_group = 0
-            img_title = "Spectrogram - $img_bin_time bt - $img_bin_size bs"
-        elseif img_kind == "pulse"
-            img_bin_size = img_dir_splt[6]
-            if length(img_dir_splt) > 6 && img_dir_splt[7] == "groups"
-                # 6a1 - pulses groups folder
-                img_kind_ordr = 25
-                img_group = parse(Int, replace(img_name, "_pulses.png"=>""))
-                img_title = "Pulsations - group $img_group - $img_bin_time bt - $img_bin_size bs"
-            else
-                # 6a2 - not a group plot
-                img_kind_ordr = 4
-                img_group = 0
-                img_title = "Pulsations - $img_bin_time bt - $img_bin_size bs"
-            end
-        end
-
-        append!(img_bin_sizes, [img_bin_size])
-        append!(img_groups, [img_group])
-        append!(img_titles, [img_title])
-        append!(img_kind_ordrs, img_kind_ordr)
-    end
-
-    image_path_df = DataFrame(
-                                path=replace.(paths, JAXTAM_path=>"./JAXTAM/"),
-                                bin_times=img_bin_times,
-                                kinds=img_kinds,
-                                bin_size=img_bin_sizes,
-                                img_group=img_groups,
-                                img_title=img_titles,
-                                img_kind_ordr=img_kind_ordrs
-                            )
-end
-
-function _webgen_results_body(obs_row; img_dict=Dict())
+function _webgen_report_body(obs_row, img_df_overview)
     images = []
-    prev_title = first(img_dict)[2]
-    for (title, link) in img_dict
-        title = split(title, " - ")[1]
-        if title != prev_title
-            images = [images; hr()]
-        end
+    for link in img_df_overview[:path]
         images = [images; img(src=link)]
-        prev_title = title
     end
 
     node_body = div(
         hr(),
         h2("Plots"),
         images
-        #[img(src=imgpair[2]) for imgpair in img_dict]
-        # [(h4(imgpair[1]), img(src=imgpair[2])) for imgpair in img_dict]
     )
 end
 
-function _webgen_results_body_groups(obs_row, img_df)
-    groups = unique(img_df[:img_group])
+function _webgen_report_body_groups(obs_row, img_df)
+    groups = unique(img_df[:group])
 
     group_container = Array{Hyperscript.Node{Hyperscript.HTMLSVG},1}()
     for group in groups
-        group_images = filter(x->x[:img_group]==group, img_df)
+        group_images = filter(x->x[:group]==group, img_df)
         
         node_group = div(class="slide",
             div(
@@ -436,49 +290,48 @@ function _webgen_subpage_footer()
 end
 
 function _webgen_subpage(mission_name, obs_row)
-    obs_dir  = _clean_path_dots(config(mission_name).path_obs(obs_row))
-    obs_path = string(config(mission_name).path, obs_dir)
+    mission_config = config(mission_name)
+    obs_dir  = _clean_path_dots(mission_config.path_obs(obs_row))
+    obs_path = string(mission_config.path, obs_dir)
     obs_path = replace(obs_path, "//"=>"/")
     JAXTAM_path = joinpath(obs_path, "JAXTAM")
     
-    results_page_dir = string(config(mission_name).path_web, obs_dir)
-    results_page_dir = replace(results_page_dir, "//"=>"/")
-    JAXTAM_path_web = joinpath(results_page_dir, "JAXTAM")
+    report_page_dir = string(mission_config.path_web, obs_dir)
+    report_page_dir = replace(report_page_dir, "//"=>"/")
+    JAXTAM_path_web  = joinpath(report_page_dir, "JAXTAM")
 
-    img_details = _webgen_subpage_findimg(JAXTAM_path)
+    obs_log = _log_read(mission_name, obs_row)
+    # fix e_range call here once all energies unified
+    e_range = "$(mission_config.good_energy_min)_$(mission_config.good_energy_max)"
+    img_log = obs_log["images"]
+    img_log = filter(r->r[:e_range] == e_range, img_log)
 
-    img_details_overview = filter(x->x[:img_group] == 0, img_details)
-    img_details_overview = sort(img_details_overview, (:img_group, :img_kind_ordr))
-
-    img_details_groups   = filter(x->x[:img_group] != 0, img_details)
-    img_details_groups   = sort(img_details_groups, (:img_group, :img_kind_ordr))
-
-    img_tuple_overview   = [img[:img_title]=>img[:path] for img in DataFrames.eachrow(img_details_overview)]
-    img_tuple_groups     = [img[:img_title]=>img[:path] for img in DataFrames.eachrow(img_details_groups)]
-
-    img_dict_overview    = OrderedDict(img_tuple_overview)
-    img_dict_groups      = OrderedDict(img_tuple_groups)
+    img_details_overview = filter(x->ismissing(x[:group]), img_log)
+    img_details_overview = sort(img_details_overview, (:group, :kind_order))
+    
+    img_details_groups   = filter(x->!ismissing(x[:group]), img_log)
+    img_details_groups   = sort(img_details_groups, (:group, :kind_order))
 
     html_out = html(
-        _webgen_head(;title_in="$mission_name - $(obs_row[1, :name]) - $(obs_row[1, :obsid]) - Results"),
+        _webgen_head(;title_in="$mission_name - $(obs_row[1, :name]) - $(obs_row[1, :obsid]) - Reports"),
         _webgen_subpage_css(),
         _webpage_subgen_slider_js(),
         body(
             div(class="se-pre-con"),
             div(class="container",
-                _webgen_results_intro(mission_name, obs_row, results_page_dir),
-                _webgen_results_body(obs_row; img_dict=img_dict_overview),
-                _webgen_results_body_groups(obs_row, img_details_groups),
+                _webgen_report_intro(mission_name, obs_row, report_page_dir),
+                _webgen_report_body(obs_row, img_details_overview),
+                _webgen_report_body_groups(obs_row, img_details_groups),
                 _webgen_subpage_footer()
             )
         )
     )
 
-    mkpath(results_page_dir)
+    mkpath(report_page_dir)
     !islink(JAXTAM_path_web) ? symlink(JAXTAM_path, JAXTAM_path_web) : ""
     
-    write(joinpath(results_page_dir, "result.html"), string(Pretty(html_out)))
-    return joinpath(results_page_dir, "result.html")
+    write(joinpath(report_page_dir, "JAXTAM/report.html"), string(Pretty(html_out)))
+    return joinpath(report_page_dir, "JAXTAM/report.html")
 end
 
 function webgen_subpage(mission_name, obsid)
