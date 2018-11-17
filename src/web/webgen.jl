@@ -78,7 +78,7 @@ function _webgen_table(df::DataFrames.DataFrame, path_web; table_id="example")
     # Replaces plain string obsid with hyperlink to the report
     if haskey(df, :obsid)
         obsid_url = _add_obsid_url(df, path_web)
-        delete!(df, [:obsid, :report_path])
+        deletecols!(df, [:obsid, :report_path])
         df[:obsid] = obsid_url
         permutecols!(df, [:obsid; names(df)[1:end-1][:]])
     end
@@ -91,7 +91,7 @@ function _webgen_table(df::DataFrames.DataFrame, path_web; table_id="example")
 
     if haskey(df, :time) && table_id=="report_page"
         # Include MJD time in report summary
-        df[:time] = string.(df[:time], " | ", round.(JAXTAM._datetime2mjd.(convert.(Dates.DateTime, df[:time])), digits=3), " (MJD 3dp)")
+        df[:time] = string.(df[:time], " | ", round.(JAXTAM._datetime2mjd.(convert.(Dates.DateTime, df[:time])), digits=6), " (MJD 6dp)")
     end
     
     rows, cols = size(df)

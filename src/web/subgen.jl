@@ -202,13 +202,13 @@ function _webgen_report_intro(mission_name, obs_row, report_page_dir)
         p(abstract_text),
         hr(),
         h4("Status"),
-        _webgen_table(obs_row[[:public_date, :publicity, :time]]; table_id="report_page"),
+        _webgen_table(obs_row[[:public_date, :publicity, :time]], mission_config.path_web; table_id="report_page"),
         h4("Source Details"),
-        _webgen_table(obs_row[[:name, :ra, :dec, :lii, :bii, :obs_type]]; table_id=""),
+        _webgen_table(obs_row[[:name, :ra, :dec, :lii, :bii, :obs_type]], mission_config.path_web; table_id=""),
         h4("Observation Details"),
-        _webgen_table(obs_row[[:time, :end_time, :exposure, :remarks]]; table_id=""),
+        _webgen_table(obs_row[[:time, :end_time, :exposure, :remarks]], mission_config.path_web; table_id=""),
         h4("Misc"),
-        _webgen_table(obs_row[[:processing_status, :processing_date, :processing_version, :num_processed, :caldb_version]], table_id="")
+        _webgen_table(obs_row[[:processing_status, :processing_date, :processing_version, :num_processed, :caldb_version]], mission_config.path_web, table_id="")
     )
 end
 
@@ -312,6 +312,7 @@ function _webgen_subpage(mission_name, obs_row)
     img_details_groups   = filter(x->!ismissing(x[:group]), img_log)
     img_details_groups   = sort(img_details_groups, (:group, :kind_order))
 
+    
     html_out = html(
         _webgen_head(;title_in="$mission_name - $(obs_row[1, :name]) - $(obs_row[1, :obsid]) - Reports"),
         _webgen_subpage_css(),
