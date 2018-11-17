@@ -63,21 +63,21 @@ function _webgen_home_intro(mission_name::Symbol, e_min, e_max)
     )
 end
 
-function _add_obsid_url(obsid, report_path)
-    reports_exist = report_path .!= "NA"
+function _add_obsid_url(df::DataFrames.DataFrame, path_web)
+    obsid_url = Array{Union{Hyperscript.Node{Hyperscript.HTMLSVG},String},1}(undef, size(df, 1))
 
-    obsid_url = Array{Union{Hyperscript.Node{Hyperscript.HTMLSVG},String},1}(undef, size(reports_exist, 1))
+    report_path_rel = replace.(df[:report_path], path_web=>"./")
 
-    obsid_url[reports_exist] = [a(obsid[i], href=report_path[i]) for i in findall(reports_exist)]
-    obsid_url[reports_exist .!= true] = obsid[reports_exist .!= true]
+    obsid_url[  df[:report_exists]] = [a(df[i, :obsid], href=report_path_rel[i]) for i in findall(df[:report_exists])]
+    obsid_url[.!df[:report_exists]] = df[.!df[:report_exists], :obsid]
 
     return obsid_url
 end
 
-function _webgen_table(df::DataFrames.DataFrame; table_id="example")
+function _webgen_table(df::DataFrames.DataFrame, path_web; table_id="example")
     # Replaces plain string obsid with hyperlink to the report
     if haskey(df, :obsid)
-        obsid_url = _add_obsid_url(df[:obsid], df[:report_path])
+        obsid_url = _add_obsid_url(df, path_web)
         delete!(df, [:obsid, :report_path])
         df[:obsid] = obsid_url
         permutecols!(df, [:obsid; names(df)[1:end-1][:]])
@@ -150,7 +150,7 @@ function webgen_mission(mission_name::Symbol)
         _webgen_head(;title_in="JAXTAM $mission_name homepage"),
         body(
             _webgen_home_intro(mission_name, e_min, e_max),
-            _webgen_table(master_a_df[:, included_cols])
+            _webgen_table(master_a_df[:, included_cols], mission_config.path_web)
         )
     )
 
