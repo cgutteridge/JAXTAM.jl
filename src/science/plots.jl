@@ -547,20 +547,22 @@ FFTSpec(fs::JAXTAM.FFTData) = FFTSpec(fs.mission, fs.bin_time, fs.bin_size)
 function _plot_sgram(sgram_freq, sgram_power, sgram_bounds, sgram_groups,
         e_min, e_max, obsid, bin_time_pow2, bin_size, bin_time, rebin, size_in, disable_x=true)
 
-    if disable_x
-        heatmap(sgram_power, size=size_in, fill=true)
-        xaxis!(xticks=[0], xlab="Freq (Hz - log10 - log scale support faulty, ticks excluded)")
-    else
-        heatmap(sgram_freq, 1:size(sgram_power,1), sgram_power, size=size_in, fill=true)
-        xaxis!(xlab="Freq [Hz]")
-    end
+    x_tick_approx = exp10.(-1:1:4)
+    x_ticks = [findfirst(f->f>=x_lim, sgram_freq) for x_lim in x_tick_approx]
+    x_ticks = unique(x_ticks)
+    x_ticks = x_ticks[x_ticks.!=nothing]
+
+    heatmap(sgram_power, size=size_in, fill=true)
+    xaxis!(xticks=x_ticks, xformatter=yi->sgram_freq[Int(yi)], xlab="Freq (Hz - log10)")
 
     title!("Spectrogram - $(obsid) - $e_min to $e_max keV- 2^$(bin_time_pow2) bt - $(bin_size*bin_time) bs - $rebin rebin")
 
+    hline!(sgram_bounds.+0.5, alpha=0.75, line=:dot, lab="")
     if length(sgram_bounds) < 25
-        hline!(sgram_bounds.+0.5, alpha=0.75, line=:dot, lab="")
         yaxis_bounds_to_group = Dict(diag([(bound,group) for bound in sgram_bounds, group in sgram_groups]))
         yaxis!(yticks=sgram_bounds, yformatter=yi->yaxis_bounds_to_group[Int(yi)], ylab="Group")
+    else
+        yaxis!(ylab="Groups")
     end
 
     _plot_formatter!()
@@ -576,7 +578,18 @@ function plot_sgram(fs::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}};
         bin_time_pow2 = Int(log2(example.bin_time))
 
         sgram_freq, sgram_power, sgram_bounds, sgram_groups = fspec_rebin_sgram(fs[instrument], rebin=rebin)
-        sgram_power = (sgram_power .- 2) .* sgram_freq
+
+        src_ctrate = mean(fs[instrument][-1].src_ctrate); bkg_ctrate = mean(fs[instrument][-1].bkg_ctrate)
+        rms_factor = 1
+
+        if bkg_ctrate == 0.0
+            rms_factor = 1/src_ctrate
+        else
+            rms_factor = (src_ctrate + bkg_ctrate) ./ src_ctrate^2
+        end
+
+        sgram_power = sgram_power .- 2
+        sgram_power = (sgram_power.*rms_factor).*sgram_freq
         sgram_power[sgram_power .<= 0] .= 0
         sgram_power = sgram_power'
 

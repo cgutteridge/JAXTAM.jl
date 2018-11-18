@@ -63,6 +63,10 @@ end
 function _log_gen(mission_name::Symbol, obs_row::DataFrames.DataFrame)
     path = joinpath(obs_row[1, :obs_path], "JAXTAM/obs_log.jld2")
 
+    if !ispath(path)
+        mkpath(dirname(path))
+    end
+
     meta_info = Dict{Any,Any}(
         :obs_row => obs_row
     )
@@ -73,17 +77,17 @@ end
 function _log_read(mission_name::Symbol, obs_row::DataFrames.DataFrame)
     path = joinpath(obs_row[1, :obs_path], "JAXTAM/obs_log.jld2")
 
+    if !isfile(path)
+        _log_gen(mission_name, obs_row)
+    end
+
     load(path)
 end
 
 function _log_add(mission_name::Symbol, obs_row::DataFrames.DataFrame, category::String, entry::Pair{Symbol,T}) where T<:Any
     path = joinpath(obs_row[1, :obs_path], "JAXTAM/obs_log.jld2")
 
-    log = if !isfile(path)
-        _log_gen(mission_name, obs_row)
-    else
-        _log_read(mission_name, obs_row)
-    end
+    log = _log_read(mission_name, obs_row)
 
     log_cat = log[category]
 
@@ -105,11 +109,7 @@ function _log_add(mission_name::Symbol, obs_row::DataFrames.DataFrame, entry::Da
         category = entry[1, :category]
     end
 
-    log = if !isfile(path)
-        _log_gen(mission_name, obs_row)
-    else
-        _log_read(mission_name, obs_row)
-    end
+    log = _log_read(mission_name, obs_row)
     
     if haskey(log, category)
         log_cat_current = log[category]
