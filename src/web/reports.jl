@@ -72,3 +72,25 @@ function report(mission_name, obsid; overwrite=false, nuke=false)
 
     return sp
 end
+
+function report_all(similar_missions::Array{Symbol,1}, obsid::String; overwrite=false, nuke=false)
+    for mission in similar_missions
+        report.(mission, obsid, overwrite=overwrite, nuke=nuke)
+        report.(mission, obsid)
+    end
+end
+
+function report_all(base_mission::Symbol, obsids::Union{Array{String,1},String}; overwrite=false, nuke=false)
+    missions = string.(collect(keys(JAXTAM.config())))
+    missions = missions[missions .!= string(base_mission)] # Remove the current mission from the list
+    
+    missions_split = split.(missions, "_") # Spit off the _ to remove energy bound notation
+    # Select missions with the same base name 
+    similar_missions = [any(occursin.(split(string(base_mission), "_")[1], m)) for m in missions_split]
+    similar_missions = Symbol.([base_mission; missions[similar_missions]])
+    
+    typeof(obsids) == String ? obsids = [obsids] : ""
+    for obsid in obsids
+        report_all(similar_missions, obsid; overwrite=overwrite, nuke=nuke)
+    end
+end
