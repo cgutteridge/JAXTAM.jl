@@ -176,7 +176,7 @@ function _webgen_report_intro(mission_name, obs_row, report_page_dir)
         similar_obs_row = JAXTAM.master_query(similar_mission, :obsid, obs_row[1, :obsid])
 
         if similar_obs_row[1, :report_exists]
-            similar_missions_links[similar_mission] = similar_obs_row[1, :report_path]
+            similar_missions_links[similar_mission] = replace(similar_obs_row[1, :report_path], config(similar_mission).path_web=>"")
         end
     end
     
@@ -184,11 +184,11 @@ function _webgen_report_intro(mission_name, obs_row, report_page_dir)
     # this is a very awkward way of using relative path movements to move up to another mission's
     # reports page
     relative_path_addon = split(splitdir(replace(report_page_dir, mission_config.path_web=>""))[1], "/")
-    relative_path_addon = repeat("../", 3+length(relative_path_addon))
+    relative_path_addon = repeat("../", 4+length(relative_path_addon))
     similar_mission_text = p()
     if length(similar_missions_links) != 0
         similar_mission_text = p("Other energy ranges: ", 
-            [a(string("$(l[1]) "), href=string(relative_path_addon, l[1], "/web/", l[2][3:end])) for l in similar_missions_links])
+            [a(string("$(l[1]) "), href=string(relative_path_addon, l[1], "/web/", l[2][1:end])) for l in similar_missions_links])
     end
 
     obsid = obs_row[1, :obsid]
