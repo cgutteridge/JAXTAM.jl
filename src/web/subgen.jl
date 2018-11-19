@@ -172,14 +172,13 @@ function _webgen_report_intro(mission_name, obs_row, report_page_dir)
     similar_missions = missions[similar_missions]
 
     similar_missions_links = Dict()
-    # TODO: Enable similar missions again
-    # for similar_mission in Symbol.(similar_missions)
-    #     similar_obs_row = JAXTAM.master_query(similar_mission, :obsid, obs_row[1, :obsid])
+    for similar_mission in Symbol.(similar_missions)
+        similar_obs_row = JAXTAM.master_query(similar_mission, :obsid, obs_row[1, :obsid])
 
-    #     if similar_obs_row[1, :reports_path] != "NA"
-    #         similar_missions_links[similar_mission] = similar_obs_row[1, :reports_path]
-    #     end
-    # end
+        if similar_obs_row[1, :report_exists]
+            similar_missions_links[similar_mission] = similar_obs_row[1, :report_path]
+        end
+    end
     
     # To avoid requiring the URL (if the website is actually hosted) all the paths are relative
     # this is a very awkward way of using relative path movements to move up to another mission's

@@ -1,14 +1,14 @@
 struct InstrumentData <: JAXTAMData
-    mission::Symbol
-    instrument::Symbol
-    obsid::String
-    events::DataFrame
-    gtis::DataFrame
-    start::Number
-    stop::Number
-    src_ctrate::Union{Missing,Number}
-    bkg_ctrate::Union{Missing,Number}
-    header::DataFrame
+    mission    :: Symbol
+    instrument :: Symbol
+    obsid      :: String
+    events     :: DataFrames.DataFrame
+    gtis       :: DataFrames.DataFrame
+    start      :: Number
+    stop       :: Number
+    src_ctrate :: Union{Missing, Number}
+    bkg_ctrate :: Union{Missing, Number}
+    header     :: DataFrames.DataFrame
 end
 
 """
@@ -256,7 +256,7 @@ function read_cl(mission_name::Symbol, obs_row::DataFrames.DataFrame; overwrite=
 
         src_ctrate = src_ctrate/length(instruments)
 
-        _log_append(mission_name, obs_row, Dict("meta"=>Dict("src_ctrate"=>src_ctrate)))
+        _log_add(mission_name, obs_row, "meta", (:src_ctrate=>src_ctrate))
     end
 
     return mission_data
