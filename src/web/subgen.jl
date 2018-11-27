@@ -310,7 +310,6 @@ function _webgen_subpage(mission_name, obs_row)
     
     img_details_groups   = filter(x->!ismissing(x[:group]), img_log)
     img_details_groups   = sort(img_details_groups, (:group, :kind_order))
-
     
     html_out = html(
         _webgen_head(;title_in="$mission_name - $(obs_row[1, :name]) - $(obs_row[1, :obsid]) - Reports"),

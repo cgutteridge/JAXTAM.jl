@@ -64,6 +64,8 @@ function report(mission_name, obsid; overwrite=false, nuke=false)
         # JAXTAM.plot_sgram(fs;  save=true, size_in=(1140,600/2))
         # JAXTAM.plot_pulses_candle(fs; save=true, size_in=(1140,600/2))
         # fs = 0; GC.gc()
+
+        _call_all_espec(mission_name, obs_row)
     end
 
     sp = _webgen_subpage(mission_name, obs_row)

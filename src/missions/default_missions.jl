@@ -20,7 +20,7 @@ function _get_default_missions()
         string(ENV["CALDB"], "/data/nicer/xti/cpf/rmf/nixtiref20170601v001.rmf"),
         "mission_path_web",
         0.3,
-        12,
+        12.0,
         ["XTI"]
     )
 
@@ -32,7 +32,7 @@ function _get_default_missions()
         JAXTAM._nustar_uf_files,
         string(ENV["CALDB"], "/data/nustar/fpm/cpf/rmf/nuAdet3_20100101v002.rmf"),
         "mission_path_web",
-        3,
+        3.0,
         78.4,
         ["FPMA", "FPMB"]
     )

@@ -1,6 +1,6 @@
 # Helper functions
 
-function savefig(mission::Symbol, obs_row::DataFrames.DataFrame, e_range::Tuple, kind::Symbol, plot_name::String; kwargs...)
+function savefig(mission::Symbol, obs_row::DataFrames.DataFrame, e_range::Tuple{Float64,Float64}, kind::Symbol, plot_name::String; kwargs...)
     kwargs = Dict(kwargs)
 
     obs_log = _log_entry(; category=:images, e_range=e_range, kind=kind, file_name=string(plot_name, ".png"), kwargs...)
@@ -798,20 +798,32 @@ function plot_fspec_cov1d(fs::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}}; size_in=(
     for instrument in instruments
         fspec_freq, fspec_power = JAXTAM.fspec_rebin_sgram(fs[instrument]; rebin=rebin)
 
+        fspec_power[1, :] .= 0
+        src_ctrate = mean(example_data.src_ctrate); bkg_ctrate = mean(example_data.bkg_ctrate)
+        rms_factor = 1
+        if bkg_ctrate == 0.0
+            rms_factor = 1/src_ctrate
+        else
+            rms_factor = (src_ctrate + bkg_ctrate) ./ src_ctrate.^2
+        end
+        
+        fspec_power = fspec_power .- 2
+        fspec_power = (fspec_power.*rms_factor).*fspec_freq        
+
         fspec_diag = diag(cov(fspec_power, dims=2))
         yaxis_max  = nextpow(10, maximum(fspec_diag))
 
         bin_count = size(fspec_power, 2)
 
-        fspec_diag[fspec_diag .<= 10] .= NaN
+        fspec_diag[fspec_diag .<= 1e-8] .= NaN
 
         Plots.plot(fspec_freq, fspec_diag, lab="", #NOTE: Disabled instrument label `lab=instrument`
             color=:black, size=size_in,
             title="FFT 1D Covariance - $(obsid) - 2^$(bin_time_pow2) bt - $(bin_size*bin_time) bs - $rebin rebin - $(bin_count) sections averaged")
 
         xaxis!(xscale=:log10, xformatter=xi->xi, xlab="Freq (Hz - log10)", xlims=(0.01, nextpow(2, maximum(fspec_freq))))
-        yaxis!(yscale=:log10, yformatter=xi->xi, ylab="Cov (diag - log10)", ylims=(10, yaxis_max))
-        hline!([4000], lab="4000 - Threshold")
+        yaxis!(yscale=:log10, yformatter=xi->xi, ylab="Cov (diag - log10)") # , ylims=(10, yaxis_max)
+        # hline!([4000], lab="4000 - Threshold")
         
         cov1d_plots[instrument] = _plot_formatter!()
     end
@@ -821,6 +833,18 @@ end
 
 function _plot_cov2d(fs::Dict{Int64,JAXTAM.FFTData}, rebin::Tuple, zoom_log10=false)
     fspec_freq, fspec_power = JAXTAM.fspec_rebin_sgram(fs; rebin=rebin) 
+
+    fspec_power[1, :] .= 0
+    src_ctrate = mean(fs[-1].src_ctrate); bkg_ctrate = mean(fs[-1].bkg_ctrate)
+    rms_factor = 1
+    if bkg_ctrate == 0.0
+        rms_factor = 1/src_ctrate
+    else
+        rms_factor = (src_ctrate + bkg_ctrate) ./ src_ctrate.^2
+    end
+    
+    fspec_power = fspec_power .- 2
+    fspec_power = (fspec_power.*rms_factor).*fspec_freq    
 
     if rebin[1] == :linear
         fspec_cov_2d = cov(reverse(reverse(fspec_power, dims=2), dims=1), dims=2)
@@ -837,8 +861,8 @@ function _plot_cov2d(fs::Dict{Int64,JAXTAM.FFTData}, rebin::Tuple, zoom_log10=fa
     max_freq_y = fspec_freq[max_ind_2d[2]]
 
     if zoom_log10!=false && rebin[1]==:log10
-        zoom_ind_start = findfirst(fspec_freq .>= max_freq_x - max_freq_x*zoom_log10)
-        zoom_ind_stop  = findfirst(fspec_freq .>= max_freq_x + max_freq_x*zoom_log10)
+        zoom_ind_start = findfirst(fspec_freq .>= max_freq_x - max_freq_x/2)
+        zoom_ind_stop  = findfirst(fspec_freq .>= max_freq_x + max_freq_x/2)
         println(zoom_log10)
         println(zoom_ind_start)
         println(zoom_ind_stop)
