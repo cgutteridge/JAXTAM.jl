@@ -18,7 +18,7 @@ function _xselect_cmd(mission_name::String, event_cl_path::String, out_basename:
     path_out = joinpath(dirname(event_cl_path), out_basename)
 
     session_name = split(tempname(), "/")[3]
-    set_mission  = "set mission $(String(mission_name))"
+    set_mission  = "set mission $(split(String(mission_name), "_")[1])"
     read_event   = [
         "read event",
         "$(dirname(event_cl_path))",
