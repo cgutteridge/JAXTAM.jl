@@ -10,7 +10,7 @@ function savefig(mission::Symbol, obs_row::DataFrames.DataFrame, e_range::Tuple{
     mkpath(dirname(plot_path_abs)); Plots.savefig(plot_path_abs)
     @info "Saved $plot_path_abs"
 
-    _log_add(mission, obs_row, obs_log)
+    _log_add(mission, obs_row, Dict("images"=>Dict(e_range=>obs_log)))
 
     return plot_path_abs
 end
