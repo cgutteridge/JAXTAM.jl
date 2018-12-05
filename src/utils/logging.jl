@@ -143,3 +143,24 @@ function _log_add(mission_name::Symbol, obs_row::DataFrames.DataFrame, category:
 
     return log
 end
+
+function _log_query(mission_name::Symbol, obs_row::DataFrames.DataFrame, args...)
+    log = _log_read(mission_name, obs_row)
+
+    reply = log
+    for (i, key) in enumerate(args)
+        if reply isa Dict
+            if haskey(reply, key)
+                reply = reply[key]
+            else
+                @warn "Key '$key' not found in log, available: $(keys(reply))"
+                return missing
+            end
+        else
+            @warn "Entry not Dict, gone too deep? Accessing: $(args[1:i]) gives log at '$key' as $(typeof(reply)) not Dict"
+            return missing
+        end
+    end
+
+    return reply
+end
