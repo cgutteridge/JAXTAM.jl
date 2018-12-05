@@ -76,10 +76,8 @@ function _read_fits_event(fits_path::String, mission_name)
 
     for (i, key) in enumerate(keys(fits_header))
         key = Symbol(replace(key, '-', '_')) # Colnames with `-` don't behave well with DataFrames/Feather
-        if typeof(fits_header[i]) == Nothing
+        if typeof(fits_header[i]) == Nothing || fits_header[i] == ""
             fits_header_df[Symbol(key)] =  "empty" # Have to write something, or Feahter.jl errors saving ""
-        elseif fits_header[i] == ""
-            fits_header_df[Symbol(key)] =  "empty"
         else
             fits_header_df[Symbol(key)] = fits_header[i]
         end
@@ -93,7 +91,7 @@ function _read_fits_event(fits_path::String, mission_name)
     total_event_count = size(fits_events_df, 1)
 
     src_rt[1] = total_event_count/total_gti_time
-    bkg_rt[1] = missing
+    bkg_rt[1] = missing # TODO: Add in support for background count rates
 
     fits_header_df[:SRC_RT] = src_rt
     fits_header_df[:BKG_RT] = bkg_rt
@@ -113,56 +111,18 @@ Reads in FITS data for an observation, returns a `Dict{Symbol,InstrumentData}`, 
 symbol as the instrument name. So `instrument_data[:XTI]` works for NICER, and either 
 `instrument_data[:FPMA]` or `instrument_data[:FPMB]` work for NuSTAR
 """
-function read_cl_fits(mission_name::Symbol, obs_row::DataFrames.DataFrame)
-    # Required due to ambiguity over if a joined `master_df` + `append_df` is being used, or just `master_df`
-    if :event_cl in names(obs_row)
-        file_path = abspath.([i for i in obs_row[:event_cl][1]]) # Convert tuple to array, absolute path
+function read_cl_fits(mission_name::Symbol, obs_row::DataFrames.DataFrame, file_path::String)  
+    if isfile(file_path)
+        @info "Found: $file_path"
+    elseif isfile(string(file_path, ".gz")) # Check for files ending in .evt.gz too
+        file_path = string(file_path, ".gz")
+        @info "Found: $file_path"
     else
-        file_path = config(mission_name).path_cl(obs_row, config(mission_name).path)
-        file_path = abspath.([i for i in file_path])
+        throw(SystemError("$mission_name $(obs_row[1, :obsid]) files not found", 2))
     end
     
-    obsid = obs_row[:obsid]
-    
-    files = []
-    
-    for file in file_path
-        if isfile(file)
-            append!(files, [file])
-            @info "Found: $file"
-        elseif isfile(string(file, ".gz")) # Check for files ending in .evt.gz too
-            @info "Found: $(string(file, ".gz"))"
-            append!(files, [string(file, ".gz")])
-        else
-            @warn "NOT found: $file"
-            @info "Start download for `$mission_name` $(obs_row[1, :obsid])? (y/n)"
-            response = readline(stdin)
-            if response == "y" || response == "Y"
-                download(mission_name, obs_row[1, :obsid])
-                append!(files, [files])
-                @info "Found: $file"
-            elseif response == "n" || response == "N"
-                throw(SystemError("$mission_name $(obs_row[1, :obsid]) files not found", 2))
-            end
-        end
-    end
-    
-    file_no = length(files)
-    
-    @info "Found $file_no file(s) for $(obsid[1])"
-    
-    if file_no == 1
-        instrument_data = _read_fits_event(files[1], mission_name)
-        return Dict(instrument_data.instrument => instrument_data)
-    elseif file_no > 1
-        per_instrument = Dict{Symbol,InstrumentData}()
-        for file in files
-            instrument_data = _read_fits_event(file, mission_name)
-            per_instrument[instrument_data.instrument] = instrument_data
-        end
-        
-        return per_instrument
-    end
+    instrument_data = _read_fits_event(file_path, mission_name)
+    return Dict(instrument_data.instrument => instrument_data)
 end
 
 """
@@ -175,9 +135,36 @@ just the mission name, obsid, and observation start and stop times
 """
 function _save_cl_feather(feather_dir::String, instrument_name::Union{String,Symbol},
         fits_events_df::DataFrames.DataFrame, fits_gtis_df::DataFrames.DataFrame, fits_meta_df::DataFrames.DataFrame)
-    Feather.write(joinpath(feather_dir, "$(instrument_name)_events.feather"), fits_events_df)
-    Feather.write(joinpath(feather_dir, "$(instrument_name)_gtis.feather"), fits_gtis_df)
-    Feather.write(joinpath(feather_dir, "$(instrument_name)_meta.feather"), fits_meta_df)
+
+    mkpath(feather_dir)
+
+    path_events = joinpath(feather_dir, "$(instrument_name)_events.feather")
+    path_gtis   = joinpath(feather_dir, "$(instrument_name)_gtis.feather")
+    path_meta   = joinpath(feather_dir, "$(instrument_name)_meta.feather")
+
+    Feather.write(path_events, fits_events_df)
+    Feather.write(path_gtis, fits_gtis_df)
+    Feather.write(path_meta, fits_meta_df)
+
+    return path_events, path_gtis, path_meta
+end
+
+function _read_cl_feather(path_events::String, path_gtis::String, path_meta::String)
+    data_events = Feather.read(path_events)
+    data_gtis   = Feather.read(path_gtis)
+    data_meta   = Feather.read(path_meta)
+
+    meta_missn = Symbol(lowercase(data_meta[:TELESCOP][1]))
+    meta_inst  = data_meta[1, :INSTRUME]
+    meta_obsid = data_meta[1, :OBS_ID]
+    meta_start = data_meta[1, :TSTART]
+    meta_stop  = data_meta[1, :TSTOP]
+    meta_srcrt = data_meta[1, :SRC_RT]
+    meta_bkgrt = data_meta[1, :BKG_RT]
+
+    return InstrumentData(meta_missn, meta_inst, meta_obsid,
+        data_events, data_gtis, meta_start, meta_stop,
+        meta_srcrt, meta_bkgrt, data_meta)
 end
 
 """
@@ -187,79 +174,69 @@ Attempts to read saved (feather) data, if none is found then the `read_cl_fits` 
 and the data is saved with `_save_cl_feather` for future use
 """
 function read_cl(mission_name::Symbol, obs_row::DataFrames.DataFrame; overwrite=false)
-    obsid       = obs_row[:obsid][1]
-    JAXTAM_path = abspath(string(obs_row[:obs_path][1], "/JAXTAM/"))
+    obsid       = obs_row[1, :obsid]
+    instruments = Symbol.(config(mission_name).instruments)
+    cl_files    = _log_query(mission_name, obs_row, "data", :feather_cl)
 
-    if !isdir(obs_row[:obs_path][1])
-        error("$(obs_row[:obs_path][1]) not found")
-    end
+    total_src_ctrate = 0.0
+    instrument_data = Dict{Symbol,JAXTAM.InstrumentData}()
+    for instrument in instruments
+        if ismissing(cl_files) || !haskey(cl_files, instrument) || overwrite
+            @info "Missing feather_cl for $instrument"
+            @info "Processing $(string(instrument)) cl fits"
 
-    if !isdir(JAXTAM_path)
-        mkdir(JAXTAM_path)
-    end
-
-    JAXTAM_content = readdir(JAXTAM_path)
-    JAXTAM_e_files = count(contains.(JAXTAM_content, "events"))
-    JAXTAM_g_files = count(contains.(JAXTAM_content, "gtis"))
-
-    if JAXTAM_e_files > 0 && JAXTAM_g_files > 0 && JAXTAM_e_files == JAXTAM_g_files && !overwrite
-        mission_data = Dict{Symbol,InstrumentData}()
-
-        instruments = config(mission_name).instruments
-
-        for instrument in instruments
-            @info "Loading $(obsid): $instrument from $JAXTAM_path"
-            inst_files = JAXTAM_content[contains.(JAXTAM_content, instrument)]
-
-            path_events = joinpath(JAXTAM_path, inst_files[contains.(inst_files, "events")][1])
-            data_events = Feather.read(path_events)
-
-            path_gtis = joinpath(JAXTAM_path, inst_files[contains.(inst_files, "gtis")][1])
-            data_gtis = Feather.read(path_gtis)
-
-            file_meta  = joinpath(JAXTAM_path, inst_files[contains.(inst_files, "meta")][1])
-            data_meta  = Feather.read(file_meta)
-            meta_missn = Symbol(lowercase(data_meta[:TELESCOP][1]))
-            meta_obsid = data_meta[1, :OBS_ID]
-            meta_start = data_meta[1, :TSTART]
-            meta_stop  = data_meta[1, :TSTOP]
-            meta_srcrt = data_meta[1, :SRC_RT]
-            meta_bkgrt = data_meta[1, :BKG_RT]
-            
-            mission_data[Symbol(instrument)] = InstrumentData(meta_missn, instrument, meta_obsid,
-                data_events, data_gtis, meta_start, meta_stop,
-                meta_srcrt, meta_bkgrt, data_meta)
-        end
-    else
-        mission_data = read_cl_fits(mission_name, obs_row)
-
-        instruments = keys(mission_data)
-        src_ctrate = 0
-        for instrument in instruments
-            @info "Saving $(string(instrument))"
-
-            if size(mission_data[instrument].events, 1) == 0
-                bad_events = DataFrame(TIME=[0],  PI=[0])
-                bad_gtis   = DataFrame(START=[0], STOP=[0])
-                _save_cl_feather(JAXTAM_path, mission_data[instrument].instrument, bad_events,
-                    bad_gtis, mission_data[instrument].header)
-
-                mission_data[instrument] = InstrumentData(mission_data[instrument].mission, mission_data[instrument].instrument, mission_data[instrument].obsid,
-                    bad_events, bad_gtis, mission_data[instrument].start, mission_data[instrument].stop, 0, missing, mission_data[instrument].header)
-            else    
-                _save_cl_feather(JAXTAM_path, mission_data[instrument].instrument, mission_data[instrument].events,
-                    mission_data[instrument].gtis, mission_data[instrument].header)
+            if :event_cl in names(obs_row)
+                file_path = abspath.([i for i in obs_row[1, :event_cl]]) # Convert tuple to array, absolute path
+            else
+                file_path = config(mission_name).path_cl(obs_row, config(mission_name).path)
+                file_path = abspath.([i for i in file_path])
             end
 
-            src_ctrate += mission_data[instrument].header[1, :SRC_RT]
+            file_path = [file for file in file_path if occursin(lowercase(string(instrument)), file)]
+
+            current_instrument = read_cl_fits(mission_name, obs_row, file_path[1])[instrument]
+            
+            if size(current_instrument.events, 1) == 0
+                @warn "No events found in $instrument observation $obsid"
+                _log_add(mission_name, obs_row, "critical_error", (:read_cl => "No events found"))
+                continue
+            else    
+                path_events, path_gtis, path_meta = _save_cl_feather(abspath(string(obs_row[1, :obs_path], "/JAXTAM/data/feather_cl/")),
+                    current_instrument.instrument, current_instrument.events,
+                    current_instrument.gtis, current_instrument.header
+                )
+                @info "Saved '$instrument' cl files to $(abspath(string(obs_row[1, :obs_path], "/JAXTAM/data/feather_cl/")))"
+            end
+            
+            total_src_ctrate += current_instrument.header[1, :SRC_RT]
+            instrument_data[instrument] = current_instrument
+
+            _log_add(mission_name, obs_row, 
+                Dict("data" =>
+                    Dict(:feather_cl =>
+                        Dict(instrument =>
+                            Dict(
+                            :path_events => path_events,
+                            :path_gtis   => path_gtis,
+                            :path_meta   => path_meta,
+                            )
+                        )
+                    )
+                )
+            )
+        else
+            @info "Loading feather cl files for '$instrument'"
+            feather_paths = cl_files[instrument]
+            instrument_data[instrument] = _read_cl_feather(feather_paths[:path_events], feather_paths[:path_gtis], feather_paths[:path_meta])
         end
-
-        src_ctrate = src_ctrate/length(instruments)
-
-        _log_add(mission_name, obs_row, "meta", (:src_ctrate=>src_ctrate))
     end
 
-    return mission_data
+    if ismissing(_log_query(mission_name, obs_row, "meta", :raw_src_ctrate))
+        total_src_ctrate = total_src_ctrate/length(instruments)
+        _log_add(mission_name, obs_row, "meta", (:raw_src_ctrate=>total_src_ctrate))
+    end
+
+    return instrument_data
 end
 
 """
