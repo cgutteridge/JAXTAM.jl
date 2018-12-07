@@ -84,64 +84,49 @@ function _log_read(mission_name::Symbol, obs_row::DataFrames.DataFrame)
     Dict{Any,Any}(load(path))
 end
 
-function _log_add(mission_name::Symbol, obs_row::DataFrames.DataFrame, category::String, entry::Pair{Symbol,T}) where T<:Any
-    path = joinpath(obs_row[1, :obs_path], "JAXTAM/obs_log.jld2")
+function _merge(log::Dict, k::Symbol, entry::Union{DataFrame,Dict})
+    if typeof(entry) <: DataFrame
+        template_log = _log_entry(; category="DELETE", kind=:DELETE)
+        deleterows!(template_log, 1)
 
-    log = _log_read(mission_name, obs_row)
+        append!(template_log, log[k])
+        append!(template_log, entry[k])
+        unique!(template_log)
 
-    log_cat = log[category]
+        log[k] = template_log
+    elseif typeof(entry) <: Dict
+        log   = convert(Dict{Any,Any}, log)
+        entry = convert(Dict{Any,Any}, entry)
 
-    if haskey(log_cat, entry[1])
-        @warn "Overwriting log entry for $category => $(entry[1])"
+        merge!(log, entry)
     end
-
-    log_cat[entry[1]] = entry[2]
-
-    save(path, log)
 
     return log
 end
 
-function _log_add_recursive(mission_name::Symbol, obs_row::DataFrames.DataFrame,
-    log::Dict, entry::Dict)
-
+function _log_add_recursive(log::Dict, entry::Dict)
     for (k, v) in entry
         if typeof(v) <: Dict
             if haskey(log, k)
-                _log_add_recursive(mission_name, obs_row, log[k], entry[k])
+                _log_add_recursive(log[k], entry[k])
             else
                 log[k] = entry[k]
                 return log
             end
         else
-            template_log = _log_entry(; category="DELETE", kind=:DELETE)
-            deleterows!(template_log, 1)
-
-            append!(template_log, log[k])
-            append!(template_log, entry[k])
-            unique!(template_log)    
-            log[k] = template_log
-            return log
+            return _merge(log, k, entry)
         end
     end
 
     return log
 end
 
-function _log_add(mission_name::Symbol, obs_row::DataFrames.DataFrame, entry::Dict)
+function _log_add(mission_name::Symbol, obs_row::DataFrames.DataFrame, entry::Dict{String})
     log = _log_read(mission_name, obs_row)
 
-    log_new = _log_add_recursive(mission_name, obs_row, log, entry)
+    log_new = _log_add_recursive(log, entry)
     save(joinpath(obs_row[1, :obs_path], "JAXTAM/obs_log.jld2"), log_new)
     return log_new
-end
-
-function _log_add(mission_name::Symbol, obs_row::DataFrames.DataFrame, category::String=""; kwargs...)
-    log_cat_entry = _log_entry(; kwargs...)
-
-    log = _log_add(mission_name, obs_row, category; kwargs...)
-
-    return log
 end
 
 function _log_query(mission_name::Symbol, obs_row::DataFrames.DataFrame, args...)
