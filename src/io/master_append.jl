@@ -336,8 +336,12 @@ function append_update(mission_name)
     append_df  = _append_gen(mission_name, master_df)
     if haskey(old_append, :countrate)
         @warn "append_update does not update countrates, run append_countrate if required"
-        old_countrate = old_append[:countrate]
-        append_df[:countrate] = old_countrate
+        old_countrate = filter(x->x[:countrate]!=0, old_append[[:obsid, :countrate]])
+        append_df[:countrate] = repeat([-3.0], size(append_df, 1))
+        for (i, obsid) in enumerate(old_countrate[:obsid])
+            new_index = findfirst(append_df[:obsid].==obsid)
+            append_df[new_index, :countrate] = old_countrate[i, :countrate]
+        end
     end
 
     @info "Saving $append_path_feather"
