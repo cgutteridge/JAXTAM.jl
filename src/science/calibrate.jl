@@ -25,11 +25,6 @@ function _read_rmf(path_rmf::String)
     return pis, e_mins, e_maxs
 end
 
-"""
-    _read_rmf(mission_name::Symbol)
-
-Calls `_read_rmf(path_rmf)` using the `path_rmf` loaded from a mission configuration file
-"""
 function _read_rmf(mission_name::Symbol)
     path_rmf = config(mission_name).path_rmf
 
@@ -37,36 +32,51 @@ function _read_rmf(mission_name::Symbol)
 end
 
 """
-    _read_calibration(pis::Union{Array,Arrow.Primitive{Int16}}, path_rmf::String)
+    _calibrate_pis(pis::Union{Array,Arrow.Primitive{Int16}}, path_rmf::String)
 
 Loads the RMF calibration data, creates PI channels for energy conversion
 
 Channel bounds are the average of the min and max energy range
 """
-function _read_calibration(pis::Union{Array,Arrow.Primitive{Int16},Arrow.Primitive{Int64}}, path_rmf::String)
+function _calibrate_pis(pis::Union{Array,Arrow.Primitive{Int16},Arrow.Primitive{Int64}}, path_rmf::String)
     calp, calEmin, calEmax = _read_rmf(path_rmf)
 
-    es = zeros(length(pis))
-
-    for (i, PI) in enumerate(pis)
-        if PI in calp
-            es[i] = (calEmin[PI+1] + calEmax[PI+1])/2
-        end
-    end
-
-    return es
+    return map(x -> (calEmin[x+1] + calEmax[x+1])/2, pis)
 end
 
-"""
-    _read_calibration(pis::Union{Array,Arrow.Primitive{Int16}}, mission_name::Symbol)
-
-Loads the RMF path from the mission configuration file, then calls 
-`_read_calibration(pis::Union{Array,Arrow.Primitive{Int16}}, path_rmf::String)`
-"""
-function _read_calibration(pis::Union{Array,Arrow.Primitive{Int16},Arrow.Primitive{Int64}}, mission_name::Symbol)
+function _calibrate_pis(pis::Union{Array,Arrow.Primitive{Int16},Arrow.Primitive{Int64}}, mission_name::Symbol)
     path_rmf = config(mission_name).path_rmf
 
-    return _read_calibration(pis, path_rmf)
+    return _calibrate_pis(pis, path_rmf)
+end
+
+function _save_calibrated(mission_name::Symbol, obs_row::DataFrames.DataFrame, instrument::Symbol, 
+        feather_dir::String, calibrated_energy::DataFrames.DataFrame;
+        log=true)
+
+    calibrated_file_path = joinpath(feather_dir, "$(instrument)_calib.feather")
+
+    Feather.write(calibrated_file_path, calibrated_energy)
+
+    if log
+        _log_add(mission_name, obs_row, 
+            Dict("data" =>
+                Dict(:feather_cl =>
+                    Dict(instrument =>
+                        Dict(
+                            :path_calib => calibrated_file_path
+                        )
+                    )
+                )
+            )
+        )
+    end
+
+    @info "Saved '$instrument' calib files to $feather_dir"
+end
+
+function _read_calibration(path_calib::String)
+    calib = Feather.read(path_calib)
 end
 
 """
@@ -81,93 +91,41 @@ Loads `calib.feater` file if it does exist
 
 Returns a calibrated (filtered to contain only good energies) `InstrumentData` type
 """
-function calibrate(mission_name::Symbol, obs_row::DataFrames.DataFrame)
-    obsid       = obs_row[:obsid][1]
-    JAXTAM_path = abspath(string(obs_row[:obs_path][1], "/JAXTAM/"))
+function calibrate(mission_name::Symbol, obs_row::DataFrames.DataFrame;
+    instrument_data::Dict{Symbol,JAXTAM.InstrumentData}=Dict{Symbol,InstrumentData}(), overwrite=false)
+    obsid       = obs_row[1, :obsid]
+    instruments = Symbol.(config(mission_name).instruments)
+    cl_files    = _log_query(mission_name, obs_row, "data", :feather_cl)
 
-    if isdir(JAXTAM_path)
-        JAXTAM_content = readdir(JAXTAM_path)
-        JAXTAM_e_files = count(contains.(JAXTAM_content, "events"))
-        JAXTAM_c_files = count(contains.(JAXTAM_content, "calib"))
-    else
-        JAXTAM_e_files = 0
-        JAXTAM_c_files = 0
+    if !all(haskey.(instrument_data, instruments))
+        instrument_data = read_cl(mission_name, obs_row)
     end
 
+    calibration_instrument_data = Dict{Symbol,DataFrames.DataFrame}()
+    for instrument in instruments
+        if haskey(cl_files[instrument], :path_calib) && !overwrite # Check if log has calibration file path
+            @info "Loading feather calib files for $instrument"
+            calibration_instrument_data[instrument] = _read_calibration(cl_files[instrument][:path_calib])
+        else
+            @info "Generating calib files for $instrument"
+            calibration_instrument_data[instrument] = DataFrame(E=_calibrate_pis(instrument_data[instrument].events[:PI], mission_name))
 
-    calibrated_energy = Dict{Symbol,InstrumentData}()
-
-    instruments = config(mission_name).instruments
-
-    if JAXTAM_e_files == 0
-        @warn "No events files found, running read_cl"
-        read_cl(mission_name, obs_row)
-        return calibrate(mission_name, obs_row)
-    end
-
-    if JAXTAM_e_files > 0 && JAXTAM_e_files > JAXTAM_c_files
-        @info "Loading EVENTS for $(obsid) from $JAXTAM_path"
-
-        for instrument in instruments
-            @info "Loading $instrument EVENTS"
-
-            instrument_data            = read_cl(mission_name, obs_row)[Symbol(instrument)]
-            instrument_data.events[:E] = _read_calibration(instrument_data.events[:PI], mission_name)
-
-            @info "Saving $instrument CALIB energy"
-
-            Feather.write(joinpath(JAXTAM_path, "$(instrument)_calib.feather"), DataFrame(E = instrument_data.events[:E]))
-
-            calibrated_energy[Symbol(instrument)] = instrument_data
+            _save_calibrated(mission_name, obs_row, instrument,
+                abspath(string(obs_row[1, :obs_path], "/JAXTAM/data/feather_cl/")), calibration_instrument_data[instrument])
         end
-    elseif JAXTAM_e_files > 0 && JAXTAM_e_files == JAXTAM_c_files
-        @info "Loading CALIB $(obsid): from $JAXTAM_path"
 
-        for instrument in instruments
-            @info "Loading $instrument CALIB energy"
-
-            events = Feather.read(joinpath(JAXTAM_path, "$(instrument)_events.feather"))
-            calib  = Feather.read(joinpath(JAXTAM_path, "$(instrument)_calib.feather"))
-            gtis   = Feather.read(joinpath(JAXTAM_path, "$(instrument)_gtis.feather"))
-            meta   = Feather.read(joinpath(JAXTAM_path, "$(instrument)_meta.feather"))
-
-            events_calib = events
-            events_calib[:E] = calib[:E]
-
-            meta_missn = mission_name #Symbol(lowercase(meta[:TELESCOP][1]))
-            meta_obsid = meta[1, :OBS_ID]
-            meta_start = meta[1, :TSTART]
-            meta_stop  = meta[1, :TSTOP]
-
-            calibrated_energy[Symbol(instrument)] = InstrumentData(meta_missn, instrument, meta_obsid,
-                events_calib, gtis, meta_start, meta_stop,
-                meta[1, :SRC_RT], meta[1, :BKG_RT], meta)
-        end
+        instrument_data[instrument].events[:E] = calibration_instrument_data[instrument][:E]
     end
-
-    return calibrated_energy
+    
+    return instrument_data
 end
 
-"""
-    calibrate(mission_name::Symbol, append_df::DataFrames.DataFrame, obsid::String)
-
-Calls `master_query` to load in the relevant `obs_row`
-
-Calls and returns `calibrate(mission_name::Symbol, obs_row::DataFrames.DataFrame)`
-"""
-function calibrate(mission_name::Symbol, append_df::DataFrames.DataFrame, obsid::String)
+function calibrate(mission_name::Symbol, append_df::DataFrames.DataFrame, obsid::String; overwrite=false)
     obs_row = master_query(append_df, :obsid, obsid)
 
-    return calibrate(mission_name, obs_row)
+    return calibrate(mission_name, obs_row; overwrite=overwrite)
 end
 
-"""
-    calibrate(mission_name::Symbol, obsid::String)
-
-Calls `master_a` to load in the master table
-
-Calls and returns `calibrate(mission_name::Symbol, append_df::DataFrames.DataFrame, obsid::String)`
-"""
-function calibrate(mission_name::Symbol, obsid::String)
-    return calibrate(mission_name, master_a(mission_name), obsid)
+function calibrate(mission_name::Symbol, obsid::String; overwrite=false)
+    return calibrate(mission_name, master_a(mission_name), obsid; overwrite=overwrite)
 end
