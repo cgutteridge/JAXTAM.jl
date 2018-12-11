@@ -84,31 +84,29 @@ function _log_read(mission_name::Symbol, obs_row::DataFrames.DataFrame)
     Dict{Any,Any}(load(path))
 end
 
-function _merge(log::Dict, k::Symbol, entry::Union{DataFrame,Dict})
-    if typeof(entry) <: DataFrame
-        template_log = _log_entry(; category="DELETE", kind=:DELETE)
-        deleterows!(template_log, 1)
+function _merge(log::Dict, k::Symbol, entry::DataFrame)
+    template_log = _log_entry(; category="DELETE", kind=:DELETE)
+    deleterows!(template_log, 1)
 
-        append!(template_log, log[k])
-        append!(template_log, entry[k])
-        unique!(template_log)
+    append!(template_log, log[k])
+    append!(template_log, entry[k])
+    unique!(template_log)
 
-        log[k] = template_log
-    elseif typeof(entry) <: Dict
-        log   = convert(Dict{Any,Any}, log)
-        entry = convert(Dict{Any,Any}, entry)
+    log[k] = template_log
+end
 
-        merge!(log, entry)
-    end
-
-    return log
+function _merge(log::Dict, k::Symbol, entry::Dict)
+    log   = convert(Dict{Any,Any}, log)
+    entry = convert(Dict{Any,Any}, entry)
+    
+    return merge!(log, entry)
 end
 
 function _log_add_recursive(log::Dict, entry::Dict)
     for (k, v) in entry
         if typeof(v) <: Dict
             if haskey(log, k)
-                _log_add_recursive(log[k], entry[k])
+                log[k] = _log_add_recursive(log[k], entry[k])
             else
                 log[k] = entry[k]
                 return log
@@ -121,7 +119,7 @@ function _log_add_recursive(log::Dict, entry::Dict)
     return log
 end
 
-function _log_add(mission_name::Symbol, obs_row::DataFrames.DataFrame, entry::Dict{String})
+function _log_add(mission_name::Symbol, obs_row::DataFrames.DataFrame, entry::Dict{String,T}) where T <: Any
     log = _log_read(mission_name, obs_row)
 
     log_new = _log_add_recursive(log, entry)

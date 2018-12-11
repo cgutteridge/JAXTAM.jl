@@ -126,23 +126,22 @@ function read_cl_fits(mission_name::Symbol, obs_row::DataFrames.DataFrame, file_
 end
 
 """
-    _save_cl_feather(feather_dir::String, instrument_name::Union{String,Symbol},
+    _save_cl_feather(feather_dir::String, instrument::Union{String,Symbol},
         fits_events_df::DataFrame, fits_gtis_df::DataFrame, fits_meta_df::DataFrame)
 
 Due to Feather file restrictions, cannot save all the event and GTI data in one, so 
 they are split up into three files: `events`, `gtis`, and `meta`. The `meta` file contains 
 just the mission name, obsid, and observation start and stop times
 """
-function _save_cl_feather(mission_name::Symbol, obs_row::DataFrames.DataFrame, instrument::Symbol,
-        feather_dir::String, instrument_name::Union{String,Symbol},
-        fits_events_df::DataFrames.DataFrame, fits_gtis_df::DataFrames.DataFrame, fits_meta_df::DataFrames.DataFrame;
+function _save_cl_feather(mission_name::Symbol, obs_row::DataFrames.DataFrame, instrument::Union{String,Symbol},
+        feather_dir::String, fits_events_df::DataFrames.DataFrame, fits_gtis_df::DataFrames.DataFrame, fits_meta_df::DataFrames.DataFrame;
         log=true)
 
     mkpath(feather_dir)
 
-    path_events = joinpath(feather_dir, "$(instrument_name)_events.feather")
-    path_gtis   = joinpath(feather_dir, "$(instrument_name)_gtis.feather")
-    path_meta   = joinpath(feather_dir, "$(instrument_name)_meta.feather")
+    path_events = joinpath(feather_dir, "$(instrument)_events.feather")
+    path_gtis   = joinpath(feather_dir, "$(instrument)_gtis.feather")
+    path_meta   = joinpath(feather_dir, "$(instrument)_meta.feather")
 
     Feather.write(path_events, fits_events_df)
     Feather.write(path_gtis, fits_gtis_df)
@@ -154,15 +153,17 @@ function _save_cl_feather(mission_name::Symbol, obs_row::DataFrames.DataFrame, i
                 Dict(:feather_cl =>
                     Dict(instrument =>
                         Dict(
-                        :path_events => path_events,
-                        :path_gtis   => path_gtis,
-                        :path_meta   => path_meta,
+                            :path_events => path_events,
+                            :path_gtis   => path_gtis,
+                            :path_meta   => path_meta,
                         )
                     )
                 )
             )
         )
     end
+
+    @info "Saved '$instrument' cl files to $feather_dir"
 
     return path_events, path_gtis, path_meta
 end
@@ -224,10 +225,7 @@ function read_cl(mission_name::Symbol, obs_row::DataFrames.DataFrame; overwrite=
             else    
                 path_events, path_gtis, path_meta = _save_cl_feather(mission_name, obs_row, instrument,
                     abspath(string(obs_row[1, :obs_path], "/JAXTAM/data/feather_cl/")),
-                    current_instrument.instrument, current_instrument.events,
-                    current_instrument.gtis, current_instrument.header
-                )
-                @info "Saved '$instrument' cl files to $(abspath(string(obs_row[1, :obs_path], "/JAXTAM/data/feather_cl/")))"
+                    current_instrument.events, current_instrument.gtis, current_instrument.header)
             end
             
             total_src_ctrate += current_instrument.header[1, :SRC_RT]
