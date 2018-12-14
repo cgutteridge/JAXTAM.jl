@@ -1,14 +1,4 @@
 """
-    _build_append(master_df)
-
-First step in creating append table, just returns the `obsid` column from
-a missions master table
-"""
-function _build_append(master_df)
-    return DataFrame(obsid=master_df[:obsid])
-end
-
-"""
     _add_append_publicity!(append_df, master_df)
 
 Appends column of `Union{Bool,Missing}`, true if `public_date <=`now()`
@@ -161,7 +151,7 @@ end
 Runs all the `_add_append` functions, returns the full `append_df`
 """
 function _append_gen(mission_name, master_df)
-    append_df = _build_append(master_df)
+    append_df = DataFrame(obsid=master_df[:obsid])
 
     _add_append_publicity!(append_df, master_df)
     _add_append_obspath!(append_df, master_df, mission_name)
@@ -306,23 +296,6 @@ function append(mission_name)
 end
 
 """
-    append()
-
-Calld `append(mission_name)` with the default mission `config_dict[:default]` if one exists
-"""
-function append()
-    config_dict = config()
-
-    if :default in keys(config_dict)
-        @info "Using default mission - $(config_dict[:default])"
-        return append(config_dict[:default])
-    else
-        @warn "Default mission not found, set with config(:default, :default_mission_name)"
-        throw(KeyError(:default))
-    end
-end
-
-"""
     append_update(mission_name)
 
 Re-generates the append file
@@ -350,6 +323,13 @@ function append_update(mission_name)
     return append_df
 end
 
+"""
+    _add_append_countrate!(append_df, mission_name)
+
+Add countrates to the append table, loaded from the feather_cl files
+
+TODO: Deprecate in favour of loading from new log files
+"""
 function _add_append_countrate!(append_df, mission_name)
     if !haskey(append_df, :countrate) # If countrate col exists, don't make a new one with 0's
         append_countrate = zeros(size(append_df, 1))
@@ -417,6 +397,12 @@ function _add_append_countrate!(append_df, mission_name)
     return append_df
 end
 
+"""
+    append_countrate(mission_name)
+
+Loads the append table, adds the countrate column via `_add_append_countrate!`, then saves 
+the new append table to the disk
+"""
 function append_countrate(mission_name)
     append_path_feather = abspath(string(_config_key_value(mission_name).path, "append.feather"))
 
@@ -439,7 +425,7 @@ Joins the `master_df` (raw, unedited HEASARC master table) and the `append_df`
 Uses some metaprogramming magic to load the master table to a global module value 
 at first run to speed up future calls
 
-TODO: Make this work after master table updates
+TODO: Make caching work after master table updates
 """
 function master_a(mission_name; cache=true, reload_cache=false)
     master_df_var = Symbol(mission_name, "_master_df")
