@@ -21,8 +21,8 @@ performed later anyway
 
 Returns array of filtered times, enegies, and GTIs
 """
-function _lcurve_filter_time(event_times::Arrow.Primitive{Float64}, event_energies::Arrow.Primitive{Float64},
-    gtis::DataFrames.DataFrame, start_time::Union{Float64,Int64}, stop_time::Union{Float64,Int64}, filter_low_count_gtis=false)
+function _lcurve_filter_time(event_times::Arrow.Primitive{<:AbstractFloat}, event_energies::Arrow.Primitive{<:AbstractFloat},
+    gtis::DataFrames.DataFrame, start_time::Number, stop_time::Number)
     @info "               -> Filtering times"
 
     if abs(event_times[1] - start_time) < 2.0^-8 && abs(event_times[end] - stop_time) < 2.0^-8
@@ -61,13 +61,13 @@ function _lcurve_filter_time(event_times::Arrow.Primitive{Float64}, event_energi
 end
 
 """
-    _lc_filter_energy(event_times::Array{Float64,1}, event_energies::Array{Float64,1}, good_energy_max::Float64, good_energy_min::Float64)
+    _lc_filter_energy(event_times::Array{T,1}, event_energies::Array{T,1}, good_energy_min::T, good_energy_max::T) where T <: AbstractFloat
 
 Optionally filters events by a custom energy range, not just that given in the RMF files for a mission
 
 Returns filtered event times and energies
 """
-function _lc_filter_energy(event_times::Array{Float64,1}, event_energies::Array{Float64,1}, good_energy_min::Float64, good_energy_max::Float64)
+function _lc_filter_energy(event_times::Array{<:AbstractFloat,1}, event_energies::Array{<:AbstractFloat,1}, good_energy_min::AbstractFloat, good_energy_max::AbstractFloat)
     @info "               -> Filtering energies"
     mask_good_energy = good_energy_min .<= event_energies .<= good_energy_max
 
@@ -80,7 +80,7 @@ function _lc_filter_energy(event_times::Array{Float64,1}, event_energies::Array{
 end
 
 """
-    _lc_bin(event_times::Array{Float64,1}, bin_time::Union{Float64,Int64}, time_start::Union{Float64,Int64}, time_stop::Union{Float64,Int64})
+    _lc_bin(event_times::Array{T,1}, bin_time::Union{T,W}, time_start::Union{T,W}, time_stop::Union{T,W}) where {T<:AbstractFloat, W<:Integer}
 
 Bins the event times to bins of `bin_time` [sec] lengths
 
@@ -88,7 +88,7 @@ Performs binning out of memory for speed via `OnlineStats.jl` Hist function
 
 Returns a range of `times`, with associated `counts` per time
 """
-function _lc_bin(event_times::Array{Float64,1}, bin_time::Union{Float64,Int64}, time_start::Union{Float64,Int64}, time_stop::Union{Float64,Int64})
+function _lc_bin(event_times::Array{<:AbstractFloat,1}, bin_time::Real, time_start::Real, time_stop::Real)
     @info "               -> Running OoM binning"
 
     if bin_time < 1

@@ -38,13 +38,13 @@ Loads the RMF calibration data, creates PI channels for energy conversion
 
 Channel bounds are the average of the min and max energy range
 """
-function _calibrate_pis(pis::Union{Array,Arrow.Primitive{Int16},Arrow.Primitive{Int64}}, path_rmf::String)
+function _calibrate_pis(pis::Union{Array,Arrow.Primitive{<:Integer}}, path_rmf::String)
     calp, calEmin, calEmax = _read_rmf(path_rmf)
 
     return map(x -> (calEmin[x+1] + calEmax[x+1])/2, pis)
 end
 
-function _calibrate_pis(pis::Union{Array,Arrow.Primitive{Int16},Arrow.Primitive{Int64}}, mission_name::Symbol)
+function _calibrate_pis(pis::Union{Array,Arrow.Primitive{<:Integer}}, mission_name::Symbol)
     path_rmf = config(mission_name).path_rmf
 
     return _calibrate_pis(pis, path_rmf)
@@ -92,13 +92,14 @@ Loads `calib.feater` file if it does exist
 Returns a calibrated (filtered to contain only good energies) `InstrumentData` type
 """
 function calibrate(mission_name::Symbol, obs_row::DataFrames.DataFrame;
-    instrument_data::Dict{Symbol,JAXTAM.InstrumentData}=Dict{Symbol,InstrumentData}(), overwrite=false)
+        instrument_data::Dict{Symbol,JAXTAM.InstrumentData}=Dict{Symbol,InstrumentData}(), overwrite=false)
     obsid       = obs_row[1, :obsid]
     instruments = Symbol.(config(mission_name).instruments)
     cl_files    = _log_query(mission_name, obs_row, "data", :feather_cl)
 
     if !all(haskey.(instrument_data, instruments))
         instrument_data = read_cl(mission_name, obs_row)
+        cl_files        = _log_query(mission_name, obs_row, "data", :feather_cl)
     end
 
     calibration_instrument_data = Dict{Symbol,DataFrames.DataFrame}()
