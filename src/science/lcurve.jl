@@ -238,8 +238,11 @@ Takes in `BinnedData` and splits the information up into three files, `meta`, `g
 
 Saves the files in a lightcurve directory (`/JAXTAM/lc/\$bin_time/*`) per-instrument
 """
-function _lcurve_save(lightcurve_data::BinnedData, lc_dir::String)
+function _lcurve_save(mission_name::Symbol, obs_row::DataFrames.DataFrame, instrument::Symbol, 
+        lightcurve_data::BinnedData, lc_dir::String; log=true)
+
     lc_basename = string("$(lightcurve_data.instrument)_lc_$(lightcurve_data.bin_time)")
+    mkpath(lc_dir)
 
     lc_meta = DataFrame(mission=string(lightcurve_data.mission), instrument=string(lightcurve_data.instrument),
         obsid=lightcurve_data.obsid, bin_time=lightcurve_data.bin_time, times=[lightcurve_data.times[1], 
@@ -249,9 +252,29 @@ function _lcurve_save(lightcurve_data::BinnedData, lc_dir::String)
 
     lc_data = DataFrame(counts=lightcurve_data.counts)
 
-    Feather.write(joinpath(lc_dir, "$(lc_basename)_meta.feather"), lc_meta)
-    Feather.write(joinpath(lc_dir, "$(lc_basename)_gtis.feather"), lc_gtis)
-    Feather.write(joinpath(lc_dir, "$(lc_basename)_data.feather"), lc_data)
+    path_meta = joinpath(lc_dir, "$(lc_basename)_meta.feather")
+    path_gtis = joinpath(lc_dir, "$(lc_basename)_gtis.feather")
+    path_data = joinpath(lc_dir, "$(lc_basename)_data.feather")
+
+    Feather.write(path_meta, lc_meta)
+    Feather.write(path_gtis, lc_gtis)
+    Feather.write(path_data, lc_data)
+
+    if log
+        _log_add(mission_name, obs_row, 
+            Dict("data" =>
+                Dict(:lcurve =>
+                    Dict(instrument =>
+                        Dict(
+                            :path_meta => path_meta,
+                            :path_gtis => path_gtis,
+                            :path_data => path_data
+                        )
+                    )
+                )
+            )
+        )
+    end
 end
 
 """

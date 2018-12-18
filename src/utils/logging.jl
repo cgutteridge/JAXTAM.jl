@@ -136,12 +136,14 @@ function _log_query(mission_name::Symbol, obs_row::DataFrames.DataFrame, args...
             if haskey(reply, key)
                 reply = reply[key]
             else
+                println("\nTODO: Remove me if you see me, @warn overwriting previous lines for some reason...")
                 @warn "Key '$key' not found in log, available: $(keys(reply))"
-                return missing
+                return Dict()
             end
         else
+            println("\nTODO: Remove me if you see me, @warn overwriting previous lines for some reason...")
             @warn "Entry not Dict, gone too deep? Accessing: $(args[1:i]) gives log at '$key' as $(typeof(reply)) not Dict"
-            return missing
+            return Dict()
         end
     end
 
