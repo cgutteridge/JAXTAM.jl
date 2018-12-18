@@ -43,20 +43,6 @@ function _lcurve_filter_time(event_times::Arrow.Primitive{<:AbstractFloat}, even
     gtis = hcat(gtis[:START], gtis[:STOP])
     gtis = gtis .- start_time
 
-    # WARNING: rounding GTIs up/down to get integers, shouldn't(?) cause a problem
-    # TODO: check with Diego
-    # gtis[:, 1] = ceil.(gtis[:, 1])
-    # gtis[:, 2] = floor.(gtis[:, 2])
-
-    if filter_low_count_gtis # Move GTI count filtering to post-binning stages
-        counts_per_gti_sec = [count(gtis[g, 1] .<= event_times .<= gtis[g, 2])/(gtis[g, 2] - gtis[g, 1]) for g in 1:size(gtis, 1)]
-        mask_min_counts = counts_per_gti_sec .>= 1
-
-        @info "Excluded $(size(gtis, 1) - count(mask_min_counts)) gtis under 1 count/sec"
-
-        gtis = gtis[mask_min_counts, :]
-    end
-    
     return Array(event_times), Array(event_energies), gtis
 end
 
@@ -66,16 +52,17 @@ end
 Optionally filters events by a custom energy range, not just that given in the RMF files for a mission
 
 Returns filtered event times and energies
+
+TODO: Move to per-energy lightcurve system
 """
 function _lc_filter_energy(event_times::Array{<:AbstractFloat,1}, event_energies::Array{<:AbstractFloat,1}, good_energy_min::AbstractFloat, good_energy_max::AbstractFloat)
     @info "               -> Filtering energies"
     mask_good_energy = good_energy_min .<= event_energies .<= good_energy_max
 
-    @info "               -> excluded $(count(mask_good_energy.==false)) energies out of $good_energy_min -> $good_energy_max range"
-    
-    event_times = event_times[mask_good_energy]
+    event_times    = event_times[mask_good_energy]
     event_energies = event_energies[mask_good_energy]
 
+    @info "               -> excluded $(count(mask_good_energy.==false)) energies out of $good_energy_min -> $good_energy_max range"
     return event_times, event_energies
 end
 
@@ -306,49 +293,34 @@ Loads saved files if they exist
 Returns `Dict{Symbol,BinnedData}`, with the instrument as a symbol, e.g. `lc[:XTI]` for NICER, 
 `lc[:FPMA]`/`lc[:FPMB]` for NuSTAR
 """
-function lcurve(mission_name::Symbol, obs_row::DataFrame, bin_time::Number; overwrite=false)
-    obsid          = obs_row[:obsid][1]
-    JAXTAM_path    = abspath(string(obs_row[:obs_path][1], "/JAXTAM/")); mkpath(JAXTAM_path)
-    JAXTAM_content = readdir(JAXTAM_path)
-    JAXTAM_lc_path = joinpath(JAXTAM_path, "lc/$bin_time/")
-    
-    mkpath(JAXTAM_lc_path)
-    
-    JAXTAM_c_files  = count(contains.(JAXTAM_content, "calib"))
-    JAXTAM_lc_files = count(contains.(readdir(JAXTAM_lc_path), "lc_"))/3
-
+function lcurve(mission_name::Symbol, obs_row::DataFrame, bin_time::Number;
+        instrument_data::Dict{Symbol,JAXTAM.InstrumentData}=Dict{Symbol,InstrumentData}(), overwrite=false)
+    obsid       = obs_row[1, :obsid]
     instruments = Symbol.(config(mission_name).instruments)
+    data_files  = _log_query(mission_name, obs_row, "data")
 
-    lightcurves = Dict{Symbol,BinnedData}()
+    lc_dir = abspath(string(obs_row[1, :obs_path], "/JAXTAM/data/lcurve/"))
 
-    if JAXTAM_c_files == 0
-        @warn "No calibrated files found, running calibration"
-        calibrate(mission_name, obs_row)
-        return lcurve(mission_name, obs_row, bin_time; overwrite=overwrite)
+    if !all(haskey.(instrument_data, instruments))
+        instrument_data = calibrate(mission_name, obs_row)
+        data_files      = _log_query(mission_name, obs_row, "data") # Refresh log in case calibrate gens files
     end
 
-    if (JAXTAM_c_files > 0 && JAXTAM_c_files > JAXTAM_lc_files) || (JAXTAM_c_files > 0 && overwrite)
-        calibrated_data = calibrate(mission_name, obs_row)
-    
-        for instrument in instruments
-            @info "Binning LCURVE"
-            lightcurve_data = _lcurve(calibrated_data[instrument], bin_time)
+    lcurve_instrument_data = Dict{Symbol,BinnedData}()
+    for instrument in instruments
+        if haskey(data_files, :lcurve) && haskey(data_files[:lcurve], instrument) && !overwrite
+            lcurve_instrument_data[instrument] = _lc_read(lc_dir, instrument, bin_time)
+        else
+            @info "Binning lcurve"
+            lightcurve_data = _lcurve(instrument_data[instrument], bin_time)
 
             @info "               -> Saving `$instrument` $(bin_time)s lightcurve data"
-
-            _lcurve_save(lightcurve_data, JAXTAM_lc_path)
-
-            lightcurves[instrument] = lightcurve_data
-        end
-    elseif JAXTAM_c_files > 0 && JAXTAM_c_files == JAXTAM_lc_files
-        @info "Loading LC $(obsid): from $JAXTAM_lc_path"
-
-        for instrument in instruments
-            lightcurves[instrument] = _lc_read(JAXTAM_lc_path, instrument, bin_time)
+            _lcurve_save(mission_name, obs_row, instrument, lightcurve_data, lc_dir)
+            lcurve_instrument_data[instrument] = lightcurve_data
         end
     end
-    
-    return lightcurves
+
+    return lcurve_instrument_data
 end
 
 """
