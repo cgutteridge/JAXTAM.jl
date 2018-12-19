@@ -34,7 +34,7 @@ end
 """
     _clean_path_dots(dir)
 
-FTP directories use hidden dot folders frequentyl, function removes from a path for local use
+FTP directories use hidden dot folders frequently, function removes dots for local use
 """
 function _clean_path_dots(dir)
     return abspath(replace(dir, "." => "")) # Remove . from folders to un-hide them
@@ -107,6 +107,13 @@ function download(mission_name::Symbol, obs_rows::DataFrames.DataFrame; overwrit
     download(mission_name, obsids; overwrite=overwrite)
 end
 
+"""
+    symlink_data(mission_primary::Symbol, mission_secondary::Symbol)
+
+Function to symlink the data files, used when looking at different energy ranges
+
+TODO: Deprecate in favour of per-energy lightcurves
+"""
 function symlink_data(mission_primary::Symbol, mission_secondary::Symbol)
     primary_path   = config(mission_primary).path
     secondary_path = config(mission_secondary).path
