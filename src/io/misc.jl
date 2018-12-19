@@ -54,3 +54,20 @@ Returns `missing` if the `mjd_time` is `Nothing`
 function _mjd2datetime(mjd_time::Nothing)
     return missing
 end
+
+"""
+    _public_date_int(public_date)
+
+Converts the public date to an integer, if that fails just returns the
+arbitrary sort-of-far-away `2e10` date
+
+TODO: Don't return 2e10 on Float64 parse error
+"""
+function _public_date_int(public_date)
+    public_date = get(public_date)
+    try
+        return parse(Float64, public_date)
+    catch
+        return 2e10
+    end
+end

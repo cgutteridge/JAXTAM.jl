@@ -5,6 +5,10 @@ Downloads (and unzips) a master table from HEASARC given its `url`
 and a destination `path`
 """
 function _master_download(master_path, master_url)
+    if !isdir(mission.path)
+        mkpath(mission.path)
+    end
+    
     @info "Downloading latest master catalog"
     Base.download(master_url, master_path)
 
@@ -33,14 +37,12 @@ function _type_master_df!(master_df)
         :cycle=>Meta.parse, :obs_type=>string, :title=>string, :remarks=>string)
 
     for (name, coltype) in pairs
-        # if true in ismissing.(master_df[name])
-        #     master_df[name] = Array{Union{Missing,}}
-        # else
-        # end
-        try
-            master_df[name] = coltype.(master_df[name])
-        catch e
-            @warn e
+        if haskey(master_df, name)
+            try
+                master_df[name] = coltype.(master_df[name])
+            catch e
+                @warn e
+            end
         end
     end
 
@@ -68,8 +70,6 @@ function _master_read_tdat(master_path::String)
     no_cols   = length(key_names)
     key_obsid = findfirst(key_names .== :obsid)[1]
     key_archv = findfirst(key_names .== :processing_status)
-
-    key_types = [line[3] for line in split.(master_ascii[field_line:field_line+no_cols-1], " ")]
 
     master_ascii_data = master_ascii[data_start:data_end]
 
@@ -113,11 +113,11 @@ function _master_read_tdat(master_path::String)
 end
 
 """
-    _master_save(master_path_feather, master_data)
+    _save_master(master_path_feather, master_data)
 
 Saves the `DataFrame` master table to a `.feather` file
 """
-function _master_save(master_path_feather, master_data)
+function _save_master(master_path_feather, master_data)
     Feather.write(master_path_feather, master_data)
 end
 
@@ -131,16 +131,12 @@ function master_update(mission_name::Union{String,Symbol})
     master_path_tdat = string(mission.path, "master.tdat")
     master_path_feather = string(mission.path, "master.feather")
 
-    if !isdir(mission.path)
-        mkpath(mission.path)
-    end
-
     _master_download(master_path_tdat, mission.url)
 
     @info "Loading $(master_path_tdat)"
     master_data = _master_read_tdat(master_path_tdat)
     @info "Saving $master_path_feather"
-    _master_save(master_path_feather, master_data)
+    _save_master(master_path_feather, master_data)
 end
 
 """
@@ -165,7 +161,8 @@ function master(mission_name::Union{String,Symbol})
 
             _master_download(master_path_tdat, mission.url)
         elseif response=="n" || response=="N"
-            @error "Master file not found"
+            throw(SystemError("opening $mission_name master table", 2, nothing))
+            return
         end
     end
     
@@ -176,7 +173,7 @@ function master(mission_name::Union{String,Symbol})
         @info "Loading $(master_path_tdat)"
         master_data = _master_read_tdat(master_path_tdat)
         @info "Saving $master_path_feather"
-        _master_save(master_path_feather, master_data)
+        _save_master(master_path_feather, master_data)
         return master_data
     end
 end
@@ -202,8 +199,8 @@ function master_query(master_df::DataFrame, key_type::Symbol, key_value::Any)
     # screws with functions later on which convert the values to strings
     # use get here to get them out of the DataValue type, wrapped in try
     # for any cases where these columns don't exist in the master dataframe
-    try; observations[:obsid] = get(observations[:obsid][1]); catch; end
-    try; observations[:time] = get(observations[:time][1]); catch; end
+    try; observations[:obsid] = get(observations[1, :obsid]); catch; end
+    try; observations[:time] = get(observations[1, :time]); catch; end
 
     return observations
 end
@@ -217,23 +214,6 @@ loading the master and append tables for `mission_name`
 function master_query(mission_name::Symbol, key_type::Symbol, key_value::Any)
 
     return master_query(master_a(mission_name), key_type, key_value)
-end
-
-"""
-    _public_date_int(public_date)
-
-Converts the public date to an integer, if that fails just returns the
-arbitrary sort-of-far-away `2e10` date
-
-TODO: Don't return 2e10 on Float64 parse error
-"""
-function _public_date_int(public_date)
-    public_date = get(public_date)
-    try
-        return parse(Float64, public_date)
-    catch
-        return 2e10
-    end
 end
 
 """
