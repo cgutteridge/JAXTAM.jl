@@ -144,19 +144,6 @@ function master_update(mission_name::Union{String,Symbol})
 end
 
 """
-    master_update()
-
-Calls `master_update(mission_name::Union{String,Symbol})` using the `:default` mission
-"""
-function master_update()
-    mission_name = _config_key_value(:default)
-
-    @info "Using default mission: $mission_name"
-
-    master_update(mission_name)
-end
-
-"""
     master(mission_name::Union{String,Symbol})
 
 Reads in a previously created `.feather` master table for a specific `mission_name`
@@ -193,24 +180,6 @@ function master(mission_name::Union{String,Symbol})
         return master_data
     end
 end
-
-"""
-    master()
-
-Loads a default mission, if one is set, otherwise throws error
-"""
-function master()
-    config_dict = config()
-
-    if :default in keys(config_dict)
-        @info "Using default mission - $(config_dict[:default])"
-        return master(config_dict[:default])
-    else
-        @warn "Default mission not found, set with config(:default, :default_mission_name)"
-        throw(KeyError(:default))
-    end
-end
-
 
 """
     master_query(master_df::DataFrame, key_type::Symbol, key_value::Any)
