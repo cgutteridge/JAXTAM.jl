@@ -198,11 +198,11 @@ function read_cl(mission_name::Symbol, obs_row::DataFrames.DataFrame; overwrite=
     cl_files    = _log_query(mission_name, obs_row, "data", :feather_cl)
 
     total_src_ctrate = 0.0
-    instrument_data = Dict{Symbol,Union{JAXTAM.InstrumentData,ArgumentError}}()
+    instrument_data = Dict{Symbol,JAXTAM.InstrumentData}()
     for instrument in instruments
         if ismissing(cl_files) || !haskey(cl_files, instrument) || overwrite
             @info "Missing feather_cl for $instrument"
-            @info "Processing $(string(instrument)) cl fits"
+            @info "Processing $instrument cl fits"
 
             if :event_cl in names(obs_row)
                 file_path = abspath.([i for i in obs_row[1, :event_cl]]) # Convert tuple to array, absolute path
@@ -220,11 +220,10 @@ function read_cl(mission_name::Symbol, obs_row::DataFrames.DataFrame; overwrite=
                 _log_add(mission_name, obs_row, Dict("errors" => 
                     Dict(:read_cl => "No events found, current_instrument.events size: $(size(current_instrument.events))"))
                 )
-                instrument_data[instrument] = ArgumentError("Unable to construct InstrumentData from empty DataFrame\nObservation likely has no events")
-                continue
-            else    
-                path_events, path_gtis, path_meta = _save_cl_feather(mission_name, obs_row, instrument,
-                    abspath(string(obs_row[1, :obs_path], "/JAXTAM/data/feather_cl/")),
+                throw(ArgumentError("Unable to construct InstrumentData from empty DataFrame. Observation likely has no events"))
+            else
+                cl_path = abspath(obs_row[1, :obs_path], "JAXTAM", _log_query_path(; category=:data, kind=:feather_cl))
+                path_events, path_gtis, path_meta = _save_cl_feather(mission_name, obs_row, instrument, cl_path,
                     current_instrument.events, current_instrument.gtis, current_instrument.header)
             end
             
@@ -237,9 +236,9 @@ function read_cl(mission_name::Symbol, obs_row::DataFrames.DataFrame; overwrite=
         end
     end
 
-    if ismissing(_log_query(mission_name, obs_row, "meta", :raw_src_ctrate))
+    if ismissing(_log_query(mission_name, obs_row, "meta", :countrates, :raw))
         total_src_ctrate = total_src_ctrate/length(instruments)
-        _log_add(mission_name, obs_row, Dict("meta" => Dict(:raw_src_ctrate => total_src_ctrate)))
+        _log_add(mission_name, obs_row, Dict("meta" => Dict(:raw => total_src_ctrate)))
     end
 
     return instrument_data

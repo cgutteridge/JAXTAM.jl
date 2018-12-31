@@ -21,8 +21,8 @@ performed later anyway
 
 Returns array of filtered times, enegies, and GTIs
 """
-function _lcurve_filter_time(event_times::Arrow.Primitive{Float64}, event_energies::Arrow.Primitive{Float64},
-    gtis::DataFrames.DataFrame, start_time::Union{Float64,Int64}, stop_time::Union{Float64,Int64}, filter_low_count_gtis=false)
+function _lcurve_filter_time(event_times::Union{Array{<:AbstractFloat,1},Arrow.Primitive{<:AbstractFloat}}, event_energies::Union{Array{<:AbstractFloat,1},Arrow.Primitive{<:AbstractFloat}},
+    gtis::DataFrames.DataFrame, start_time::Union{<:AbstractFloat,Int64}, stop_time::Union{<:AbstractFloat,Int64}, filter_low_count_gtis=false)
     @info "               -> Filtering times"
 
     if abs(event_times[1] - start_time) < 2.0^-8 && abs(event_times[end] - stop_time) < 2.0^-8
@@ -67,7 +67,7 @@ Optionally filters events by a custom energy range, not just that given in the R
 
 Returns filtered event times and energies
 """
-function _lc_filter_energy(event_times::Array{Float64,1}, event_energies::Array{Float64,1}, good_energy_min::Float64, good_energy_max::Float64)
+function _lc_filter_energy(event_times::Array{<:AbstractFloat,1}, event_energies::Array{<:AbstractFloat,1}, good_energy_min::Float64, good_energy_max::Float64)
     @info "               -> Filtering energies"
     mask_good_energy = good_energy_min .<= event_energies .<= good_energy_max
 
@@ -156,9 +156,9 @@ Using these groups, splits sections of light curve up into an group, then
 creates a new `BinnedData` for just the lightcurve of that one group, finally 
 returns a `Dict{Int64,JAXTAM.BinnedData}` where each `Int64` is for a different group
 """
-function _group_return(data::BinnedData)
+function _group_return(data::BinnedData; min_length_sec=16)
     gtis = data.gtis
-    # gtis = gtis[(gtis[:, :stop]-gtis[:, :start]) .>= 16, :] # Ignore gtis under 16s long
+    gtis = gtis[(gtis[:, :stop]-gtis[:, :start]) .>= min_length_sec, :]
     available_groups = unique(gtis[:group])
 
     data_group = Dict{Int64,JAXTAM.BinnedData}()
@@ -238,7 +238,11 @@ Takes in `BinnedData` and splits the information up into three files, `meta`, `g
 
 Saves the files in a lightcurve directory (`/JAXTAM/lc/\$bin_time/*`) per-instrument
 """
-function _lcurve_save(lightcurve_data::BinnedData, lc_dir::String)
+function _lcurve_save(mission_name::Symbol, obs_row::DataFrames.DataFrame, instrument::Union{String,Symbol}, e_range::Tuple, bin_time::Union{String,Real},
+        lcurve_dir::String, lightcurve_data::BinnedData; log=true)
+    @info "               -> Saving `$instrument` $(lightcurve_data.bin_time)s lightcurve data"
+    mkpath(lcurve_dir)
+
     lc_basename = string("$(lightcurve_data.instrument)_lc_$(lightcurve_data.bin_time)")
 
     lc_meta = DataFrame(mission=string(lightcurve_data.mission), instrument=string(lightcurve_data.instrument),
@@ -249,9 +253,35 @@ function _lcurve_save(lightcurve_data::BinnedData, lc_dir::String)
 
     lc_data = DataFrame(counts=lightcurve_data.counts)
 
-    Feather.write(joinpath(lc_dir, "$(lc_basename)_meta.feather"), lc_meta)
-    Feather.write(joinpath(lc_dir, "$(lc_basename)_gtis.feather"), lc_gtis)
-    Feather.write(joinpath(lc_dir, "$(lc_basename)_data.feather"), lc_data)
+    path_meta = joinpath(lcurve_dir, "$(lc_basename)_meta.feather")
+    path_gtis = joinpath(lcurve_dir, "$(lc_basename)_gtis.feather")
+    path_data = joinpath(lcurve_dir, "$(lc_basename)_data.feather")
+
+    Feather.write(path_meta, lc_meta)
+    Feather.write(path_gtis, lc_gtis)
+    Feather.write(path_data, lc_data)
+
+    if log
+        _log_add(mission_name, obs_row, 
+            Dict("data" =>
+                Dict(:lcurve =>
+                    Dict(e_range =>
+                        Dict(bin_time =>
+                            Dict(instrument =>
+                                Dict(
+                                    :path_data => path_data,
+                                    :path_gtis => path_gtis,
+                                    :path_meta => path_meta,
+                                )
+                            )
+                        )
+                    )
+                )
+            )
+        )
+    end
+
+    @info "               -> Saving `$instrument` $(lightcurve_data.bin_time)s lightcurve data finished"
 end
 
 """
@@ -260,15 +290,20 @@ end
 Reads the split files saved by `_lcurve_save`, combines them to return a single `BinnedData` type
 """
 function _lc_read(lc_dir::String, instrument::Symbol, bin_time)
+    @info "Loading `$instrument` lightcurve data"
     lc_basename = string("$(instrument)_lc_$(string(bin_time))")
 
     lc_meta = Feather.read(joinpath(lc_dir, "$(lc_basename)_meta.feather"))
     lc_gtis = Feather.read(joinpath(lc_dir, "$(lc_basename)_gtis.feather"))
     lc_data = Feather.read(joinpath(lc_dir, "$(lc_basename)_data.feather"))
 
-    return BinnedData(Symbol(lc_meta[:mission][1]), Symbol(lc_meta[:instrument][1]), lc_meta[:obsid][1], 
+    bd = BinnedData(Symbol(lc_meta[:mission][1]), Symbol(lc_meta[:instrument][1]), lc_meta[:obsid][1], 
         lc_meta[:bin_time][1], lc_data[:counts], lc_meta[:times][1]:lc_meta[:times][2]:lc_meta[:times][3], 
         lc_gtis)
+
+    @info "Loading `$instrument` lightcurve data finished"
+
+    return bd
 end
 
 """
@@ -283,48 +318,59 @@ Loads saved files if they exist
 Returns `Dict{Symbol,BinnedData}`, with the instrument as a symbol, e.g. `lc[:XTI]` for NICER, 
 `lc[:FPMA]`/`lc[:FPMB]` for NuSTAR
 """
-function lcurve(mission_name::Symbol, obs_row::DataFrame, bin_time::Number; overwrite=false)
-    obsid          = obs_row[:obsid][1]
-    JAXTAM_path    = abspath(string(obs_row[:obs_path][1], "/JAXTAM/")); mkpath(JAXTAM_path)
-    JAXTAM_content = readdir(JAXTAM_path)
-    JAXTAM_lc_path = joinpath(JAXTAM_path, "lc/$bin_time/")
-    
-    mkpath(JAXTAM_lc_path)
-    
-    JAXTAM_c_files  = count(contains.(JAXTAM_content, "calib"))
-    JAXTAM_lc_files = count(contains.(readdir(JAXTAM_lc_path), "lc_"))/3
-
+function lcurve(mission_name::Symbol, obs_row::DataFrame, bin_time::Number; overwrite=false,
+        calibrated_data::Dict{Symbol,JAXTAM.InstrumentData}=Dict{Symbol,InstrumentData}())
+    obsid       = obs_row[:obsid][1]
     instruments = Symbol.(config(mission_name).instruments)
+    e_range     = (config(mission_name).good_energy_min, config(mission_name).good_energy_max)
+    bin_time_p2 = "2pow$(Int(log2(bin_time)))"
+    lc_files    = _log_query(mission_name, obs_row, "data", :lcurve, e_range, bin_time_p2)
+
+    lc_path = abspath(obs_row[1, :obs_path], "JAXTAM", _log_query_path(; category=:data, kind=:lcurve, e_range=e_range, bin_time=bin_time))
 
     lightcurves = Dict{Symbol,BinnedData}()
+    for instrument in instruments
+        if ismissing(lc_files) || !haskey(lc_files, instrument) || overwrite
+            @info "Missing lcurve files for $instrument"
+            
+            if !all(haskey.(calibrated_data, instruments))
+                calibrated_data = calibrate(mission_name, obs_row)
+            end
 
-    if JAXTAM_c_files == 0
-        @warn "No calibrated files found, running calibration"
-        calibrate(mission_name, obs_row)
-        return lcurve(mission_name, obs_row, bin_time; overwrite=overwrite)
-    end
-
-    if (JAXTAM_c_files > 0 && JAXTAM_c_files > JAXTAM_lc_files) || (JAXTAM_c_files > 0 && overwrite)
-        calibrated_data = calibrate(mission_name, obs_row)
-    
-        for instrument in instruments
-            @info "Binning LCURVE"
+            @info "Generating lcurve files for $instrument"
             lightcurve_data = _lcurve(calibrated_data[instrument], bin_time)
 
-            @info "               -> Saving `$instrument` $(bin_time)s lightcurve data"
-
-            _lcurve_save(lightcurve_data, JAXTAM_lc_path)
+            _lcurve_save(mission_name, obs_row, instrument, e_range, bin_time_p2, lc_path, lightcurve_data)
 
             lightcurves[instrument] = lightcurve_data
-        end
-    elseif JAXTAM_c_files > 0 && JAXTAM_c_files == JAXTAM_lc_files
-        @info "Loading LC $(obsid): from $JAXTAM_lc_path"
-
-        for instrument in instruments
-            lightcurves[instrument] = _lc_read(JAXTAM_lc_path, instrument, bin_time)
+        else
+            lightcurves[instrument] = _lc_read(lc_path, instrument, bin_time)
         end
     end
-    
+
+    if ismissing(_log_query(mission_name, obs_row, "meta", :countrates, e_range))
+        @info "Computing countrates for $e_range keV, this  may take a while"
+        countrates = Dict{Symbol,Float64}()
+        for instrument in instruments
+            gtis = [[gti[:start], gti[:stop]] for gti in DataFrames.eachrow(lightcurves[instrument].gtis) if sum([gti[:start], gti[:stop]]) > 1]
+
+            counts = 0
+            for gti in gtis
+                start_idx = findfirst(lightcurves[instrument].times .>= gti[1])
+                stop_idx  = findfirst(lightcurves[instrument].times .>= gti[2])
+
+                if stop_idx == nothing && gti[2] == gtis[end][2]
+                    stop_idx = length(lightcurves[instrument].counts)
+                end
+
+                counts += sum(lightcurves[instrument].counts[start_idx:stop_idx])
+            end
+
+            countrates[instrument] = counts/sum(diff.(gtis))[1]
+        end
+        _log_add(mission_name, obs_row, Dict("meta" => Dict(:countrates => Dict(e_range => countrates))))
+    end
+
     return lightcurves
 end
 

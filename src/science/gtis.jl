@@ -101,7 +101,11 @@ end
 Splits up the GTI data into a `_meta.feather` file containing non-array variables for each GTI (index, start/stop times, etc...) 
 and multiple `_gti.feather` files for each GTI containing the counts and times
 """
-function _gtis_save(gtis, gti_dir::String)
+function _gtis_save(mission_name::Symbol, obs_row::DataFrames.DataFrame, instrument::Union{String,Symbol}, e_range::Tuple,
+        gtis_dir::String, gtis::Dict{Int64,JAXTAM.GTIData}; log=true)
+    mkpath(gtis_dir)
+    log_entries = Dict{Union{Symbol,Int},String}()
+
     gti_indecies = [k for k in keys(gtis)]
     gti_starts   = [t.gti_start_time for t in values(gtis)]
     gti_example  = gtis[gti_indecies[1]]
@@ -111,11 +115,29 @@ function _gtis_save(gtis, gti_dir::String)
     gtis_meta    = DataFrame(mission=String(gti_example.mission), instrument=String(gti_example.instrument),
         obsid=gti_example.obsid, bin_time=gti_example.bin_time, indecies=gti_indecies, starts=gti_starts, groups=gti_groups)
 
-    Feather.write(joinpath(gti_dir, "$(gti_basename)_meta.feather"), gtis_meta)
+    Feather.write(joinpath(gtis_dir, "$(gti_basename)_meta.feather"), gtis_meta)
+    log_entries[:path_meta] = joinpath(gtis_dir, "$(gti_basename)_meta.feather")
 
     for index in gti_indecies
-        gti_savepath = joinpath(gti_dir, "$(gti_basename)_$(index).feather")
+        gti_savepath = joinpath(gtis_dir, "$(gti_basename)_$(index).feather")
         Feather.write(gti_savepath, DataFrame(counts=gtis[index].counts, times=gtis[index].times))
+        log_entries[index] = gti_savepath
+    end
+
+    if log
+        _log_add(mission_name, obs_row, 
+            Dict("data" =>
+                Dict(:gtis =>
+                    Dict(e_range =>
+                        Dict(gti_example.bin_time =>
+                            Dict(instrument =>
+                                log_entries
+                            )
+                        )
+                    )
+                )
+            )
+        )
     end
 end
 
@@ -161,44 +183,37 @@ end
 Handles file management, checks to see if GTI files exist already and loads them, if files do not 
 exist then the `_gits` function is ran, then the data is saved
 """
-function gtis(mission_name::Symbol, obs_row::DataFrames.DataFrame, bin_time::Number; overwrite=false)
-    obsid              = obs_row[:obsid][1]
-    instruments        = config(mission_name).instruments
+function gtis(mission_name::Symbol, obs_row::DataFrames.DataFrame, bin_time::Number; overwrite=false,
+        lcurve_data::Dict{Symbol,BinnedData}=Dict{Symbol,BinnedData}())
+    obsid       = obs_row[1, :obsid]
+    instruments = Symbol.(config(mission_name).instruments)
+    e_range     = (config(mission_name).good_energy_min, config(mission_name).good_energy_max)
+    gti_files   = _log_query(mission_name, obs_row, "data", :gtis, e_range, bin_time)
 
-    JAXTAM_path        = abspath(string(obs_row[:obs_path][1], "/JAXTAM/"))
-    JAXTAM_lc_path     = joinpath(JAXTAM_path, "lc/$bin_time/"); mkpath(JAXTAM_lc_path)
-    JAXTAM_lc_content  = readdir(JAXTAM_path)
-    JAXTAM_gti_path    = joinpath(JAXTAM_path, "lc/$bin_time/gtis/"); mkpath(JAXTAM_gti_path)
-    JAXTAM_gti_content = readdir(JAXTAM_gti_path)
-    JAXTAM_gti_metas   = Dict([Symbol(inst) => joinpath(JAXTAM_gti_path, "$(inst)_lc_$(float(bin_time))_gti_meta.feather") for inst in instruments])
-    JAXTAM_all_metas   = unique([isfile(meta) for meta in values(JAXTAM_gti_metas)])
-    
-    @info "Selecting GTIs"
+    gtis_path   = abspath(obs_row[1, :obs_path], "JAXTAM", _log_query_path(; category=:data, kind=:gtis, e_range=e_range, bin_time=bin_time))
 
-    if JAXTAM_all_metas != [true] || overwrite
-        @info "               -> not all GTI metas found"
-        lc = lcurve(mission_name, obs_row, bin_time)
-    end
-    
-    instrument_gtis = Dict{Symbol,Dict{Int64,JAXTAM.GTIData}}() # DataStructures.OrderedDict{Int64,JAXTAM.GTIData}
-
+    gtis = Dict{Symbol,Dict{Int64,JAXTAM.GTIData}}()
     for instrument in instruments
-        if !isfile(JAXTAM_gti_metas[Symbol(instrument)]) || overwrite
-            @info "               -> $instrument GTIs"
+        if ismissing(gti_files) || !haskey(gti_files, instrument) || overwrite
+            @info "Missing gti files for $instrument"
 
-            gtis_data = _gtis(lc[Symbol(instrument)])
+            if !all(haskey.(lcurve_data, instruments))
+                lcurve_data = lcurve(mission_name, obs_row, bin_time)
+            end
 
-            @info "               -> saving `$instrument GTIs`"
-            _gtis_save(gtis_data, JAXTAM_gti_path)
+            @info "Selecting GTIs for $instrument"
+            gtis_data = _gtis(lcurve_data[Symbol(instrument)])
 
-            instrument_gtis[Symbol(instrument)] = gtis_data
+            _gtis_save(mission_name, obs_row, instrument, e_range, gtis_path, gtis_data)
+
+            gtis[instrument] = gtis_data
         else
-            @info "               -> loading `$instrument GTIs`"
-            instrument_gtis[Symbol(instrument)] = _gtis_load(JAXTAM_gti_path, instrument, bin_time)
+            @info "Loading gtis for $instrument"
+            gtis[instrument] = _gtis_load(gtis_path, instrument, bin_time)
         end
     end
 
-    return instrument_gtis
+    return gtis
 end
 
 """

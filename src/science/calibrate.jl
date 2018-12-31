@@ -92,13 +92,14 @@ Loads `calib.feater` file if it does exist
 Returns a calibrated (filtered to contain only good energies) `InstrumentData` type
 """
 function calibrate(mission_name::Symbol, obs_row::DataFrames.DataFrame;
-    instrument_data::Dict{Symbol,JAXTAM.InstrumentData}=Dict{Symbol,InstrumentData}(), overwrite=false)
+        instrument_data::Dict{Symbol,JAXTAM.InstrumentData}=Dict{Symbol,InstrumentData}(), overwrite=false)
     obsid       = obs_row[1, :obsid]
     instruments = Symbol.(config(mission_name).instruments)
     cl_files    = _log_query(mission_name, obs_row, "data", :feather_cl)
 
     if !all(haskey.(instrument_data, instruments))
         instrument_data = read_cl(mission_name, obs_row)
+        cl_files = _log_query(mission_name, obs_row, "data", :feather_cl) # Reload log after read_cl finishes
     end
 
     calibration_instrument_data = Dict{Symbol,DataFrames.DataFrame}()
@@ -110,8 +111,8 @@ function calibrate(mission_name::Symbol, obs_row::DataFrames.DataFrame;
             @info "Generating calib files for $instrument"
             calibration_instrument_data[instrument] = DataFrame(E=_calibrate_pis(instrument_data[instrument].events[:PI], mission_name))
 
-            _save_calibrated(mission_name, obs_row, instrument,
-                abspath(string(obs_row[1, :obs_path], "/JAXTAM/data/feather_cl/")), calibration_instrument_data[instrument])
+            cl_path = abspath(obs_row[1, :obs_path], "JAXTAM", _log_query_path(; category=:data, kind=:feather_cl))
+            _save_calibrated(mission_name, obs_row, instrument, cl_path, calibration_instrument_data[instrument])
         end
 
         instrument_data[instrument].events[:E] = calibration_instrument_data[instrument][:E]

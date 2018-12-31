@@ -29,13 +29,17 @@ function report(mission_name, obsid; overwrite=false, nuke=false)
     obs_path = replace(obs_path, "//"=>"/")
     JAXTAM_path = joinpath(obs_path, "JAXTAM")
 
-    if nuke
+    e_range = (config(mission_name).good_energy_min, config(mission_name).good_energy_max)
+
+    if nuke && ispath(JAXTAM_path)
+        GC.gc() # Required due to Feather.jl loading files lazily, meaning they can't be removed from disk
+                # until garbace collection runs and un-lazily-loads them
         rm(JAXTAM_path, recursive=true)
     end
 
     obs_log = _log_read(mission_name, obs_row)
     img_count = if haskey(obs_log, "images")
-        size(obs_log["images"], 1)
+        size(obs_log["images"][e_range], 1)
     else
         0
     end

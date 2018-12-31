@@ -117,7 +117,7 @@ function _xspec_ldata_cmd(mission_name::Union{String,Symbol}, obs_row::DataFrame
 
     plot_path = _xspec_ldata_cmd(path_grppha_out, e_min, e_max)
     plot_log  = JAXTAM._log_entry(; category=:images, e_range=(e_min, e_max), kind=:espec, file_name=basename(plot_path))
-    JAXTAM._log_add(Symbol(mission_name), obs_row, plot_log)
+    JAXTAM._log_add(Symbol(mission_name), obs_row, Dict("images"=>Dict((e_min, e_max)=>plot_log)))
 end
 
 function _xspec_eufspec_cmd(path_grppha_spec::String, e_min::Float64, e_max::Float64)
@@ -129,7 +129,7 @@ function _xspec_eufspec_cmd(path_grppha_spec::String, e_min::Float64, e_max::Flo
     model    = [
         "model PowerLaw";
         repeat([""], 11); # Done to leave model parameters as defualts
-        "newpar 1 1"
+        "newpar 1 0"
     ]
     set_e    = "setplot energy"
     plot_ld  = "plot eufspec"
@@ -164,7 +164,7 @@ function _xspec_eufspec_cmd(mission_name::Union{String,Symbol}, obs_row::DataFra
 
     plot_path = _xspec_eufspec_cmd(path_grppha_out, e_min, e_max)
     plot_log  = JAXTAM._log_entry(; category=:images, e_range=(e_min, e_max), kind=:espec, file_name=basename(plot_path))
-    JAXTAM._log_add(Symbol(mission_name), obs_row, plot_log)
+    JAXTAM._log_add(Symbol(mission_name), obs_row, Dict("images"=>Dict((e_min, e_max)=>plot_log)))
 end
 
 function _call_all_espec(mission_name::Union{String,Symbol}, obs_row::DataFrames.DataFrame)

@@ -20,9 +20,9 @@ function _pgram(counts, times, bin_time, pg_type=:standard; maximum_frequency=:a
     pg_plan = LombScargle.plan(
         times, float(counts), 
         normalization=pg_type,
-        minimum_frequency=0,
+        minimum_frequency=1/(length(counts)*bin_time), # TODO: Check if setting min freq to 1/exposure is correct
         maximum_frequency=maximum_frequency,
-        samples_per_peak=1,
+        # samples_per_peak=1,
     )
 
     pg = lombscargle(pg_plan)
@@ -35,7 +35,7 @@ end
 function _pgram(lc::BinnedData, pg_type, group; maximum_frequency=:auto)
     freq, power = (missing, missing)
     if group == 0 # Using whole lightcurve
-        lc_groups = _group_return(lc)
+        lc_groups = _group_return(lc; min_length_sec=16)
         lc_group_counts = vcat([lc[2].counts for lc in lc_groups]...)
         lc_group_times  = vcat([lc[2].times for lc in lc_groups]...)
         freq, power = _pgram(lc_group_counts, lc_group_times, lc.bin_time, pg_type; maximum_frequency=maximum_frequency)

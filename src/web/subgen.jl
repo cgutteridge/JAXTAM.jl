@@ -172,13 +172,13 @@ function _webgen_report_intro(mission_name, obs_row, report_page_dir)
     similar_missions = missions[similar_missions]
 
     similar_missions_links = Dict()
-    for similar_mission in Symbol.(similar_missions)
-        similar_obs_row = JAXTAM.master_query(similar_mission, :obsid, obs_row[1, :obsid])
+    # for similar_mission in Symbol.(similar_missions)
+    #     similar_obs_row = JAXTAM.master_query(similar_mission, :obsid, obs_row[1, :obsid])
 
-        if similar_obs_row[1, :report_exists]
-            similar_missions_links[similar_mission] = replace(similar_obs_row[1, :report_path], config(similar_mission).path_web=>"")
-        end
-    end
+    #     if similar_obs_row[1, :report_exists]
+    #         similar_missions_links[similar_mission] = replace(similar_obs_row[1, :report_path], config(similar_mission).path_web=>"")
+    #     end
+    # end
     
     # To avoid requiring the URL (if the website is actually hosted) all the paths are relative
     # this is a very awkward way of using relative path movements to move up to another mission's
@@ -301,9 +301,8 @@ function _webgen_subpage(mission_name, obs_row)
 
     obs_log = _log_read(mission_name, obs_row)
     # fix e_range call here once all energies unified
-    e_range = "$(mission_config.good_energy_min)_$(mission_config.good_energy_max)"
-    img_log = obs_log["images"]
-    img_log = filter(r->r[:e_range] == e_range, img_log)
+    e_range = (mission_config.good_energy_min, mission_config.good_energy_max)
+    img_log = obs_log["images"][e_range]
 
     img_details_overview = filter(x->ismissing(x[:group]), img_log)
     img_details_overview = sort(img_details_overview, (:group, :kind_order))

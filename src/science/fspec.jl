@@ -213,46 +213,30 @@ function fspec(mission_name::Symbol, gtis::Dict{Symbol,Dict{Int64,JAXTAM.GTIData
         end
     end
 
-
     return instrument_fspecs
 end
 
 function fspec(mission_name::Symbol, obs_row::DataFrames.DataFrame, bin_time::Real, fspec_bin::Real;
-        overwrite_fs=true, overwrite_gtis=false, save_fspec=false, pow2=true, fspec_bin_type=:time, scrunched=true)
+        overwrite=true, overwrite_gtis=false, save_fspec=false, pow2=true, fspec_bin_type=:time, scrunched=true,
+        gtis_data::Dict{Symbol,JAXTAM.GTIData}=Dict{Symbol,JAXTAM.GTIData}())
     obsid       = obs_row[:obsid][1]
     instruments = Symbol.(config(mission_name).instruments)
+    e_range     = (config(mission_name).good_energy_min, config(mission_name).good_energy_max)
+    fspec_files = _log_query(mission_name, obs_row, "data", :fspec, e_range)
 
-    JAXTAM_path          = abspath(string(obs_row[:obs_path][1], "/JAXTAM/"))
+    fspec_path  = abspath(obs_row[1, :obs_path], "JAXTAM", _log_query_path(; category=:data, kind=:fspec, e_range=e_range, bin_time=bin_time))
 
-    JAXTAM_gti_path      = joinpath(JAXTAM_path, "lc/$bin_time/gtis/"); mkpath(JAXTAM_gti_path)
-    JAXTAM_gti_content   = readdir(JAXTAM_gti_path)
-    JAXTAM_gti_metas     = Dict([Symbol(inst) => joinpath(JAXTAM_gti_path, "$(inst)_lc_$(float(bin_time))_gti_meta.feather") for inst in instruments])
-
-    JAXTAM_fspec_path    = joinpath(JAXTAM_path, "lc/$bin_time/fspec/"); mkpath(JAXTAM_fspec_path)
-    JAXTAM_fspec_content = readdir(JAXTAM_path)
-    JAXTAM_fspec_metas   = Dict([Symbol(inst) => joinpath(JAXTAM_fspec_path, "$(inst)_lc_$(float(bin_time))_fspec_meta.feather") for inst in instruments])
-
-    JAXTAM_all_gti_metas   = unique([isfile(meta) for meta in values(JAXTAM_gti_metas)])
-    JAXTAM_all_fspec_metas = unique([isfile(meta) for meta in values(JAXTAM_fspec_metas)])
-
-    if JAXTAM_all_gti_metas != [true] || overwrite_gtis
-        @info "Not all GTI metas found"
-    end
-
-    gtis = JAXTAM.gtis(mission_name, obs_row, bin_time; overwrite=overwrite_gtis)
-    
-    instrument_fspecs = Dict{Symbol,Dict{Int64,JAXTAM.FFTData}}()
-
+    fspecs = Dict{Symbol,Dict{Int64,JAXTAM.FFTData}}()
     for instrument in instruments
-        if fspec_bin == 0
-            fspec_bin = _best_gti_pow2(gtis[instrument])[2]*bin_time
-            @info "Auto picking `fspec_bin`: $fspec_bin"
-        end
+        if ismissing(fspec_files) || !haskey(fspec_files, instrument) || overwrite
+            @info "Missing fspec files for $instrument"
 
-        if !isfile(JAXTAM_fspec_metas[instrument]) || overwrite_fs
-            @info "Computing $instrument fspecs"
+            if !all(haskey.(gtis_data, instruments))
+                gtis_data = JAXTAM.gtis(mission_name, obs_row, bin_time)
+            end
 
-            fspec_data = _fspec(gtis[instrument], fspec_bin; pow2=pow2, fspec_bin_type=fspec_bin_type)
+            @info "Generating fspec for $instrument"
+            fspec_data = _fspec(gtis_data[instrument], fspec_bin; pow2=pow2, fspec_bin_type=fspec_bin_type)
 
             if scrunched
                 @info "                       -> scrunching gtis"
@@ -260,18 +244,20 @@ function fspec(mission_name::Symbol, obs_row::DataFrames.DataFrame, bin_time::Re
             end
 
             if save_fspec
-                @info "                       -> saving $instrument -> $JAXTAM_fspec_path"
-                _fspec_save(fspec_data, JAXTAM_fspec_path)
+                @info "                       -> saving $instrument -> $fspec_path"
+                _fspec_save(fspec_data, fspec_path)
+            else
+                @info "                       -> not saving fspec file, `save_fspec` is false"
             end
 
-            instrument_fspecs[instrument] = fspec_data
+            fspecs[instrument] = fspec_data
         else
             @info "Loading $instrument fspecs"
-            instrument_fspecs[instrument] = _fspec_load(JAXTAM_fspec_path, instrument, bin_time, fspec_bin)
+            fspecs[instrument] = _fspec_load(fspec_path, instrument, bin_time, fspec_bin)
         end
     end
 
-    return instrument_fspecs
+    return fspecs
 end
 
 function fspec(mission_name::Symbol, obsid::String, bin_time::Number, fspec_bin::Real;
@@ -279,7 +265,7 @@ function fspec(mission_name::Symbol, obsid::String, bin_time::Number, fspec_bin:
 
     obs_row = master_query(mission_name, :obsid, obsid)
 
-    fs = fspec(mission_name, obs_row, bin_time, fspec_bin; overwrite_fs=overwrite_fs, overwrite_gtis=overwrite_gtis,
+    fs = fspec(mission_name, obs_row, bin_time, fspec_bin; overwrite=overwrite_fs, overwrite_gtis=overwrite_gtis,
         pow2=pow2, fspec_bin_type=fspec_bin_type, scrunched=scrunched)
     
     return fs
