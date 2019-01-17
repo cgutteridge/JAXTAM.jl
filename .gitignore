@@ -7,4 +7,6 @@ docs/site/
 .ipynb_checkpoints/
 todo.txt
 src/utils/logging_old.jl
-src/skunkworks/e_lcurve.jl
+src/skunkworks/*
+src/missions/custom/*
+mission_paths.json

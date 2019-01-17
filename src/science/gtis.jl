@@ -1,13 +1,14 @@
 struct GTIData <: JAXTAMData
-    mission::Symbol
-    instrument::Symbol
-    obsid::String
-    bin_time::Real
-    gti_index::Int
-    gti_start_time::Real
-    counts::Array
-    times::StepRangeLen
-    group::Int
+    mission        :: Mission
+    instrument     :: Symbol
+    obsid          :: String
+    e_range        :: Tuple{Float64,Float64}
+    bin_time       :: Real
+    gti_index      :: Int
+    gti_start_time :: Real
+    counts         :: Array
+    times          :: StepRangeLen
+    group          :: Int
 end
 
 """
@@ -18,7 +19,10 @@ Splits the lightcurve (count) data into GTIs
 First, removes GTIs under `min_gti_sec`, then puts the lightcurve data 
 into a `Dict{Int,GTIData}`, with the key as the `index` of the GTI
 """
-function _lc_filter_gtis(binned_times::StepRangeLen, binned_counts::Array{Int,1}, gtis::DataFrames.DataFrame, mission::Symbol, instrument::Symbol, obsid::String; min_gti_sec=16)
+function _lc_filter_gtis(mission::Mission, instrument::Symbol, obsid::String, e_range::Tuple{Float64,Float64},
+        binned_times::StepRangeLen, binned_counts::Array{Int,1}, gtis::DataFrames.DataFrame;
+        min_gti_sec=16
+    )
     gti_data = Dict{Int,GTIData}()
 
     gti_groups = gtis[:group]
@@ -59,14 +63,14 @@ function _lc_filter_gtis(binned_times::StepRangeLen, binned_counts::Array{Int,1}
             continue
         end
         
-        start = ceil(Int, gti[1]/bin_time)+1 - subarray_offset
+        start = ceil(Int, gti[1]/bin_time)+1  - subarray_offset
         stop  = floor(Int, gti[2]/bin_time)-1 - subarray_offset
 
         # Subtract GTI start time from all times, so all start from t=0
         array_times = binned_times[start:stop].-gti[1]
         range_times = array_times[1]:bin_time:array_times[end]
 
-        gti_data[Int(i)] = GTIData(mission, instrument, obsid, bin_time, i, start, 
+        gti_data[Int(i)] = GTIData(mission, instrument, obsid, e_range, bin_time, i, start, 
             binned_counts[start:stop], range_times, gti_groups[i])
     end
 
@@ -90,7 +94,7 @@ end
 Calls `_lc_filter_gtis` using `BinnedData` input
 """
 function _gtis(lc::BinnedData)
-    gti_data = _lc_filter_gtis(lc.times, lc.counts, lc.gtis, lc.mission, lc.instrument, lc.obsid)
+    gti_data = _lc_filter_gtis(lc.mission, lc.instrument, lc.obsid, lc.e_range, lc.times, lc.counts, lc.gtis)
 
     return gti_data
 end
@@ -101,8 +105,11 @@ end
 Splits up the GTI data into a `_meta.feather` file containing non-array variables for each GTI (index, start/stop times, etc...) 
 and multiple `_gti.feather` files for each GTI containing the counts and times
 """
-function _gtis_save(mission_name::Symbol, obs_row::DataFrames.DataFrame, instrument::Union{String,Symbol}, e_range::Tuple,
-        gtis_dir::String, gtis::Dict{Int64,JAXTAM.GTIData}; log=true)
+function _gtis_save(mission::Mission, obs_row::DataFrames.DataFrameRow{DataFrames.DataFrame}, 
+        instrument::Union{String,Symbol}, e_range::Tuple,
+        gtis_dir::String, gtis::Dict{Int64,JAXTAM.GTIData}; log=true
+    )
+    @info "Saving $instrument gti data"
     mkpath(gtis_dir)
     log_entries = Dict{Union{Symbol,Int},String}()
 
@@ -112,7 +119,7 @@ function _gtis_save(mission_name::Symbol, obs_row::DataFrames.DataFrame, instrum
     gti_groups   = [o.group for o in values(gtis)]
 
     gti_basename = string("$(gti_example.instrument)_lc_$(gti_example.bin_time)_gti")
-    gtis_meta    = DataFrame(mission=String(gti_example.mission), instrument=String(gti_example.instrument),
+    gtis_meta    = DataFrame(mission=string(_mission_name(gti_example.mission)), instrument=String(gti_example.instrument),
         obsid=gti_example.obsid, bin_time=gti_example.bin_time, indecies=gti_indecies, starts=gti_starts, groups=gti_groups)
 
     Feather.write(joinpath(gtis_dir, "$(gti_basename)_meta.feather"), gtis_meta)
@@ -125,7 +132,7 @@ function _gtis_save(mission_name::Symbol, obs_row::DataFrames.DataFrame, instrum
     end
 
     if log
-        _log_add(mission_name, obs_row, 
+        _log_add(mission, obs_row, 
             Dict("data" =>
                 Dict(:gtis =>
                     Dict(e_range =>
@@ -139,6 +146,7 @@ function _gtis_save(mission_name::Symbol, obs_row::DataFrames.DataFrame, instrum
             )
         )
     end
+    @info "Saving $instrument gti data finished"
 end
 
 """
@@ -146,7 +154,8 @@ end
 
 Loads and parses the `_meta` and `_gti` files, puts into a `GTIData` constructor, returns `Dict{Int,GTIData}`
 """
-function _gtis_load(gti_dir, instrument, bin_time)
+function _gtis_load(gti_dir::String, instrument, e_range::Tuple{Float64,Float64}, bin_time)
+    @info "Loading $instrument gti data"
     bin_time = float(bin_time)
 
     gti_basename  = string("$(instrument)_lc_$(bin_time)_gti")
@@ -156,23 +165,24 @@ function _gtis_load(gti_dir, instrument, bin_time)
 
     gti_data = Dict{Int,GTIData}()
 
-    for row_idx in 1:size(gti_meta, 1)
-        current_row = gti_meta[row_idx, :]
-        gti_mission = Symbol(current_row[:mission][1])
-        gti_inst    = Symbol(current_row[:instrument][1])
-        gti_obsid   = current_row[:obsid][1]
-        gti_bin_t   = current_row[:bin_time][1]
-        gti_idx     = current_row[:indecies][1]
-        gti_starts  = current_row[:starts][1]
+    for gti_row in DataFrames.eachrow(gti_meta)
+        gti_mission = _mission_symbol_to_type(Symbol(gti_row[:mission]))
+        gti_inst    = Symbol(gti_row[:instrument])
+        gti_obsid   = gti_row[:obsid]
+        gti_bin_t   = gti_row[:bin_time]
+        gti_idx     = gti_row[:indecies]
+        gti_starts  = gti_row[:starts]
         current_gti = Feather.read(joinpath(gti_dir, "$(gti_basename)_$(gti_idx).feather"))
         gti_counts  = current_gti[:counts]
         gti_times   = current_gti[:times]
         gti_times   = gti_times[1]:gti_bin_t:gti_times[end] # Convert Array to Step Range
-        gti_group   = current_row[:groups][1]
+        gti_group   = gti_row[:groups]
         
-        gti_data[gti_idx] = GTIData(gti_mission, gti_inst, gti_obsid, gti_bin_t, gti_idx,
+        gti_data[gti_idx] = GTIData(gti_mission, gti_inst, gti_obsid, e_range, gti_bin_t, gti_idx,
             gti_starts, gti_counts, gti_times, gti_group)
     end
+
+    @info "Loading $instrument gti data finished"
 
     return gti_data
 end
@@ -183,14 +193,14 @@ end
 Handles file management, checks to see if GTI files exist already and loads them, if files do not 
 exist then the `_gits` function is ran, then the data is saved
 """
-function gtis(mission_name::Symbol, obs_row::DataFrames.DataFrame, bin_time::Number; overwrite=false,
-        lcurve_data::Dict{Symbol,BinnedData}=Dict{Symbol,BinnedData}())
-    obsid       = obs_row[1, :obsid]
-    instruments = Symbol.(config(mission_name).instruments)
-    e_range     = (config(mission_name).good_energy_min, config(mission_name).good_energy_max)
-    gti_files   = _log_query(mission_name, obs_row, "data", :gtis, e_range, bin_time)
-
-    gtis_path   = abspath(obs_row[1, :obs_path], "JAXTAM", _log_query_path(; category=:data, kind=:gtis, e_range=e_range, bin_time=bin_time))
+function gtis(mission::Mission, obs_row::DataFrames.DataFrameRow{DataFrames.DataFrame}, bin_time::Number; overwrite=false,
+        e_range::Tuple{Float64,Float64}=_mission_good_e_range(mission),
+        lcurve_data::Dict{Symbol,BinnedData}=Dict{Symbol,BinnedData}()
+    )
+    obsid       = obs_row[:obsid]
+    instruments = _mission_instruments(mission)
+    gti_files   = _log_query(mission, obs_row, "data", :gtis, e_range, bin_time)
+    gtis_path   = abspath(_obs_path_local(mission, obs_row; kind=:jaxtam), "JAXTAM", _log_query_path(; category=:data, kind=:gtis, e_range=e_range, bin_time=bin_time))
 
     gtis = Dict{Symbol,Dict{Int64,JAXTAM.GTIData}}()
     for instrument in instruments
@@ -198,31 +208,33 @@ function gtis(mission_name::Symbol, obs_row::DataFrames.DataFrame, bin_time::Num
             @info "Missing gti files for $instrument"
 
             if !all(haskey.(lcurve_data, instruments))
-                lcurve_data = lcurve(mission_name, obs_row, bin_time)
+                lcurve_data = lcurve(mission, obs_row, bin_time)
             end
 
             @info "Selecting GTIs for $instrument"
             gtis_data = _gtis(lcurve_data[Symbol(instrument)])
 
-            _gtis_save(mission_name, obs_row, instrument, e_range, gtis_path, gtis_data)
+            _gtis_save(mission, obs_row, instrument, e_range, gtis_path, gtis_data)
 
             gtis[instrument] = gtis_data
         else
-            @info "Loading gtis for $instrument"
-            gtis[instrument] = _gtis_load(gtis_path, instrument, bin_time)
+            gtis[instrument] = _gtis_load(gtis_path, instrument, e_range, bin_time)
         end
+    end
+
+    if ismissing(_log_query(mission, obs_row, "meta", :countrates, e_range))
+        countrates = Dict{Symbol,Float64}()
+        for instrument in instruments
+            countrates[instrument] = mean([sum(gti[2].counts)/gti[2].times[end] for gti in gtis[instrument]])
+        end
+        _log_add(mission, obs_row, Dict("meta" => Dict(:countrates => Dict(e_range => countrates))))
     end
 
     return gtis
 end
 
-"""
-    gtis(mission_name::Symbol, obsid::String, bin_time::Number; overwrite=false)
+function gtis(mission::Mission, obsid::String, bin_time::Number; overwrite=false)
+    obs_row = master_query(mission, :obsid, obsid)
 
-Runs `master_query` to load the `obs_row` for a given `obsid`, runs main `gits` function
-"""
-function gtis(mission_name::Symbol, obsid::String, bin_time::Number; overwrite=false)
-    obs_row = master_query(mission_name, :obsid, obsid)
-
-    return gtis(mission_name, obs_row, bin_time, overwrite=overwrite)
+    return gtis(mission, obs_row, bin_time, overwrite=overwrite)
 end

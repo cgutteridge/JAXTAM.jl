@@ -1,3 +1,7 @@
+function _log_path(mission::Mission, obs_row::DataFrames.DataFrameRow{DataFrames.DataFrame})
+    joinpath(_obs_path_local(mission, obs_row; kind=:jaxtam), "JAXTAM/obs_log.jld2")
+end
+
 function _log_entry(; kwargs...)
     template = OrderedDict(
         :category     => String,
@@ -71,25 +75,25 @@ function _log_query_path(; kwargs...)
     return _log_entry(; kwargs...)[1, :path]
 end
 
-function _log_gen(mission_name::Symbol, obs_row::DataFrames.DataFrame)
-    path = joinpath(obs_row[1, :obs_path], "JAXTAM/obs_log.jld2")
-
+function _log_gen(path::String, obs_row::DataFrames.DataFrameRow{DataFrames.DataFrame})
     if !ispath(path)
         mkpath(dirname(path))
     end
 
     meta_info = Dict{Any,Any}(
-        :obs_row => obs_row
+        :obs_row    => obs_row,
+        :downloaded => false
     )
 
     save(path, Dict{Any,Any}("meta"=>meta_info))
 end
 
-function _log_read(mission_name::Symbol, obs_row::DataFrames.DataFrame)
-    path = joinpath(obs_row[1, :obs_path], "JAXTAM/obs_log.jld2")
+function _log_read(mission::Mission, obs_row::DataFrames.DataFrameRow{DataFrames.DataFrame})
+    path = _log_path(mission, obs_row)
 
     if !isfile(path)
-        _log_gen(mission_name, obs_row)
+        @info "Generating log for $(obs_row[:obsid])"
+        _log_gen(path, obs_row)
     end
 
     Dict{Any,Any}(load(path))
@@ -99,7 +103,10 @@ function _merge(log::Dict, k::Union{Symbol,Tuple}, entry::Dict{T,DataFrames.Data
     template_log = _log_entry(; category="DELETE", kind=:DELETE)
     deleterows!(template_log, 1)
 
-    append!(template_log, log[k])
+    if haskey(log, k)
+        append!(template_log, log[k])
+    end
+
     append!(template_log, entry[k])
     unique!(template_log)
 
@@ -135,16 +142,17 @@ function _log_add_recursive(log::Dict, entry::Dict)
     return log
 end
 
-function _log_add(mission_name::Symbol, obs_row::DataFrames.DataFrame, entry::Dict{String,T}) where T <: Any
-    log = _log_read(mission_name, obs_row)
+function _log_add(mission::Mission, obs_row::DataFrames.DataFrameRow{DataFrames.DataFrame}, entry::Dict{String,T}) where T <: Any
+    path = _log_path(mission, obs_row)
+    log  = _log_read(mission, obs_row)
 
     log_new = _log_add_recursive(log, entry)
-    save(joinpath(obs_row[1, :obs_path], "JAXTAM/obs_log.jld2"), log_new)
+    save(path, log_new)
     return log_new
 end
 
-function _log_query(mission_name::Symbol, obs_row::DataFrames.DataFrame, args...)
-    log = _log_read(mission_name, obs_row)
+function _log_query(mission::Mission, obs_row::DataFrames.DataFrameRow{DataFrames.DataFrame}, args...)
+    log = _log_read(mission, obs_row)
 
     reply = log
     for (i, key) in enumerate(args)

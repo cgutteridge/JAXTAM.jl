@@ -44,13 +44,13 @@ function _calibrate_pis(pis::Union{Array,Arrow.Primitive{Int16},Arrow.Primitive{
     return map(x -> (calEmin[x+1] + calEmax[x+1])/2, pis)
 end
 
-function _calibrate_pis(pis::Union{Array,Arrow.Primitive{Int16},Arrow.Primitive{Int64}}, mission_name::Symbol)
-    path_rmf = config(mission_name).path_rmf
+function _calibrate_pis(pis::Union{Array,Arrow.Primitive{Int16},Arrow.Primitive{Int64}}, mission::Mission)
+    path_rmf = mission_paths(mission)[:rmf]
 
     return _calibrate_pis(pis, path_rmf)
 end
 
-function _save_calibrated(mission_name::Symbol, obs_row::DataFrames.DataFrame, instrument::Symbol, 
+function _save_calibrated(mission::Mission, obs_row::DataFrames.DataFrameRow{DataFrames.DataFrame}, instrument::Symbol, 
         feather_dir::String, calibrated_energy::DataFrames.DataFrame;
         log=true)
 
@@ -59,7 +59,7 @@ function _save_calibrated(mission_name::Symbol, obs_row::DataFrames.DataFrame, i
     Feather.write(calibrated_file_path, calibrated_energy)
 
     if log
-        _log_add(mission_name, obs_row, 
+        _log_add(mission, obs_row, 
             Dict("data" =>
                 Dict(:feather_cl =>
                     Dict(instrument =>
@@ -91,15 +91,16 @@ Loads `calib.feater` file if it does exist
 
 Returns a calibrated (filtered to contain only good energies) `InstrumentData` type
 """
-function calibrate(mission_name::Symbol, obs_row::DataFrames.DataFrame;
+function calibrate(mission::Mission, obs_row::DataFrames.DataFrameRow{DataFrames.DataFrame};
         instrument_data::Dict{Symbol,JAXTAM.InstrumentData}=Dict{Symbol,InstrumentData}(), overwrite=false)
-    obsid       = obs_row[1, :obsid]
-    instruments = Symbol.(config(mission_name).instruments)
-    cl_files    = _log_query(mission_name, obs_row, "data", :feather_cl)
+    obsid       = obs_row[:obsid]
+    instruments = _mission_instruments(mission)
+    cl_files    = _log_query(mission, obs_row, "data", :feather_cl)
 
     if !all(haskey.(instrument_data, instruments))
-        instrument_data = read_cl(mission_name, obs_row)
-        cl_files = _log_query(mission_name, obs_row, "data", :feather_cl) # Reload log after read_cl finishes
+        instrument_data = read_cl(mission, obs_row)
+        # Reload log after read_cl finishes
+        cl_files        = _log_query(mission, obs_row, "data", :feather_cl)
     end
 
     calibration_instrument_data = Dict{Symbol,DataFrames.DataFrame}()
@@ -109,10 +110,10 @@ function calibrate(mission_name::Symbol, obs_row::DataFrames.DataFrame;
             calibration_instrument_data[instrument] = _read_calibration(cl_files[instrument][:path_calib])
         else
             @info "Generating calib files for $instrument"
-            calibration_instrument_data[instrument] = DataFrame(E=_calibrate_pis(instrument_data[instrument].events[:PI], mission_name))
+            calibration_instrument_data[instrument] = DataFrame(E=_calibrate_pis(instrument_data[instrument].events[:PI], mission))
 
-            cl_path = abspath(obs_row[1, :obs_path], "JAXTAM", _log_query_path(; category=:data, kind=:feather_cl))
-            _save_calibrated(mission_name, obs_row, instrument, cl_path, calibration_instrument_data[instrument])
+            cl_path = abspath(_obs_path_local(mission, obs_row; kind=:jaxtam), "JAXTAM", _log_query_path(; category=:data, kind=:feather_cl))
+            _save_calibrated(mission, obs_row, instrument, cl_path, calibration_instrument_data[instrument])
         end
 
         instrument_data[instrument].events[:E] = calibration_instrument_data[instrument][:E]
@@ -121,12 +122,12 @@ function calibrate(mission_name::Symbol, obs_row::DataFrames.DataFrame;
     return instrument_data
 end
 
-function calibrate(mission_name::Symbol, append_df::DataFrames.DataFrame, obsid::String; overwrite=false)
+function calibrate(mission::Mission, append_df::DataFrames.DataFrame, obsid::String; overwrite=false)
     obs_row = master_query(append_df, :obsid, obsid)
 
-    return calibrate(mission_name, obs_row; overwrite=overwrite)
+    return calibrate(mission, obs_row; overwrite=overwrite)
 end
 
-function calibrate(mission_name::Symbol, obsid::String; overwrite=false)
-    return calibrate(mission_name, master_a(mission_name), obsid; overwrite=overwrite)
+function calibrate(mission::Mission, obsid::String; overwrite=false)
+    return calibrate(mission, master(mission), obsid; overwrite=overwrite)
 end

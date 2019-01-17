@@ -1,11 +1,12 @@
 struct BinnedData <: JAXTAMData
-    mission::Symbol
-    instrument::Symbol
-    obsid::String
-    bin_time::Real
-    counts::Array{Int,1}
-    times::StepRangeLen
-    gtis::DataFrames.DataFrame
+    mission    :: Mission
+    instrument :: Symbol
+    obsid      :: String
+    e_range    :: Tuple{Float64,Float64}
+    bin_time   :: Real
+    counts     :: Array{Int,1}
+    times      :: StepRangeLen
+    gtis       :: DataFrames.DataFrame
 end
 
 """
@@ -42,11 +43,6 @@ function _lcurve_filter_time(event_times::Union{Array{<:AbstractFloat,1},Arrow.P
     event_times = event_times .- start_time
     gtis = hcat(gtis[:START], gtis[:STOP])
     gtis = gtis .- start_time
-
-    # WARNING: rounding GTIs up/down to get integers, shouldn't(?) cause a problem
-    # TODO: check with Diego
-    # gtis[:, 1] = ceil.(gtis[:, 1])
-    # gtis[:, 2] = floor.(gtis[:, 2])
 
     if filter_low_count_gtis # Move GTI count filtering to post-binning stages
         counts_per_gti_sec = [count(gtis[g, 1] .<= event_times .<= gtis[g, 2])/(gtis[g, 2] - gtis[g, 1]) for g in 1:size(gtis, 1)]
@@ -183,7 +179,7 @@ function _group_return(data::BinnedData; min_length_sec=16)
         first_idx = findfirst(data.times .>= first_gti[:start])
         last_idx  = findfirst(data.times .>= last_gti[:stop])
 
-        if last_gti[1, :stop] >= data.times[end]
+        if last_gti[:stop] >= data.times[end]
             last_idx = length(data.times)
         end
         
@@ -191,6 +187,7 @@ function _group_return(data::BinnedData; min_length_sec=16)
             data.mission,
             data.instrument,
             data.obsid,
+            data.e_range,
             data.bin_time,
             data.counts[first_idx:last_idx],
             data.times[first_idx:last_idx],
@@ -212,11 +209,11 @@ Runs the binning (`_lc_bin`) function, then finally `_group_select` to append gr
 
 Returns a `BinnedData` lightcurve
 """
-function _lcurve(instrument_data::InstrumentData, bin_time::Union{Float64,Int64})
+function _lcurve(instrument_data::InstrumentData, bin_time::Union{Float64,Int64}, e_range::Tuple{Float64,Float64})
     event_times, event_energies, gtis = _lcurve_filter_time(instrument_data.events[:TIME], instrument_data.events[:E], instrument_data.gtis, instrument_data.start, instrument_data.stop)
 
-    mission_name = instrument_data.mission
-    good_energy_min, good_energy_max = (Float64(config(mission_name).good_energy_min), Float64(config(mission_name).good_energy_max))
+    mission = instrument_data.mission
+    good_energy_min, good_energy_max = e_range
 
     event_times, event_energies = _lc_filter_energy(event_times, event_energies, good_energy_min, good_energy_max)
 
@@ -224,7 +221,7 @@ function _lcurve(instrument_data::InstrumentData, bin_time::Union{Float64,Int64}
 
     gtis = DataFrame(start=gtis[:, 1], stop=gtis[:, 2])
 
-    lc = BinnedData(instrument_data.mission, instrument_data.instrument, instrument_data.obsid, bin_time, binned_counts, binned_times, gtis)
+    lc = BinnedData(instrument_data.mission, instrument_data.instrument, instrument_data.obsid, e_range, bin_time, binned_counts, binned_times, gtis)
 
     lc = _group_select(lc)
 
@@ -238,15 +235,19 @@ Takes in `BinnedData` and splits the information up into three files, `meta`, `g
 
 Saves the files in a lightcurve directory (`/JAXTAM/lc/\$bin_time/*`) per-instrument
 """
-function _lcurve_save(mission_name::Symbol, obs_row::DataFrames.DataFrame, instrument::Union{String,Symbol}, e_range::Tuple, bin_time::Union{String,Real},
+function _lcurve_save(mission::Mission, obs_row::DataFrames.DataFrameRow{DataFrames.DataFrame}, instrument::Union{String,Symbol}, e_range::Tuple, bin_time::Union{String,Real},
         lcurve_dir::String, lightcurve_data::BinnedData; log=true)
     @info "               -> Saving `$instrument` $(lightcurve_data.bin_time)s lightcurve data"
     mkpath(lcurve_dir)
 
     lc_basename = string("$(lightcurve_data.instrument)_lc_$(lightcurve_data.bin_time)")
 
-    lc_meta = DataFrame(mission=string(lightcurve_data.mission), instrument=string(lightcurve_data.instrument),
-        obsid=lightcurve_data.obsid, bin_time=lightcurve_data.bin_time, times=[lightcurve_data.times[1], 
+    # Odd format, creates a DataFrame with three rows:
+    #   1st row - lower energy range, start time, 
+    #   2nd row - 0 for energy range, time step size
+    #   3rd row - upper energy range, end time
+    lc_meta = DataFrame(mission=string(_mission_name(lightcurve_data.mission)), instrument=string(lightcurve_data.instrument),
+        obsid=lightcurve_data.obsid, e_range=[e_range[1], 0, e_range[2]], bin_time=lightcurve_data.bin_time, times=[lightcurve_data.times[1], 
         lightcurve_data.times[2] - lightcurve_data.times[1], lightcurve_data.times[end]])
 
     lc_gtis = lightcurve_data.gtis # DataFrame(start=lightcurve_data.gtis[:, 1], stop=lightcurve_data.gtis[:, 2])
@@ -262,7 +263,7 @@ function _lcurve_save(mission_name::Symbol, obs_row::DataFrames.DataFrame, instr
     Feather.write(path_data, lc_data)
 
     if log
-        _log_add(mission_name, obs_row, 
+        _log_add(mission, obs_row, 
             Dict("data" =>
                 Dict(:lcurve =>
                     Dict(e_range =>
@@ -297,8 +298,8 @@ function _lc_read(lc_dir::String, instrument::Symbol, bin_time)
     lc_gtis = Feather.read(joinpath(lc_dir, "$(lc_basename)_gtis.feather"))
     lc_data = Feather.read(joinpath(lc_dir, "$(lc_basename)_data.feather"))
 
-    bd = BinnedData(Symbol(lc_meta[:mission][1]), Symbol(lc_meta[:instrument][1]), lc_meta[:obsid][1], 
-        lc_meta[:bin_time][1], lc_data[:counts], lc_meta[:times][1]:lc_meta[:times][2]:lc_meta[:times][3], 
+    bd = BinnedData(_mission_symbol_to_type(Symbol(lc_meta[1, :mission])), Symbol(lc_meta[:instrument][1]), lc_meta[:obsid][1], 
+        (lc_meta[:e_range][1], lc_meta[:e_range][3]), lc_meta[:bin_time][1], lc_data[:counts], lc_meta[:times][1]:lc_meta[:times][2]:lc_meta[:times][3], 
         lc_gtis)
 
     @info "Loading `$instrument` lightcurve data finished"
@@ -307,7 +308,7 @@ function _lc_read(lc_dir::String, instrument::Symbol, bin_time)
 end
 
 """
-    lcurve(mission_name::Symbol, obs_row::DataFrame, bin_time::Number; overwrite=false)
+    lcurve(mission::Mission, obs_row::DataFrame, bin_time::Number; overwrite=false)
 
 Main function, handles all the lightcurve binning
 
@@ -318,15 +319,16 @@ Loads saved files if they exist
 Returns `Dict{Symbol,BinnedData}`, with the instrument as a symbol, e.g. `lc[:XTI]` for NICER, 
 `lc[:FPMA]`/`lc[:FPMB]` for NuSTAR
 """
-function lcurve(mission_name::Symbol, obs_row::DataFrame, bin_time::Number; overwrite=false,
-        calibrated_data::Dict{Symbol,JAXTAM.InstrumentData}=Dict{Symbol,InstrumentData}())
-    obsid       = obs_row[:obsid][1]
-    instruments = Symbol.(config(mission_name).instruments)
-    e_range     = (config(mission_name).good_energy_min, config(mission_name).good_energy_max)
+function lcurve(mission::Mission, obs_row::DataFrames.DataFrameRow{DataFrames.DataFrame}, bin_time::Number; overwrite=false,
+        e_range::Tuple{Float64,Float64}=_mission_good_e_range(mission),
+        calibrated_data::Dict{Symbol,JAXTAM.InstrumentData}=Dict{Symbol,InstrumentData}()
+    )
+    obsid       = obs_row[:obsid]
+    instruments = _mission_instruments(mission)
     bin_time_p2 = "2pow$(Int(log2(bin_time)))"
-    lc_files    = _log_query(mission_name, obs_row, "data", :lcurve, e_range, bin_time_p2)
+    lc_files    = _log_query(mission, obs_row, "data", :lcurve, e_range, bin_time_p2)
 
-    lc_path = abspath(obs_row[1, :obs_path], "JAXTAM", _log_query_path(; category=:data, kind=:lcurve, e_range=e_range, bin_time=bin_time))
+    lc_path = abspath(_obs_path_local(mission, obs_row; kind=:jaxtam), "JAXTAM", _log_query_path(; category=:data, kind=:lcurve, e_range=e_range, bin_time=bin_time))
 
     lightcurves = Dict{Symbol,BinnedData}()
     for instrument in instruments
@@ -334,55 +336,25 @@ function lcurve(mission_name::Symbol, obs_row::DataFrame, bin_time::Number; over
             @info "Missing lcurve files for $instrument"
             
             if !all(haskey.(calibrated_data, instruments))
-                calibrated_data = calibrate(mission_name, obs_row)
+                calibrated_data = calibrate(mission, obs_row)
             end
 
             @info "Generating lcurve files for $instrument"
-            lightcurve_data = _lcurve(calibrated_data[instrument], bin_time)
+            lightcurve_data = _lcurve(calibrated_data[instrument], bin_time, e_range)
 
-            _lcurve_save(mission_name, obs_row, instrument, e_range, bin_time_p2, lc_path, lightcurve_data)
+            _lcurve_save(mission, obs_row, instrument, e_range, bin_time_p2, lc_path, lightcurve_data)
 
             lightcurves[instrument] = lightcurve_data
         else
             lightcurves[instrument] = _lc_read(lc_path, instrument, bin_time)
         end
     end
-
-    if ismissing(_log_query(mission_name, obs_row, "meta", :countrates, e_range))
-        @info "Computing countrates for $e_range keV, this  may take a while"
-        countrates = Dict{Symbol,Float64}()
-        for instrument in instruments
-            gtis = [[gti[:start], gti[:stop]] for gti in DataFrames.eachrow(lightcurves[instrument].gtis) if sum([gti[:start], gti[:stop]]) > 1]
-
-            counts = 0
-            for gti in gtis
-                start_idx = findfirst(lightcurves[instrument].times .>= gti[1])
-                stop_idx  = findfirst(lightcurves[instrument].times .>= gti[2])
-
-                if stop_idx == nothing && gti[2] == gtis[end][2]
-                    stop_idx = length(lightcurves[instrument].counts)
-                end
-
-                counts += sum(lightcurves[instrument].counts[start_idx:stop_idx])
-            end
-
-            countrates[instrument] = counts/sum(diff.(gtis))[1]
-        end
-        _log_add(mission_name, obs_row, Dict("meta" => Dict(:countrates => Dict(e_range => countrates))))
-    end
-
+    
     return lightcurves
 end
 
-"""
-    lcurve(mission_name::Symbol, obsid::String, bin_time::Number; overwrite=false)
+function lcurve(mission::Mission, obsid::String, bin_time::Number; overwrite=false, kwargs...)
+    obs_row = JAXTAM.master_query(mission, :obsid, obsid)
 
-Runs `master_query` to find the desired `obs_row` for the observation
-
-Calls main `lcurve(mission_name::Symbol, obs_row::DataFrame, bin_time::Number; overwrite=false)` function
-"""
-function lcurve(mission_name::Symbol, obsid::String, bin_time::Number; overwrite=false)
-    obs_row = JAXTAM.master_query(mission_name, :obsid, obsid)
-
-    return lcurve(mission_name, obs_row, bin_time; overwrite=overwrite)
+    return lcurve(mission, obs_row, bin_time; overwrite=overwrite, kwargs...)
 end

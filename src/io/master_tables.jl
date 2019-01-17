@@ -1,12 +1,16 @@
 """
-    _master_download(master_path, master_url)
+    _master_download(master_path::String, master_url::String)
 
 Downloads (and unzips) a master table from HEASARC given its `url`
 and a destination `path`
 """
-function _master_download(master_path, master_url)
+function _master_download(master_path::String, master_url::String)
     @info "Downloading latest master catalog"
     Base.download(master_url, master_path)
+
+    if !isdir(dirname(master_path))
+        mkpath(dirname(master_path))
+    end
 
     # Windows (used to) unzip .gz during download, unzip now if Linux
     unzip!(master_path)
@@ -21,26 +25,24 @@ needs to be done to ensure the `.feather` file is saved/read correctly
 TODO: Make this less... stupid
 """
 function _type_master_df!(master_df)
-    pairs = Dict(:name=>string, :ra=>float, :dec=>float, :lii=>float, :bii=>float, :roll_angle=>float,
-        :time=>Dates.DateTime, :end_time=>Dates.DateTime, :obsid=>string, :exposure=>float, :exposure_a=>float,
-        :exposure_b=>float, :ontime_a=>float, :ontime_b=>float, :observation_mode=>string, :instrument_mode=>string,
-        :spacecraft_mode=>string, :slew_mode=>string, :time_awarded=>float, :num_fpm=>Meta.parse,
-        :processing_status=>string, :processing_date=>Dates.DateTime,:public_date=>Dates.DateTime,
-        :processing_version=>string, :num_processed=>Meta.parse, :caldb_version=>String, :software_version=>string,
-        :prnb=>string, :abstract=>string, :subject_category=>string, :category_code=>Meta.parse,:priority=>string,
-        :country=>string, :data_gap=>Meta.parse, :nupsdout=>Meta.parse, :solar_activity=>string, :coordinated=>string,
-        :issue_flag=>Meta.parse, :comments=>string, :satus=>string,  :pi_lname=>string, :pi_fname=>string,
-        :cycle=>Meta.parse, :obs_type=>string, :title=>string, :remarks=>string)
+    nt_converter = (name=string, ra=float, dec=float, lii=float, bii=float, roll_angle=float,
+        time=Dates.DateTime, end_time=Dates.DateTime, obsid=string, exposure=float, exposure_a=float,
+        exposure_b=float, ontime_a=float, ontime_b=float, observation_mode=string, instrument_mode=string,
+        spacecraft_mode=string, slew_mode=string, time_awarded=float, num_fpm=Meta.parse,
+        processing_status=string, processing_date=Dates.DateTime,public_date=Dates.DateTime,
+        processing_version=string, num_processed=Meta.parse, caldb_version=String, software_version=string,
+        prnb=string, abstract=string, subject_category=string, category_code=Meta.parse,priority=string,
+        country=string, data_gap=Meta.parse, nupsdout=Meta.parse, solar_activity=string, coordinated=string,
+        issue_flag=Meta.parse, comments=string, satus=string,  pi_lname=string, pi_fname=string,
+        cycle=Meta.parse, obs_type=string, title=string, remarks=string)
 
-    for (name, coltype) in pairs
-        # if true in ismissing.(master_df[name])
-        #     master_df[name] = Array{Union{Missing,}}
-        # else
-        # end
+    for (name, coltype) in pairs(nt_converter)
         try
             master_df[name] = coltype.(master_df[name])
         catch e
-            @warn e
+            if typeof(e) != KeyError
+                @warn e
+            end
         end
     end
 
@@ -113,176 +115,168 @@ function _master_read_tdat(master_path::String)
 end
 
 """
-    _master_save(master_path_feather, master_data)
-
-Saves the `DataFrame` master table to a `.feather` file
-"""
-function _master_save(master_path_feather, master_data)
-    Feather.write(master_path_feather, master_data)
-end
-
-"""
-    master_update(mission_name::Union{String,Symbol})
-
-Downloads mastertable from HEASARC and overwrites old conerted tables
-"""
-function master_update(mission_name::Union{String,Symbol})
-    mission = _config_key_value(mission_name)
-    master_path_tdat = string(mission.path, "master.tdat")
-    master_path_feather = string(mission.path, "master.feather")
-
-    if !isdir(mission.path)
-        mkpath(mission.path)
-    end
-
-    _master_download(master_path_tdat, mission.url)
-
-    @info "Loading $(master_path_tdat)"
-    master_data = _master_read_tdat(master_path_tdat)
-    @info "Saving $master_path_feather"
-    _master_save(master_path_feather, master_data)
-end
-
-"""
-    master(mission_name::Union{String,Symbol})
+    master(mission::Mission; update=false)
 
 Reads in a previously created `.feather` master table for a specific `mission_name`
-using a path provided by `_config_key_value(mission_name)`
+using a path provided by `_mission_master_url(mission))`
 """
-function master(mission_name::Union{String,Symbol})
-    mission = _config_key_value(mission_name)
-    master_path_tdat = string(mission.path, "master.tdat")
-    master_path_feather = string(mission.path, "master.feather")
+function master_base(mission::Mission; update=false)
+    path_jaxtam         = mission_paths(mission)[:jaxtam]
+    path_master_tdat    = joinpath(path_jaxtam, "master.tdat")
+    path_master_feather = joinpath(path_jaxtam, "master.feather")
 
-    if !isfile(master_path_tdat) && !isfile(master_path_tdat)
-        @warn "No master file found, looked for: \n\t$master_path_tdat \n\t$master_path_feather"
-        @info "Download master files from `$(mission.url)`? (y/n)"
-        response = readline(stdin)
-        if response=="y" || response=="Y"
-            if !isdir(mission.path)
-                mkpath(mission.path)
-            end
+    if (!isfile(path_master_tdat) && !isfile(path_master_tdat)) || update
+        _master_download(path_master_tdat, _mission_master_url(mission))
+    end
+    
+    if isfile(path_master_feather)
+        @info "Loading $path_master_feather"
+        master_data = Feather.read(path_master_feather)
+    elseif isfile(path_master_tdat)
+        @info "Loading $(path_master_tdat)"
+        master_data = _master_read_tdat(path_master_tdat)
+        @info "Saving $path_master_feather"
+        Feather.write(path_master_feather, master_data)
+    end
 
-            _master_download(master_path_tdat, mission.url)
-        elseif response=="n" || response=="N"
-            @error "Master file not found"
+    if isdefined(JAXTAM, Symbol(mission, "_master_df")) && update
+        master_base(mission; update=true)
+        master(mission; cache=true, reload_cache=true) # Reload cache if master is updated
+    end
+
+    return master_data
+end
+
+"""
+    _add_append_publicity!(append_df::DataFrames.DataFrame, master_df::DataFrames.DataFrame)
+
+Appends column of `Union{Bool,Missing}`, true if `public_date <=`now()`
+"""
+function _add_append_publicity!(mission::Mission, append_df::DataFrames.DataFrame, master_df::DataFrames.DataFrame)
+    n  = Dates.now()
+    pd = Array{DateTime,1}(master_df[:public_date])
+
+    append_df[:publicity] = map(t->n>t, pd)
+
+    return append_df
+end
+
+function _add_append_logged!(mission::Mission, append_df::DataFrames.DataFrame, master_df::DataFrames.DataFrame)
+    append_logged = falses(size(append_df, 1))
+
+    for (i, obs_row) in enumerate(DataFrames.eachrow(master_df))
+        log_path         = _log_path(mission, obs_row)
+        append_logged[i] = isfile(log_path)
+    end
+
+    return append_df[:logged] = append_logged
+end
+
+"""
+    _add_append_downloaded!(append_df::DataFrames.DataFrame, master_df::DataFrames.DataFrame)
+
+Appends column of `Union{Bool,Missing}`, true if all cl files exist
+"""
+function _add_append_downloaded!(mission::Mission, append_df::DataFrames.DataFrame, master_df::DataFrames.DataFrame)
+    append_downloaded = falses(size(append_df, 1))
+
+    logged_indecies = findall(append_df[:logged])
+
+    for i in logged_indecies
+        append_downloaded[i] = _log_query(mission, master_df[i, :], "meta", :downloaded)
+    end
+
+    return append_df[:downloaded] = append_downloaded
+end
+
+function _add_append_report!(mission::Mission, append_df::DataFrames.DataFrame, master_df::DataFrames.DataFrame)
+    append_report_path   = Array{String,1}(undef, size(append_df, 1))
+    append_report_exists = falses(size(append_df, 1))
+
+    full_e_range = _mission_good_e_range(mission)
+
+    logged_indecies     = findall(append_df[:logged])
+    not_logged_indecies = findall(append_df[:logged].==false)
+
+    append_report_path[not_logged_indecies] .= ""
+
+    for i in logged_indecies
+        web_reports = _log_query(mission, master_df[i, :], "web")
+
+        if ismissing(web_reports)
+            append_report_path[i] = ""
+        elseif haskey(web_reports, full_e_range)
+            append_report_path[i]   = web_reports[full_e_range]
+            append_report_exists[i] = true
+        else
+            append_report_path[i]   = first(web_reports)[2] # First value in dict
+            append_report_exists[i] = true
         end
     end
-    
-    if isfile(master_path_feather)
-        @info "Loading $master_path_feather"
-        return Feather.read(master_path_feather)
-    elseif isfile(master_path_tdat)
-        @info "Loading $(master_path_tdat)"
-        master_data = _master_read_tdat(master_path_tdat)
-        @info "Saving $master_path_feather"
-        _master_save(master_path_feather, master_data)
-        return master_data
+
+    append_df[:report_path]   = append_report_path
+    append_df[:report_exists] = append_report_exists
+    return 
+end
+
+"""
+    _append_gen(mission, master_df)
+
+Runs all the `_add_append` functions, returns the full `append_df`
+"""
+function _append_gen(mission::Mission, master_df::DataFrames.DataFrame)
+    append_df = DataFrame(obsid=master_df[:obsid])
+
+    _add_append_publicity!(mission, append_df, master_df)
+    _add_append_logged!(mission, append_df, master_df)
+    _add_append_downloaded!(mission, append_df, master_df)
+    _add_append_report!(mission, append_df, master_df)
+
+    return append_df
+end
+
+function master_append(mission::Mission; update=false)
+    path_jaxtam         = mission_paths(mission)[:jaxtam]
+    path_append_feather = joinpath(path_jaxtam, "append.feather")
+
+    if !isfile(path_append_feather) || update
+        append_df = _append_gen(mission, master_base(mission))
+        Feather.write(path_append_feather, append_df)
+        
+        if isdefined(JAXTAM, Symbol(mission, "_master_df"))
+            master(mission; cache=true, reload_cache=true) # Reload cache if append is updated
+        end
+        return append_df
+    else
+        @info "Loading $path_append_feather"
+        return Feather.read(path_append_feather)
     end
 end
 
-"""
-    master_query(master_df::DataFrame, key_type::Symbol, key_value::Any)
+function master(mission::Mission; cache=true, reload_cache=false)
+    master_df_var = Symbol(mission, "_master_df")
 
-Wrapper for a query, takes in an already loaded DataFrame `master_df`, a `key_type` to
-search over (e.g. `obsid`), and a `key_value` to find (e.g. `0123456789`)
+    if cache
+        if reload_cache
+            @info "Reloading master_append cache"
+        end
+        
+        if isdefined(JAXTAM, master_df_var) && !reload_cache
+            @assert typeof(getproperty(JAXTAM, master_df_var)) == DataFrames.DataFrame
+            return getproperty(JAXTAM, master_df_var)
+        else cache
+            master_df = master_base(mission)
+            append_df = master_append(mission)
+            master_df_a = join(master_df, append_df, on=:obsid)
 
-Returns the full row for any observations matching the search criteria
+            eval(:(global $master_df_var = $master_df_a))
 
-TODO: Fix the DataValue bug properly
-"""
-function master_query(master_df::DataFrame, key_type::Symbol, key_value::Any)
-    observations = filter(row -> row[key_type] == key_value, master_df)
-
-    if size(observations, 1) == 0
-        @warn "master_query returned no results for $key_type with $key_value search"
+            return getproperty(JAXTAM, master_df_var)
+        end
+    else
+        master_df = master_base(mission)
+        append_df = master_append(mission)
+        master_df_a = join(master_df, append_df, on=:obsid)
+        return master_df_a
     end
-
-    # Some DataFrames update changed the types of data to DataValue
-    # screws with functions later on which convert the values to strings
-    # use get here to get them out of the DataValue type, wrapped in try
-    # for any cases where these columns don't exist in the master dataframe
-    try; observations[:obsid] = get(observations[:obsid][1]); catch; end
-    try; observations[:time] = get(observations[:time][1]); catch; end
-
-    return observations
-end
-
-"""
-    master_query(mission_name::Symbol, key_type::Symbol, key_value::Any)
-
-Calls `master_query(master_df::DataFrame, key_type::Symbol, key_value::Any)` by
-loading the master and append tables for `mission_name`
-"""
-function master_query(mission_name::Symbol, key_type::Symbol, key_value::Any)
-
-    return master_query(master_a(mission_name), key_type, key_value)
-end
-
-"""
-    _public_date_int(public_date)
-
-Converts the public date to an integer, if that fails just returns the
-arbitrary sort-of-far-away `2e10` date
-
-TODO: Don't return 2e10 on Float64 parse error
-"""
-function _public_date_int(public_date)
-    public_date = get(public_date)
-    try
-        return parse(Float64, public_date)
-    catch
-        return 2e10
-    end
-end
-
-"""
-    master_query_public(master_df::DataFrame, key_type::Symbol, key_value::Any)
-
-Calls `master_query` for given query, but restricted to currently public observations
-"""
-function master_query_public(master_df::DataFrame, key_type::Symbol, key_value::Any)
-    observations = filter(row -> row[key_type] == key_value, master_df)
-    observations = filter(row -> convert(DateTime, row[:public_date]) < now(), observations)
-    
-    if size(observations, 1) == 0
-        @warn "master_query_public returned no results for $key_type with $key_value search"
-    end
-
-    return observations
-end
-
-"""
-    master_query_public(mission_name::Symbol, key_type::Symbol, key_value::Any)
-
-Loads mission master table, then calls
-`master_query_public(master_df::DataFrame, key_type::Symbol, key_value::Any)`
-"""
-function master_query_public(mission_name::Symbol, key_type::Symbol, key_value::Any)
-    master_df = master_a(mission_name)
-
-    return master_query_public(master_df, key_type, key_value)
-end
-
-"""
-    master_query_public(master_df::DataFrame)
-
-Returns all the currently public observations in `master_df`
-"""
-function master_query_public(master_df::DataFrame)
-    observations = filter(row -> convert(DateTime, row[:public_date]) < now(), master_df)
-
-    return observations
-end
-
-"""
-    master_query_public(mission_name::Symbol)
-
-Loads master table for `mission_name`, calls `master_query_public(master_df::DataFrame)`
-returning all currently public observations
-"""
-function master_query_public(mission_name::Symbol)
-    master_df = master_a(mission_name)
-
-    return master_query_public(master_df)
 end

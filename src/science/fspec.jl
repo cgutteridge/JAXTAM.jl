@@ -1,23 +1,24 @@
 struct FFTData <: JAXTAMData
-    mission::Symbol
-    instrument::Symbol
-    obsid::String
-    bin_time::Real
-    bin_size::Int
-    bin_count::Int
-    gti_index::Int
-    gti_start_time::Real
-    group::Int
-    src_ctrate::Array
-    bkg_ctrate::Array
-    power::Array
-    avg_power::Array
-    freq::Array
+    mission        :: Mission
+    instrument     :: Symbol
+    obsid          :: String
+    e_range        :: Tuple{Float64,Float64}
+    bin_time       :: Real
+    bin_size       :: Int
+    bin_count      :: Int
+    gti_index      :: Int
+    gti_start_time :: Real
+    group          :: Int
+    src_ctrate     :: Array
+    bkg_ctrate     :: Array
+    power          :: Array
+    avg_power      :: Array
+    freq           :: Array
 end
 
 function _FFTData(gti, freq, power, fspec_bin_size, bin_count, src_ctrate)
 
-    return FFTData(gti.mission, gti.instrument, gti.obsid, gti.bin_time, fspec_bin_size, bin_count,
+    return FFTData(gti.mission, gti.instrument, gti.obsid, gti.e_range, gti.bin_time, fspec_bin_size, bin_count,
         gti.gti_index, gti.gti_start_time, gti.group, src_ctrate, zeros(size(src_ctrate)), power, mean(power, dims=2)[:], freq)
 end
 
@@ -69,6 +70,9 @@ function gtis_pow2(mission_name::Symbol, gtis::Dict{Symbol,Dict{Int64,JAXTAM.GTI
 end
 
 function _fspec_save(fspec_data::Dict{Int64,JAXTAM.FFTData}, fspec_dir::String)
+    mkpath(fspec_dir)
+    log_entries = Dict{Union{Symbol,Int},String}()
+
     fspec_indecies = collect(keys(fspec_data))
     fspec_starts   = [t.gti_start_time for t in values(fspec_data)]
     fspec_b_counts = [t.bin_count for t in values(fspec_data)]
@@ -76,7 +80,7 @@ function _fspec_save(fspec_data::Dict{Int64,JAXTAM.FFTData}, fspec_dir::String)
     fspec_example  = fspec_data[fspec_indecies[1]]
 
     fspec_basename = string("$(fspec_example.instrument)_lc_$(fspec_example.bin_time)_fspec")
-    fspec_meta     = DataFrame(mission=String(fspec_example.mission),
+    fspec_meta     = DataFrame(mission=_mission_name(fspec_example.mission),
     instrument=String(fspec_example.instrument), obsid=fspec_example.obsid,
     bin_time=fspec_example.bin_time, bin_size=fspec_example.bin_size, groups=fspec_groups,
     indecies=fspec_indecies, starts=fspec_starts, b_counts=fspec_b_counts)
@@ -92,9 +96,11 @@ function _fspec_save(fspec_data::Dict{Int64,JAXTAM.FFTData}, fspec_dir::String)
         
         Feather.write(fspec_savepath, fspec_data_df)
     end
+    @warn "Logging not implemented yet as saving is off by default" "Contact dev to request fix"
+    # TODO: Fix this... eventually
 end
 
-function _fspec_load(fspec_dir, instrument, bin_time, fspec_bin)
+function _fspec_load(fspec_dir::String, instrument::Symbol, e_range::Tuple{Float64,Float64}, bin_time::Number, fspec_bin::Number)
     bin_time = float(bin_time)
 
     fspec_basename  = string("$(instrument)_lc_$(bin_time)_fspec")
@@ -104,17 +110,16 @@ function _fspec_load(fspec_dir, instrument, bin_time, fspec_bin)
 
     fspec_data = Dict{Int64,JAXTAM.FFTData}()
 
-    for row_idx in 1:size(fspec_meta, 1)
-        current_row = fspec_meta[row_idx, :]
-        fspec_mission = Symbol(current_row[1, :mission])
-        fspec_inst    = Symbol(current_row[1, :instrument])
-        fspec_obsid   = current_row[1, :obsid]
-        fspec_bin_t   = current_row[1, :bin_time]
-        fspec_bin_sze = current_row[1, :bin_size]
-        fspec_idx     = current_row[1, :indecies]
-        fspec_starts  = current_row[1, :starts]
-        fspec_b_count = current_row[1, :b_counts]
-        fspec_group   = current_row[1, :groups]
+    for fspec_row in eachrow(fspec_meta)
+        fspec_mission = _mission_symbol_to_type(Symbol(fspec_row[:mission]))
+        fspec_inst    = Symbol(fspec_row[1, :instrument])
+        fspec_obsid   = fspec_row[1, :obsid]
+        fspec_bin_t   = fspec_row[1, :bin_time]
+        fspec_bin_sze = fspec_row[1, :bin_size]
+        fspec_idx     = fspec_row[1, :indecies]
+        fspec_starts  = fspec_row[1, :starts]
+        fspec_b_count = fspec_row[1, :b_counts]
+        fspec_group   = fspec_row[1, :groups]
         fspec_file    = Feather.read(joinpath(fspec_dir, "$(fspec_basename)_$(fspec_idx).feather"))
         fspec_freq   = Array(fspec_file[:freq]); delete!(fspec_file, :freq)
         fspec_ampavg  = Array(fspec_file[:avg_power]); delete!(fspec_file, :avg_power)
@@ -124,7 +129,7 @@ function _fspec_load(fspec_dir, instrument, bin_time, fspec_bin)
             fspec_power = []
         end
 
-        fspec_data[fspec_idx] = FFTData(fspec_mission, fspec_inst, fspec_obsid, fspec_bin_t,
+        fspec_data[fspec_idx] = FFTData(fspec_mission, fspec_inst, fspec_obsid, e_range, fspec_bin_t,
             fspec_bin_sze, fspec_b_count, fspec_idx, fspec_starts, fspec_group, fspec_power, fspec_ampavg,
             fspec_freq)
     end
@@ -190,7 +195,7 @@ function _scrunch_sections(instrument_data::Dict{Int64,JAXTAM.FFTData}; append_m
 
     if append_mean
         instrument_data[-1] = FFTData(
-            gti_example.mission, gti_example.instrument, gti_example.obsid,
+            gti_example.mission, gti_example.instrument, gti_example.obsid, gti_example.e_range,
             gti_example.bin_time, gti_example.bin_size, bin_count_sum, -1, -1, -1,
             mean_src_ctrate, mean_bkc_ctrate,
             [], mean(joined_together, dims=2)[:], gti_example.freq
@@ -216,15 +221,16 @@ function fspec(mission_name::Symbol, gtis::Dict{Symbol,Dict{Int64,JAXTAM.GTIData
     return instrument_fspecs
 end
 
-function fspec(mission_name::Symbol, obs_row::DataFrames.DataFrame, bin_time::Real, fspec_bin::Real;
-        overwrite=true, overwrite_gtis=false, save_fspec=false, pow2=true, fspec_bin_type=:time, scrunched=true,
-        gtis_data::Dict{Symbol,JAXTAM.GTIData}=Dict{Symbol,JAXTAM.GTIData}())
-    obsid       = obs_row[:obsid][1]
-    instruments = Symbol.(config(mission_name).instruments)
-    e_range     = (config(mission_name).good_energy_min, config(mission_name).good_energy_max)
-    fspec_files = _log_query(mission_name, obs_row, "data", :fspec, e_range)
+function fspec(mission::Mission, obs_row::DataFrames.DataFrameRow{DataFrames.DataFrame},
+        bin_time::Real, fspec_bin::Real; overwrite=true, overwrite_gtis=false, save_fspec=false,
+        pow2=true, fspec_bin_type=:time, scrunched=true, e_range::Tuple{Float64,Float64}=_mission_good_e_range(mission),
+        gtis_data::Dict{Symbol,Dict{Int64,JAXTAM.GTIData}}=Dict{Symbol,Dict{Int64,JAXTAM.GTIData}}()
+    )
+    obsid       = obs_row[:obsid]
+    instruments = _mission_instruments(mission)
+    fspec_files = _log_query(mission, obs_row, "data", :fspec, e_range)
 
-    fspec_path  = abspath(obs_row[1, :obs_path], "JAXTAM", _log_query_path(; category=:data, kind=:fspec, e_range=e_range, bin_time=bin_time))
+    fspec_path  = abspath(_obs_path_local(mission, obs_row; kind=:jaxtam), "JAXTAM", _log_query_path(; category=:data, kind=:fspec, e_range=e_range, bin_time=bin_time))
 
     fspecs = Dict{Symbol,Dict{Int64,JAXTAM.FFTData}}()
     for instrument in instruments
@@ -232,7 +238,7 @@ function fspec(mission_name::Symbol, obs_row::DataFrames.DataFrame, bin_time::Re
             @info "Missing fspec files for $instrument"
 
             if !all(haskey.(gtis_data, instruments))
-                gtis_data = JAXTAM.gtis(mission_name, obs_row, bin_time)
+                gtis_data = JAXTAM.gtis(mission, obs_row, bin_time)
             end
 
             @info "Generating fspec for $instrument"
@@ -260,12 +266,12 @@ function fspec(mission_name::Symbol, obs_row::DataFrames.DataFrame, bin_time::Re
     return fspecs
 end
 
-function fspec(mission_name::Symbol, obsid::String, bin_time::Number, fspec_bin::Real;
+function fspec(mission::Mission, obsid::String, bin_time::Number, fspec_bin::Real;
     overwrite_fs=false, overwrite_gtis=false, pow2=true, fspec_bin_type=:time, scrunched=true)
 
-    obs_row = master_query(mission_name, :obsid, obsid)
+    obs_row = master_query(mission, :obsid, obsid)
 
-    fs = fspec(mission_name, obs_row, bin_time, fspec_bin; overwrite=overwrite_fs, overwrite_gtis=overwrite_gtis,
+    fs = fspec(mission, obs_row, bin_time, fspec_bin; overwrite=overwrite_fs, overwrite_gtis=overwrite_gtis,
         pow2=pow2, fspec_bin_type=fspec_bin_type, scrunched=scrunched)
     
     return fs
@@ -344,8 +350,6 @@ function _fspec_rebin(power, freq, bin_count::Int, bin_size, bin_time, rebin=(:l
 
         errors = power ./ sqrt(bin_count*rebin_factor)
         errors = zeros(in_rebin) # Errors don't really have a meaning for this
-
-        # power[floor(Int, in_rebin/2)] = 1000 # Insert high-frequency power for debugging
 
         binned_power    = reshape(power[1:in_rebin], rebin_factor, :)
         rebinned_fspec = zeros(1, size(binned_power, 2))

@@ -8,10 +8,10 @@ Used to unzip the mastertables after download from HEASARC
 function unzip!(path)
     dir  = dirname(path)
 
-    if Sys.is_windows()
+    if Sys.iswindows()
         zip7 = string(Sys.BINDIR, "\\7z.exe")
         run(`$zip7 e $path -o$dir`)
-    elseif Sys.is_linux()
+    elseif Sys.islinux()
         try
             run(`7z e $path -o$dir`) # Assumes `p7zip-full` is installed
         catch error

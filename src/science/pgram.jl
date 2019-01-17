@@ -1,7 +1,8 @@
 struct PgramData <: JAXTAMData
-    mission    :: Symbol
+    mission    :: Mission
     instrument :: Symbol
     obsid      :: String
+    e_range    :: Tuple{Float64,Float64}
     bin_time   :: Real
     pg_type    :: Symbol
     power      :: Array
@@ -43,7 +44,7 @@ function _pgram(lc::BinnedData, pg_type, group; maximum_frequency=:auto)
         freq, power = _pgram(lc.counts, lc.times, lc.bin_time, pg_type; maximum_frequency=maximum_frequency)
     end
     
-    return PgramData(lc.mission, lc.instrument, lc.obsid, lc.bin_time,
+    return PgramData(lc.mission, lc.instrument, lc.obsid, lc.e_range, lc.bin_time,
         pg_type, power, freq, group)
 end
 

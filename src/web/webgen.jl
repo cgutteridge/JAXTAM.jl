@@ -2,7 +2,7 @@
 @tags_noescape script style
 @tags intro
 
-function _webgen_offline_sheets(path_web)
+function _webgen_offline_css(path_web)
     sheet_urls_css = [
         "cdn/css/",
         "https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.1.1/css/bootstrap.css",
@@ -10,6 +10,16 @@ function _webgen_offline_sheets(path_web)
         "https://cdn.datatables.net/v/bs4/dt-1.10.18/b-1.5.2/b-html5-1.5.2/fc-3.2.5/fh-3.1.4/sc-1.5.0/datatables.min.css"
     ]
 
+    for sheet_urls in sheet_urls_css
+        dir  = sheet_urls[1]
+        urls = sheet_urls[2:end]
+        file_names = basename.(urls)
+        file_paths = string.(path_web, dir, file_names)
+        println(file_paths)
+    end
+end
+
+function _webgen_offline_s(path_web)
     sheet_urls_js  = [
         "cdn/js/",
         "https://code.jquery.com/jquery-3.3.1.js",
@@ -20,7 +30,7 @@ function _webgen_offline_sheets(path_web)
         "https://cdn.datatables.net/v/bs4/dt-1.10.18/b-1.5.2/b-html5-1.5.2/fc-3.2.5/fh-3.1.4/sc-1.5.0/datatables.min.js"
     ]
 
-    for sheet_urls in [sheet_urls_css, sheet_urls_js]
+    for sheet_urls in sheet_urls_js
         dir  = sheet_urls[1]
         urls = sheet_urls[2:end]
         file_names = basename.(urls)
@@ -51,12 +61,12 @@ function _webgen_head(;title_in="")
     )
 end
 
-function _webgen_home_intro(mission_name::Symbol, e_min, e_max)
+function _webgen_home_intro(mission_name::String)
     node_intro = intro(
         m("div"; class="se-pre-con"),
         div(class="container",
             m("div"; class="container"),
-            m("h1", "JAXTAM.jl WebView - $mission_name ($e_min to $e_max keV)"),
+            m("h1", "JAXTAM.jl WebView - $mission_name"),
             m("hr"),
             m("p", "JAXTAM reports summary page for $mission_name")
         )
@@ -114,47 +124,47 @@ function _webgen_table(df::DataFrames.DataFrame, path_web; table_id="example")
     )
 end
 
-function webgen_mission(mission_name::Symbol)
-    append_update(mission_name)
-    mission_config = config(mission_name)
-    web_dir = mission_config.path_web
+function _webgen_table(df_row::DataFrames.DataFrameRow, path_web; table_id="example")
+    df = DataFrame(Dict(zip(keys(df_row), values(df_row)))) # Convert DataFrameRow to DataFrame for table gen
 
-    e_min, e_max = mission_config.good_energy_min, mission_config.good_energy_max
-    
-    web_home_dir = joinpath(web_dir, "index.html")
+    return _webgen_table(df, path_web; table_id=table_id)
+end
 
-    master_a_df  = master_a(mission_name)
+function webgen_mission(mission::Mission)
+    master_append(mission; update=true)
+
+    master_df = master(mission)
     
     included_cols = [
         :name,
         :obsid,
-        :report_exists,
         :subject_category,
         :obs_type,
         :publicity,
         :downloaded,
         :time,
-        :report_path
+        :report_path,
+        :report_exists
     ]
 
-    if haskey(master_a_df, :countrate)
+    if haskey(master_df, :countrate)
         append!(included_cols, [:countrate])
 
-        countrate = master_a_df[:countrate]
-        countrate[isnan.(countrate)] .= -2.0
-        countrate[countrate .== Inf] .= -3.0
+        countrate = master_df[:countrate]
         countrate = floor.(Int, countrate)
     end
 
     html_out = html(
-        _webgen_head(;title_in="JAXTAM $mission_name homepage"),
+        _webgen_head(;title_in="JAXTAM $(_mission_name(mission)) homepage"),
         body(
-            _webgen_home_intro(mission_name, e_min, e_max),
-            _webgen_table(master_a_df[:, included_cols], mission_config.path_web)
+            _webgen_home_intro(_mission_name(mission)),
+            _webgen_table(master_df[:, included_cols], mission_paths(mission).web)
         )
     )
 
-    write(web_home_dir, string(Pretty(html_out)))
+    path_web_mission = joinpath(mission_paths(mission).web, "index.html")
 
-    return web_home_dir
+    write(path_web_mission, string(Pretty(html_out)))
+
+    return path_web_mission
 end

@@ -1,5 +1,5 @@
 struct InstrumentData <: JAXTAMData
-    mission    :: Symbol
+    mission    :: Mission
     instrument :: Symbol
     obsid      :: String
     events     :: DataFrames.DataFrame
@@ -53,16 +53,16 @@ end
 Reads the standard columns for timing analysis ("TIME", "PI", "GTI") from a FITS file, 
 returns `InstrumentData` type filled with the relevant data
 """
-function _read_fits_event(fits_path::String, mission_name)
+function _read_fits_event(mission::Mission, fits_path::String)
     @info "Loading $fits_path"
     fits_file   = FITS(fits_path)
 
     fits_header = read_header(fits_file["EVENTS"])
 
-    instrument_name = fits_header["INSTRUME"]
-    #fits_telescope  = fits_header["TELESCOP"]
-    fits_telescope  = string(mission_name)
-    fits_telescope  = Symbol(lowercase(fits_telescope))
+    instrument_name = Symbol(fits_header["INSTRUME"])
+    fits_telescope  = lowercase(fits_header["TELESCOP"])
+    @assert fits_telescope == _mission_name(mission) "Mission names do not match"
+    fits_telescope  = _mission_symbol_to_type(Symbol(lowercase(fits_telescope)))
     
     fits_events_df = _read_fits_hdu(fits_file, "EVENTS"; cols=String["TIME", "PI"])
     
@@ -95,8 +95,10 @@ function _read_fits_event(fits_path::String, mission_name)
 
     fits_header_df[:SRC_RT] = src_rt
     fits_header_df[:BKG_RT] = bkg_rt
+    fits_header_df[:TELESCOP] = lowercase.(fits_header_df[:TELESCOP])
 
     close(fits_file)
+    @info "Finished FITS loading"
 
     return InstrumentData(fits_telescope, instrument_name, fits_obsid, 
         fits_events_df, fits_gtis_df, fits_start, fits_stop,
@@ -105,23 +107,23 @@ function _read_fits_event(fits_path::String, mission_name)
 end
 
 """
-    read_cl_fits(mission_name::Symbol, obs_row::DataFrames.DataFrame)
+    read_cl_fits(mission::Symbol, obs_row::DataFrames.DataFrame)
 
 Reads in FITS data for an observation, returns a `Dict{Symbol,InstrumentData}`, with the 
 symbol as the instrument name. So `instrument_data[:XTI]` works for NICER, and either 
 `instrument_data[:FPMA]` or `instrument_data[:FPMB]` work for NuSTAR
 """
-function read_cl_fits(mission_name::Symbol, obs_row::DataFrames.DataFrame, file_path::String)  
+function read_cl_fits(mission::Mission, obs_row::DataFrames.DataFrameRow{DataFrames.DataFrame}, file_path::String)  
     if isfile(file_path)
         @info "Found: $file_path"
-    elseif isfile(string(file_path, ".gz")) # Check for files ending in .evt.gz too
-        file_path = string(file_path, ".gz")
+    elseif isfile(file_path[1:end-3]) # Check for files ending in .evt.gz too
+        file_path = file_path[1:end-1]
         @info "Found: $file_path"
     else
-        throw(SystemError("$mission_name $(obs_row[1, :obsid]) files not found", 2))
+        throw(SystemError("attempted to opne:\n\t$file_path\n\t$(file_path[1:end-3])\n", 2, nothing))
     end
     
-    instrument_data = _read_fits_event(file_path, mission_name)
+    instrument_data = _read_fits_event(mission, file_path)
     return Dict(instrument_data.instrument => instrument_data)
 end
 
@@ -133,10 +135,10 @@ Due to Feather file restrictions, cannot save all the event and GTI data in one,
 they are split up into three files: `events`, `gtis`, and `meta`. The `meta` file contains 
 just the mission name, obsid, and observation start and stop times
 """
-function _save_cl_feather(mission_name::Symbol, obs_row::DataFrames.DataFrame, instrument::Union{String,Symbol},
+function _save_cl_feather(mission::Mission, obs_row::DataFrames.DataFrameRow{DataFrames.DataFrame}, instrument::Union{String,Symbol},
         feather_dir::String, fits_events_df::DataFrames.DataFrame, fits_gtis_df::DataFrames.DataFrame, fits_meta_df::DataFrames.DataFrame;
         log=true)
-
+    @info "Saving '$instrument' cl files to $feather_dir"
     mkpath(feather_dir)
 
     path_events = joinpath(feather_dir, "$(instrument)_events.feather")
@@ -148,7 +150,7 @@ function _save_cl_feather(mission_name::Symbol, obs_row::DataFrames.DataFrame, i
     Feather.write(path_meta, fits_meta_df)
 
     if log
-        _log_add(mission_name, obs_row, 
+        _log_add(mission, obs_row, 
             Dict("data" =>
                 Dict(:feather_cl =>
                     Dict(instrument =>
@@ -163,7 +165,7 @@ function _save_cl_feather(mission_name::Symbol, obs_row::DataFrames.DataFrame, i
         )
     end
 
-    @info "Saved '$instrument' cl files to $feather_dir"
+    @info "Saved $instrument feather file"
 
     return path_events, path_gtis, path_meta
 end
@@ -173,7 +175,7 @@ function _read_cl_feather(path_events::String, path_gtis::String, path_meta::Str
     data_gtis   = Feather.read(path_gtis)
     data_meta   = Feather.read(path_meta)
 
-    meta_missn = Symbol(lowercase(data_meta[:TELESCOP][1]))
+    meta_missn = _mission_symbol_to_type(Symbol(data_meta[1, :TELESCOP]))
     meta_inst  = data_meta[1, :INSTRUME]
     meta_obsid = data_meta[1, :OBS_ID]
     meta_start = data_meta[1, :TSTART]
@@ -187,43 +189,38 @@ function _read_cl_feather(path_events::String, path_gtis::String, path_meta::Str
 end
 
 """
-    read_cl(mission_name::Symbol, obs_row::DataFrames.DataFrame; overwrite=false)
+    read_cl(mission::Symbol, obs_row::DataFrames.DataFrameRow{DataFrames.DataFrame}; overwrite=false)
 
 Attempts to read saved (feather) data, if none is found then the `read_cl_fits` function is ran 
 and the data is saved with `_save_cl_feather` for future use
 """
-function read_cl(mission_name::Symbol, obs_row::DataFrames.DataFrame; overwrite=false)
-    obsid       = obs_row[1, :obsid]
-    instruments = Symbol.(config(mission_name).instruments)
-    cl_files    = _log_query(mission_name, obs_row, "data", :feather_cl)
+function read_cl(mission::Mission, obs_row::DataFrames.DataFrameRow{DataFrames.DataFrame}; overwrite=false)
+    obsid       = obs_row[:obsid]
+    instruments = _mission_instruments(mission)
+
+    cl_files_feather = _log_query(mission, obs_row, "data", :feather_cl)
+    cl_files_raw     = _obs_files_cl(mission, obs_row)
 
     total_src_ctrate = 0.0
     instrument_data = Dict{Symbol,JAXTAM.InstrumentData}()
     for instrument in instruments
-        if ismissing(cl_files) || !haskey(cl_files, instrument) || overwrite
+        if ismissing(cl_files_feather) || !haskey(cl_files_feather, instrument) || overwrite
+            file_path = cl_files_raw[instrument]
+
             @info "Missing feather_cl for $instrument"
             @info "Processing $instrument cl fits"
 
-            if :event_cl in names(obs_row)
-                file_path = abspath.([i for i in obs_row[1, :event_cl]]) # Convert tuple to array, absolute path
-            else
-                file_path = config(mission_name).path_cl(obs_row, config(mission_name).path)
-                file_path = abspath.([i for i in file_path])
-            end
-
-            file_path = [file for file in file_path if occursin(lowercase(string(instrument)), file)]
-
-            current_instrument = read_cl_fits(mission_name, obs_row, file_path[1])[instrument]
+            current_instrument = read_cl_fits(mission, obs_row, file_path)[instrument]
             
             if size(current_instrument.events, 1) == 0
                 @warn "No events found in $instrument observation $obsid"
-                _log_add(mission_name, obs_row, Dict("errors" => 
+                _log_add(mission, obs_row, Dict("errors" => 
                     Dict(:read_cl => "No events found, current_instrument.events size: $(size(current_instrument.events))"))
                 )
                 throw(ArgumentError("Unable to construct InstrumentData from empty DataFrame. Observation likely has no events"))
             else
-                cl_path = abspath(obs_row[1, :obs_path], "JAXTAM", _log_query_path(; category=:data, kind=:feather_cl))
-                path_events, path_gtis, path_meta = _save_cl_feather(mission_name, obs_row, instrument, cl_path,
+                cl_path = abspath(_obs_path_local(mission, obs_row; kind=:jaxtam), "JAXTAM", _log_query_path(; category=:data, kind=:feather_cl))
+                path_events, path_gtis, path_meta = _save_cl_feather(mission, obs_row, instrument, cl_path,
                     current_instrument.events, current_instrument.gtis, current_instrument.header)
             end
             
@@ -231,37 +228,25 @@ function read_cl(mission_name::Symbol, obs_row::DataFrames.DataFrame; overwrite=
             instrument_data[instrument] = current_instrument
         else
             @info "Loading feather cl files for '$instrument'"
-            feather_paths = cl_files[instrument]
+            feather_paths = cl_files_feather[instrument]
             instrument_data[instrument] = _read_cl_feather(feather_paths[:path_events], feather_paths[:path_gtis], feather_paths[:path_meta])
         end
     end
 
-    if ismissing(_log_query(mission_name, obs_row, "meta", :countrates, :raw))
+    if ismissing(_log_query(mission, obs_row, "meta", :countrates, :raw))
         total_src_ctrate = total_src_ctrate/length(instruments)
-        _log_add(mission_name, obs_row, Dict("meta" => Dict(:raw => total_src_ctrate)))
+        _log_add(mission, obs_row, Dict("meta" => Dict(:countrates => Dict(:raw => total_src_ctrate))))
     end
 
     return instrument_data
 end
 
-"""
-    read_cl(mission_name::Symbol, append_df::DataFrames.DataFrame, obsid::String; overwrite=false)
+function read_cl(mission::Mission, master_df::DataFrames.DataFrame, obsid::String; overwrite=false)
+    obs_row = master_query(master_df, :obsid, obsid)
 
-Calls `master_query()` to get the `obs_row`, then calls read_cl(mission_name::Symbol, obs_row::DataFrames.DataFrame; overwrite=false)
-"""
-function read_cl(mission_name::Symbol, append_df::DataFrames.DataFrame, obsid::String; overwrite=false)
-    obs_row = master_query(append_df, :obsid, obsid)
-
-    return read_cl(mission_name, obs_row; overwrite=overwrite)
+    return read_cl(mission, obs_row; overwrite=overwrite)
 end
 
-"""
-    read_cl(mission_name::Symbol, obsid::String; overwrite=false)
-
-Calls `master_a()`, then calls `read_cl(mission_name::Symbol, append_df::DataFrames.DataFrame, obsid::String; overwrite=false)`
-"""
-function read_cl(mission_name::Symbol, obsid::String; overwrite=false)
-    append_df = master_a(mission_name)
-
-    return read_cl(mission_name, append_df, obsid; overwrite=overwrite)
+function read_cl(mission::Mission, obsid::String; overwrite=false)
+    return read_cl(mission, master(mission), obsid; overwrite=overwrite)
 end

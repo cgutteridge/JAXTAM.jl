@@ -160,61 +160,43 @@ function _webpage_subgen_slider_js()
     ")
 end 
 
-function _webgen_report_intro(mission_name, obs_row, report_page_dir)
-    mission_config = config(mission_name)
-    e_min, e_max = mission_config.good_energy_min, mission_config.good_energy_max
-    missions = string.(collect(keys(JAXTAM.config())))
-    missions = missions[missions .!= string(mission_name)] # Remove the current mission from the list
-    
-    missions_split = split.(missions, "_") # Spit off the _ to remove energy bound notation
-    # Select missions with the same base name 
-    similar_missions = [any(occursin.(split(string(mission_name), "_")[1], m)) for m in missions_split]
-    similar_missions = missions[similar_missions]
+function _webgen_report_intro(mission::Mission, obs_row::DataFrames.DataFrameRow{DataFrames.DataFrame},
+        report_page_dir::String; e_range=_mission_good_e_range(mission)
+    )
+    obsid = obs_row[:obsid]
+    name  = obs_row[:name]
+    abstract_text = obs_row[:abstract]
 
-    similar_missions_links = Dict()
-    # for similar_mission in Symbol.(similar_missions)
-    #     similar_obs_row = JAXTAM.master_query(similar_mission, :obsid, obs_row[1, :obsid])
-
-    #     if similar_obs_row[1, :report_exists]
-    #         similar_missions_links[similar_mission] = replace(similar_obs_row[1, :report_path], config(similar_mission).path_web=>"")
-    #     end
-    # end
-    
-    # To avoid requiring the URL (if the website is actually hosted) all the paths are relative
-    # this is a very awkward way of using relative path movements to move up to another mission's
-    # reports page
-    relative_path_addon = split(splitdir(replace(report_page_dir, mission_config.path_web=>""))[1], "/")
-    relative_path_addon = repeat("../", 4+length(relative_path_addon))
-    similar_mission_text = p()
-    if length(similar_missions_links) != 0
-        similar_mission_text = p("Other energy ranges: ", 
-            [a(string("$(l[1]) "), href=string(relative_path_addon, l[1], "/web/", l[2][1:end])) for l in similar_missions_links])
+    log_reports = _log_query(mission, obs_row, "web")
+    if ismissing(log_reports)
+        report_df = DataFrame()
+    else
+        report_e_ranges = ["$(e_r[1]) to $(e_r[2]) keV" for e_r in keys(log_reports)]
+        report_rel_path = [a(link, href=link) for link in [replace(path, report_page_dir=>"..") for path in values(log_reports)]]
+        report_df = DataFrame(e_range=report_e_ranges, report=report_rel_path)
     end
-
-    obsid = obs_row[1, :obsid]
-    name  = obs_row[1, :name]
-    abstract_text = obs_row[1, :abstract]
     node_intro = div(
-        h1("Observation $obsid - $name - $e_min to $e_max keV"),
-        similar_mission_text,
+        h1("Observation $obsid - $name - $e_range keV"),
+        h2("Available Energy Range Reports"),
+        _webgen_table(report_df, ""; table_id="report_page"),
         h2("Abstract"),
         p(abstract_text),
         hr(),
         h4("Status"),
-        _webgen_table(obs_row[[:public_date, :publicity, :time]], mission_config.path_web; table_id="report_page"),
+        _webgen_table(obs_row[[:public_date, :publicity, :time]], ""; table_id="report_page"),
         h4("Source Details"),
-        _webgen_table(obs_row[[:name, :ra, :dec, :lii, :bii, :obs_type]], mission_config.path_web; table_id=""),
+        _webgen_table(obs_row[[:name, :ra, :dec, :lii, :bii, :obs_type]], ""; table_id=""),
         h4("Observation Details"),
-        _webgen_table(obs_row[[:time, :end_time, :exposure, :remarks]], mission_config.path_web; table_id=""),
+        _webgen_table(obs_row[[:time, :end_time, :exposure, :remarks]], ""; table_id=""),
         h4("Misc"),
-        _webgen_table(obs_row[[:processing_status, :processing_date, :processing_version, :num_processed, :caldb_version]], mission_config.path_web, table_id="")
+        _webgen_table(obs_row[[:processing_status, :processing_date, :processing_version, :num_processed, :caldb_version]], "", table_id="")
     )
 end
 
 function _webgen_report_body(obs_row, img_df_overview)
     images = []
     for link in img_df_overview[:path]
-        images = [images; img(src=link)]
+        images = [images; img(src=string(repeat("../", 2), link))]
     end
 
     node_body = div(
@@ -234,7 +216,7 @@ function _webgen_report_body_groups(obs_row, img_df)
         node_group = div(class="slide",
             div(
                 h4("group - $group"),
-                [(img(src=row[:path])) for row in DataFrames.eachrow(group_images)]
+                [(img(src=string(repeat("../", 2), row[:path]))) for row in DataFrames.eachrow(group_images)]
             )
         )
         
@@ -288,36 +270,26 @@ function _webgen_subpage_footer()
     )
 end
 
-function _webgen_subpage(mission_name, obs_row)
-    mission_config = config(mission_name)
-    obs_dir  = _clean_path_dots(mission_config.path_obs(obs_row))
-    obs_path = string(mission_config.path, obs_dir)
-    obs_path = replace(obs_path, "//"=>"/")
-    JAXTAM_path = joinpath(obs_path, "JAXTAM")
+function _webgen_subpage(mission::Mission, obs_row::DataFrames.DataFrameRow{DataFrames.DataFrame}; e_range=_mission_good_e_range(mission))
+    path_web = abspath(_obs_path_local(mission, obs_row; kind=:web), "JAXTAM", "web")
+    mkpath(path_web)
     
-    report_page_dir = string(mission_config.path_web, obs_dir)
-    report_page_dir = replace(report_page_dir, "//"=>"/")
-    JAXTAM_path_web  = joinpath(report_page_dir, "JAXTAM")
+    log_images  = _log_query(mission, obs_row, "images", e_range)
 
-    obs_log = _log_read(mission_name, obs_row)
-    # fix e_range call here once all energies unified
-    e_range = (mission_config.good_energy_min, mission_config.good_energy_max)
-    img_log = obs_log["images"][e_range]
-
-    img_details_overview = filter(x->ismissing(x[:group]), img_log)
+    img_details_overview = filter(x->ismissing(x[:group]), log_images)
     img_details_overview = sort(img_details_overview, (:group, :kind_order))
     
-    img_details_groups   = filter(x->!ismissing(x[:group]), img_log)
+    img_details_groups   = filter(x->!ismissing(x[:group]), log_images)
     img_details_groups   = sort(img_details_groups, (:group, :kind_order))
     
     html_out = html(
-        _webgen_head(;title_in="$mission_name - $(obs_row[1, :name]) - $(obs_row[1, :obsid]) - Reports"),
+        _webgen_head(;title_in="$(_mission_name(mission)) - $e_range keV - $(obs_row[:name]) - $(obs_row[:obsid]) - Reports"),
         _webgen_subpage_css(),
         _webpage_subgen_slider_js(),
         body(
             div(class="se-pre-con"),
             div(class="container",
-                _webgen_report_intro(mission_name, obs_row, report_page_dir),
+                _webgen_report_intro(mission, obs_row, path_web; e_range=e_range),
                 _webgen_report_body(obs_row, img_details_overview),
                 _webgen_report_body_groups(obs_row, img_details_groups),
                 _webgen_subpage_footer()
@@ -325,15 +297,20 @@ function _webgen_subpage(mission_name, obs_row)
         )
     )
 
-    mkpath(report_page_dir)
-    !islink(JAXTAM_path_web) ? symlink(JAXTAM_path, JAXTAM_path_web) : ""
+    path_report = joinpath(path_web, "$e_range", "report.html")
+    mkpath(dirname(path_report))
     
-    write(joinpath(report_page_dir, "JAXTAM/report.html"), string(Pretty(html_out)))
-    return joinpath(report_page_dir, "JAXTAM/report.html")
+    write(path_report, string(Pretty(html_out)))
+    _log_add(mission, obs_row,
+        Dict("web" =>
+            Dict(e_range => path_report)
+        )
+    )
+    return path_report
 end
 
-function webgen_subpage(mission_name, obsid)
-    obs_row = master_query(mission_name, :obsid, obsid)
+function webgen_subpage(mission::Mission, obsid::String; e_range=_mission_good_e_range(mission))
+    obs_row = master_query(mission, :obsid, obsid)
 
-    return _webgen_subpage(mission_name, obs_row)
+    return _webgen_subpage(mission, obs_row; e_range=e_range)
 end
