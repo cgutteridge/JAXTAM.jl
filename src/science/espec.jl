@@ -47,7 +47,7 @@ function _xselect_cmd(mission_name::String, event_cl_path::String, out_basename:
     cd(origina_dir)
 end
 
-function _xselect_cmd(mission_name::Union{String,Symbol}, obs_row::DataFrames.DataFrame)
+function _xselect_cmd(mission_name::String, obs_row::DataFrames.DataFrame)
     return _xselect_cmd(String(mission_name), obs_row[1, :event_cl][1])
 end
 
@@ -74,7 +74,7 @@ function _grppha_cmd(path_xselect_spec::String, out_basename::String="grppha_out
     _call_with_redirect(CMDRedirect("grppha", lines))
 end
 
-function _grppha_cmd(mission_name::Union{String,Symbol}, obs_row::DataFrames.DataFrame)
+function _grppha_cmd(mission_name::String, obs_row::DataFrames.DataFrame)
     path_xselect_out = joinpath(dirname(obs_row[1, :event_cl][1]), "xselect_out.pi")
     return _grppha_cmd(path_xselect_out, "grppha_out.pi")
 end
@@ -109,15 +109,14 @@ function _xspec_ldata_cmd(path_grppha_spec::String, e_min::Float64, e_max::Float
     return(abspath(correct_path))
 end
 
-function _xspec_ldata_cmd(mission_name::Union{String,Symbol}, obs_row::DataFrames.DataFrame)
+function _xspec_ldata_cmd(mission::Mission, obs_row::DataFrames.DataFrame, e_range::Tuple{Float64,Float64})
     path_grppha_out = joinpath(dirname(obs_row[1, :event_cl][1]), "grppha_out.pi")
 
-    mission_config = JAXTAM.config(Symbol(mission_name))
-    (e_min, e_max) = (Float64(mission_config.good_energy_min), Float64(mission_config.good_energy_max))
+    (e_min, e_max) = e_range
 
     plot_path = _xspec_ldata_cmd(path_grppha_out, e_min, e_max)
     plot_log  = JAXTAM._log_entry(; category=:images, e_range=(e_min, e_max), kind=:espec, file_name=basename(plot_path))
-    JAXTAM._log_add(Symbol(mission_name), obs_row, Dict("images"=>Dict((e_min, e_max)=>plot_log)))
+    JAXTAM._log_add(mission, obs_row, Dict("images"=>Dict((e_min, e_max)=>plot_log)))
 end
 
 function _xspec_eufspec_cmd(path_grppha_spec::String, e_min::Float64, e_max::Float64)

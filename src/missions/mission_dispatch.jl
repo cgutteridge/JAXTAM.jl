@@ -78,7 +78,7 @@ function mission_summary(mission::Mission)
     println("$name\n\t$master_url\n\t$paths\n\t$e_range\n\t$instruments")
 end
 
-show(mission::Mission) = mission_sumary(mission)
+show(mission::Mission) = JAXTAM.mission_sumary(mission)
 
 function _mission_symbol_to_type(mission_symbol::Symbol)
     if isdefined(JAXTAM, mission_symbol)

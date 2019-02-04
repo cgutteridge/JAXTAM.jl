@@ -5,12 +5,12 @@ Downloads (and unzips) a master table from HEASARC given its `url`
 and a destination `path`
 """
 function _master_download(master_path::String, master_url::String)
-    @info "Downloading latest master catalog"
-    Base.download(master_url, master_path)
-
     if !isdir(dirname(master_path))
         mkpath(dirname(master_path))
     end
+    
+    @info "Downloading latest master catalog"
+    Base.download(master_url, master_path)
 
     # Windows (used to) unzip .gz during download, unzip now if Linux
     unzip!(master_path)
@@ -120,7 +120,7 @@ end
 Reads in a previously created `.feather` master table for a specific `mission_name`
 using a path provided by `_mission_master_url(mission))`
 """
-function master_base(mission::Mission; update=false)
+function master_base(mission::Mission; update=false, reload_cache=false)
     path_jaxtam         = mission_paths(mission)[:jaxtam]
     path_master_tdat    = joinpath(path_jaxtam, "master.tdat")
     path_master_feather = joinpath(path_jaxtam, "master.feather")
@@ -129,7 +129,7 @@ function master_base(mission::Mission; update=false)
         _master_download(path_master_tdat, _mission_master_url(mission))
     end
     
-    if isfile(path_master_feather)
+    if isfile(path_master_feather) && !update
         @info "Loading $path_master_feather"
         master_data = Feather.read(path_master_feather)
     elseif isfile(path_master_tdat)
@@ -139,9 +139,18 @@ function master_base(mission::Mission; update=false)
         Feather.write(path_master_feather, master_data)
     end
 
+    # Convert Primitive's to Dates.DateTime so they don't get returned as an Arrow timestamp 
+    for (col_key, col_data) in DataFrames.eachcol(master_data, true)
+        col_type = typeof(col_data) # 'col' is a Pair of (:key, col_data)
+        if col_type <: Primitive{T} where T <: Timestamp
+            master_data[col_key] = convert(Array{Dates.DateTime,1}, master_data[col_key])
+        end
+    end
+
     if isdefined(JAXTAM, Symbol(mission, "_master_df")) && update
-        master_base(mission; update=true)
-        master(mission; cache=true, reload_cache=true) # Reload cache if master is updated
+        if reload_cache || update
+            master(mission; cache=true, reload_cache=true, update=false) # Reload cache if master is updated
+        end
     end
 
     return master_data
@@ -161,32 +170,41 @@ function _add_append_publicity!(mission::Mission, append_df::DataFrames.DataFram
     return append_df
 end
 
-function _add_append_logged!(mission::Mission, append_df::DataFrames.DataFrame, master_df::DataFrames.DataFrame)
-    append_logged = falses(size(append_df, 1))
+function _add_append_logged_vars!(mission::Mission, append_df::DataFrames.DataFrame, master_df::DataFrames.DataFrame)
+    obs_count = size(append_df, 1)
+
+    append_logged      = falses(obs_count)
+    append_downloaded  = falses(obs_count)
+    append_error       = falses(obs_count)
+    append_error_stage = Array{String,1}(undef, obs_count)
 
     for (i, obs_row) in enumerate(DataFrames.eachrow(master_df))
         log_path         = _log_path(mission, obs_row)
-        append_logged[i] = isfile(log_path)
+        log_exists       = isfile(log_path)
+        append_logged[i] = log_exists
+
+        append_error_stage[i] = ""
+
+        if log_exists
+            log_contents = _log_query(mission, master_df[i, :])
+
+            if haskey(log_contents, "meta")
+                append_downloaded[i] = haskey(log_contents["meta"], :downloaded) ? log_contents["meta"][:downloaded] : false
+            end
+
+            if haskey(log_contents, "errors")
+                append_error[i] = true
+                append_error_stage[i] = join([string(k) for k in keys(log_contents["errors"])], ", ")
+            end
+        else
+            continue
+        end
     end
 
-    return append_df[:logged] = append_logged
-end
-
-"""
-    _add_append_downloaded!(append_df::DataFrames.DataFrame, master_df::DataFrames.DataFrame)
-
-Appends column of `Union{Bool,Missing}`, true if all cl files exist
-"""
-function _add_append_downloaded!(mission::Mission, append_df::DataFrames.DataFrame, master_df::DataFrames.DataFrame)
-    append_downloaded = falses(size(append_df, 1))
-
-    logged_indecies = findall(append_df[:logged])
-
-    for i in logged_indecies
-        append_downloaded[i] = _log_query(mission, master_df[i, :], "meta", :downloaded)
-    end
-
-    return append_df[:downloaded] = append_downloaded
+    append_df[:logged]      = append_logged
+    append_df[:downloaded]  = append_downloaded
+    append_df[:error]       = append_error
+    append_df[:error_stage] = append_error_stage
 end
 
 function _add_append_report!(mission::Mission, append_df::DataFrames.DataFrame, master_df::DataFrames.DataFrame)
@@ -201,7 +219,7 @@ function _add_append_report!(mission::Mission, append_df::DataFrames.DataFrame, 
     append_report_path[not_logged_indecies] .= ""
 
     for i in logged_indecies
-        web_reports = _log_query(mission, master_df[i, :], "web")
+        web_reports = _log_query(mission, master_df[i, :], "web"; surpress_warn=true)
 
         if ismissing(web_reports)
             append_report_path[i] = ""
@@ -214,8 +232,8 @@ function _add_append_report!(mission::Mission, append_df::DataFrames.DataFrame, 
         end
     end
 
-    append_df[:report_path]   = append_report_path
     append_df[:report_exists] = append_report_exists
+    append_df[:report_path]   = append_report_path
     return 
 end
 
@@ -228,8 +246,7 @@ function _append_gen(mission::Mission, master_df::DataFrames.DataFrame)
     append_df = DataFrame(obsid=master_df[:obsid])
 
     _add_append_publicity!(mission, append_df, master_df)
-    _add_append_logged!(mission, append_df, master_df)
-    _add_append_downloaded!(mission, append_df, master_df)
+    _add_append_logged_vars!(mission, append_df, master_df)
     _add_append_report!(mission, append_df, master_df)
 
     return append_df
@@ -244,7 +261,7 @@ function master_append(mission::Mission; update=false)
         Feather.write(path_append_feather, append_df)
         
         if isdefined(JAXTAM, Symbol(mission, "_master_df"))
-            master(mission; cache=true, reload_cache=true) # Reload cache if append is updated
+            master(mission; cache=true, reload_cache=true, update=false) # Reload cache if append is updated
         end
         return append_df
     else
@@ -253,8 +270,13 @@ function master_append(mission::Mission; update=false)
     end
 end
 
-function master(mission::Mission; cache=true, reload_cache=false)
-    master_df_var = Symbol(mission, "_master_df")
+function master(mission::Mission; cache=true, reload_cache=false, update=false)
+    master_df_var = Symbol(_mission_name(mission), "_master_df")
+
+    if update
+        master_base(mission; update=true)
+        master_append(mission; update=true)
+    end
 
     if cache
         if reload_cache
@@ -267,9 +289,16 @@ function master(mission::Mission; cache=true, reload_cache=false)
         else cache
             master_df = master_base(mission)
             append_df = master_append(mission)
+
+            # If reloading cache after master update, then current append_df may not be the correct size
+            # for some odd edge cases, this is a hacky fix
+            if size(master_df, 1) != size(append_df, 1)
+                append_df = master_append(mission; update=true)
+            end
+
             master_df_a = join(master_df, append_df, on=:obsid)
 
-            eval(:(global $master_df_var = $master_df_a))
+            eval(:(global const $master_df_var = $master_df_a))
 
             return getproperty(JAXTAM, master_df_var)
         end

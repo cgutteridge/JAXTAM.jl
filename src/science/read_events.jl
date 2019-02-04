@@ -120,7 +120,7 @@ function read_cl_fits(mission::Mission, obs_row::DataFrames.DataFrameRow{DataFra
         file_path = file_path[1:end-1]
         @info "Found: $file_path"
     else
-        throw(SystemError("attempted to opne:\n\t$file_path\n\t$(file_path[1:end-3])\n", 2, nothing))
+        throw(SystemError("attempted to open:\n\t$file_path\n\t$(file_path[1:end-3])\n", 2, nothing))
     end
     
     instrument_data = _read_fits_event(mission, file_path)
@@ -214,10 +214,7 @@ function read_cl(mission::Mission, obs_row::DataFrames.DataFrameRow{DataFrames.D
             
             if size(current_instrument.events, 1) == 0
                 @warn "No events found in $instrument observation $obsid"
-                _log_add(mission, obs_row, Dict("errors" => 
-                    Dict(:read_cl => "No events found, current_instrument.events size: $(size(current_instrument.events))"))
-                )
-                throw(ArgumentError("Unable to construct InstrumentData from empty DataFrame. Observation likely has no events"))
+                throw(JAXTAMError("Unable to construct InstrumentData from empty DataFrame. Observation likely has no events", :read_cl))
             else
                 cl_path = abspath(_obs_path_local(mission, obs_row; kind=:jaxtam), "JAXTAM", _log_query_path(; category=:data, kind=:feather_cl))
                 path_events, path_gtis, path_meta = _save_cl_feather(mission, obs_row, instrument, cl_path,

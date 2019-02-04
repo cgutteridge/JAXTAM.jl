@@ -39,6 +39,7 @@ const __sourcedir__ = abspath(@__DIR__, "..")
 
 include("missions/mission_dispatch.jl")
 include("utils/logging.jl")
+include("utils/errors.jl")
 include("io/master_tables.jl")
 include("io/master_query.jl")
 include("io/misc.jl")
@@ -55,5 +56,6 @@ include("science/espec.jl")
 include("web/webgen.jl")
 include("web/subgen.jl")
 include("web/reports.jl")
+include("web/autoreport.jl")
 
 end

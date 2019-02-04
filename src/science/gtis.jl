@@ -188,10 +188,12 @@ function _gtis_load(gti_dir::String, instrument, e_range::Tuple{Float64,Float64}
 end
 
 """
-    gtis(mission_name::Symbol, obs_row::DataFrames.DataFrame, bin_time::Number; overwrite=false)
+    gtis(mission_name::Symbol, obs_row::DataFrames.DataFrame, bin_time::Number;  =false)
 
 Handles file management, checks to see if GTI files exist already and loads them, if files do not 
 exist then the `_gits` function is ran, then the data is saved
+
+TODO: FIX E_RANGE PROPAGATION WHEN LCURVE_DATA IS GIVEN
 """
 function gtis(mission::Mission, obs_row::DataFrames.DataFrameRow{DataFrames.DataFrame}, bin_time::Number; overwrite=false,
         e_range::Tuple{Float64,Float64}=_mission_good_e_range(mission),
@@ -208,8 +210,10 @@ function gtis(mission::Mission, obs_row::DataFrames.DataFrameRow{DataFrames.Data
             @info "Missing gti files for $instrument"
 
             if !all(haskey.(lcurve_data, instruments))
-                lcurve_data = lcurve(mission, obs_row, bin_time)
+                lcurve_data = lcurve(mission, obs_row, bin_time, e_range=e_range)
             end
+
+            @assert _recursive_first(lcurve_data).e_range == e_range "lcurve energy range does not match input: $(_recursive_first(gtis_data).e_range) != $e_range"
 
             @info "Selecting GTIs for $instrument"
             gtis_data = _gtis(lcurve_data[Symbol(instrument)])

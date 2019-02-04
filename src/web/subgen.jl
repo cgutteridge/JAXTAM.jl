@@ -26,10 +26,10 @@ function _webgen_subpage_css()
             background: rgba(0,0,0,0.5);
             width:100%;
             max-height:32%;
-        }
+        }_webgen_subpage
 
-        #prev, #next{
-            cursor:pointer;
+        #_webgen_subpagext{
+         _webgen_subpage:pointer;
             z-index:100;
             background:#666;
             height:50px;
@@ -167,7 +167,7 @@ function _webgen_report_intro(mission::Mission, obs_row::DataFrames.DataFrameRow
     name  = obs_row[:name]
     abstract_text = obs_row[:abstract]
 
-    log_reports = _log_query(mission, obs_row, "web")
+    log_reports = _log_query(mission, obs_row, "web"; surpress_warn=true)
     if ismissing(log_reports)
         report_df = DataFrame()
     else
@@ -275,6 +275,10 @@ function _webgen_subpage(mission::Mission, obs_row::DataFrames.DataFrameRow{Data
     mkpath(path_web)
     
     log_images  = _log_query(mission, obs_row, "images", e_range)
+
+    if ismissing(log_images)
+        throw(JAXTAMError("No images in log, no web page to generate", :webgen_subpage))
+    end
 
     img_details_overview = filter(x->ismissing(x[:group]), log_images)
     img_details_overview = sort(img_details_overview, (:group, :kind_order))

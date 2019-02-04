@@ -238,8 +238,10 @@ function fspec(mission::Mission, obs_row::DataFrames.DataFrameRow{DataFrames.Dat
             @info "Missing fspec files for $instrument"
 
             if !all(haskey.(gtis_data, instruments))
-                gtis_data = JAXTAM.gtis(mission, obs_row, bin_time)
+                gtis_data = JAXTAM.gtis(mission, obs_row, bin_time, overwrite=overwrite_gtis, e_range=e_range)
             end
+
+            @assert _recursive_first(gtis_data).e_range == e_range "gti energy range does not match input: $(_recursive_first(gtis_data).e_range) != $e_range"
 
             @info "Generating fspec for $instrument"
             fspec_data = _fspec(gtis_data[instrument], fspec_bin; pow2=pow2, fspec_bin_type=fspec_bin_type)
@@ -267,12 +269,12 @@ function fspec(mission::Mission, obs_row::DataFrames.DataFrameRow{DataFrames.Dat
 end
 
 function fspec(mission::Mission, obsid::String, bin_time::Number, fspec_bin::Real;
-    overwrite_fs=false, overwrite_gtis=false, pow2=true, fspec_bin_type=:time, scrunched=true)
+    overwrite_fs=false, overwrite_gtis=false, pow2=true, fspec_bin_type=:time, scrunched=true, e_range=_mission_good_e_range(mission))
 
     obs_row = master_query(mission, :obsid, obsid)
 
     fs = fspec(mission, obs_row, bin_time, fspec_bin; overwrite=overwrite_fs, overwrite_gtis=overwrite_gtis,
-        pow2=pow2, fspec_bin_type=fspec_bin_type, scrunched=scrunched)
+        pow2=pow2, fspec_bin_type=fspec_bin_type, scrunched=scrunched, e_range=e_range)
     
     return fs
 end

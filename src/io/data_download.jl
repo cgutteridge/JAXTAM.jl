@@ -18,7 +18,15 @@ function download(mission::Mission, obs_row::DataFrames.DataFrameRow{DataFrames.
         mkpath(dir_dest)
 
         println(download_command)
-        run(download_command)
+        try
+            run(download_command)
+        catch err
+            if typeof(err) != InterruptException
+                throw(JAXTAMError("Error downloading heasarc.gsfc.nasa.gov:$dir_down", :download, err))
+            else
+                rethrow(err)
+            end
+        end
         _log_add(mission, obs_row, Dict("meta"=>Dict(:downloaded=>true)))
     end
 end

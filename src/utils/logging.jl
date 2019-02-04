@@ -151,7 +151,7 @@ function _log_add(mission::Mission, obs_row::DataFrames.DataFrameRow{DataFrames.
     return log_new
 end
 
-function _log_query(mission::Mission, obs_row::DataFrames.DataFrameRow{DataFrames.DataFrame}, args...)
+function _log_query(mission::Mission, obs_row::DataFrames.DataFrameRow{DataFrames.DataFrame}, args...; surpress_warn=false)
     log = _log_read(mission, obs_row)
 
     reply = log
@@ -160,7 +160,9 @@ function _log_query(mission::Mission, obs_row::DataFrames.DataFrameRow{DataFrame
             if haskey(reply, key)
                 reply = reply[key]
             else
-                @warn "Key '$key' not found in log, available: $(keys(reply))"
+                if !surpress_warn
+                    @warn "Key '$key' not found in $(obs_row[:obsid]) log, available: $(keys(reply))"
+                end
                 return missing
             end
         else
