@@ -17,6 +17,27 @@ function _plot_fspec_grid(fs::Dict{Symbol,Dict{Int64,JAXTAM.FFTData}},
     savefig(example, obs_row, example.e_range; plot_name="grid")
 end
 
+"""
+    report(::Mission, ::DataFrameRow; e_range::Tuple{Float64,Float64}, overwrite::Bool, nuke::Bool, update_masterpage::Bool)
+
+Generates a report for the default energy range
+
+Creates plots for:
+    * Lightcurve (+ grouped lightcurves)
+    * Periodigram (+ grouped periodograms)
+    * Power Spectra
+        * :rms, full range, log-rebinned, log-log plot
+        * :leahy, full range, log-rebinned, log-log plot
+        * :leahy, 0 to 1 Hz, no rebin, linear-linear plot
+        * :leahy, 1 to end Hz, no rebin, linear-linear plot
+        * :leahy, 50 to end Hz, no regin, linear-linear plot
+    * Spectrogram
+    * Pulsation search plot
+
+Produces HTML report page
+
+Updates the homepage
+"""
 function report(mission, obs_row; e_range=_mission_good_e_range(mission), overwrite=false, nuke=false, update_masterpage=true)
     path_jaxtam = abspath(_obs_path_local(mission, obs_row; kind=:jaxtam), "JAXTAM")
     path_web    = abspath(_obs_path_local(mission, obs_row; kind=:web), "JAXTAM")
@@ -123,6 +144,11 @@ function report(mission::Mission, obsid::String; e_range=_mission_good_e_range(m
     return report(mission, obs_row; e_range=e_range, overwrite=overwrite, nuke=nuke, update_masterpage=update_masterpage)
 end
 
+"""
+    report_all(::Mission, ::DataFrameRow; e_ranges=[(0.2,12.0), (2.0,10.0), (0.2,2.0)], overwrite::Bool, nuke::Bool, update_masterpage::Bool)
+
+Calls `report` with three default energy ranges
+"""
 function report_all(mission::Mission, obs_row::DataFrames.DataFrameRow; e_ranges=[(0.2,12.0), (2.0,10.0), (0.2,2.0)], overwrite=false, nuke=false, update_masterpage=true)
     if nuke
         path_jaxtam = abspath(_obs_path_local(mission, obs_row; kind=:jaxtam), "JAXTAM")

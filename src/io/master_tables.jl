@@ -270,7 +270,19 @@ function master_append(mission::Mission; update=false)
     end
 end
 
-function master(mission::Mission; cache=true, reload_cache=false, update=false)
+"""
+    master(::Mission; cache::Bool, reload_cache::Bool, update::Bool)
+
+Wrapper function which deals with downloading and updating both the `master` and `append` files, as well as 
+the caching functionality
+
+Will download and set up the master and append files when first called
+
+Subsequent calls will use the downloaded files
+
+If you want to update the master table, simply call `master(::Mission, update=true)`
+"""
+function master(mission::Mission; cache::Bool=true, reload_cache::Bool=false, update::Bool=false)
     master_df_var = Symbol(_mission_name(mission), "_master_df")
 
     if update

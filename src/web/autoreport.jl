@@ -9,6 +9,21 @@ function auto_queue(mission::Mission)
     return queue
 end
 
+"""
+    auto_report(::Mission; limit::Union{Bool,Int}, update::Bool, nuke::Bool)
+
+Calls `auto_queue` function to generate a queue of reports to make, the queue filters:
+    * Public-only
+    * Reportless
+    * Not 'CAL' type observations
+    * Error free
+
+Leaving only suitable observations to be analysed
+
+Calls 'report_all' using the queued observations
+
+Will continue to generate reports until the `limit` is reached (if there is one)
+"""
 function auto_report(mission::Mission; limit=false, update=true, nuke=false)
     if update
         master(mission; update=true)
