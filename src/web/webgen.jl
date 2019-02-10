@@ -130,14 +130,10 @@ function _webgen_table(df_row::DataFrames.DataFrameRow, path_web; table_id="exam
     return _webgen_table(df, path_web; table_id=table_id)
 end
 
-function webgen_mission(mission::Mission; update_append=true)
-    if update_append
-        master_append(mission; update=true)
-    end
-
+function webgen_mission(mission::Mission; master_cache=false)
     c = 0
 
-    master_df = master(mission)
+    master_df = master(mission, cache=master_cache)
     
     included_cols = [
         :name,
