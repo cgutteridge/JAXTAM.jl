@@ -33,7 +33,17 @@ end
 
 function download(mission::Mission, obs_rows::DataFrames.DataFrame; overwrite=false)
     for obs_row in DataFrames.eachrow(obs_rows)
-        download(mission, obs_row; overwrite=overwrite)
+        try
+            download(mission, obs_row; overwrite=overwrite)
+        catch err
+            if typeof(err) == JAXTAMError
+                _log_add(mission, obs_row, Dict{String,Any}("errors"=>Dict(err.step=>err)))
+                @warn err
+                continue
+            else
+                rethrow(err)
+            end
+        end
     end
 end
 
