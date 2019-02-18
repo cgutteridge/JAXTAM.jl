@@ -167,8 +167,11 @@ version = "0.36.0"
 
 [[Hyperscript]]
 deps = ["Test"]
+git-tree-sha1 = "eec4f9c175f71c2ae6567fa0bd5d511b65cdb44c"
 repo-rev = "master"
 repo-url = "https://github.com/yurivish/Hyperscript.jl.git"
+uuid = "61f73626-e61e-46c8-aded-7ef67e964bac"
+version = "0.0.3"
 
 [[InteractiveUtils]]
 deps = ["LinearAlgebra", "Markdown"]
